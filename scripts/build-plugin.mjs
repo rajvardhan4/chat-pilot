@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PLUGIN_DIR = path.join(ROOT, 'wordpress-plugin', 'chat-pilot');
 const MAIN_FILE = path.join(PLUGIN_DIR, 'chat-pilot.php');
-const DIST = path.join(ROOT, 'dist');
+const DIST = path.join(ROOT, 'dist', 'plugin');
 
 /** Files and folders that must never ship to a customer. */
 const EXCLUDE = [/^\.git/, /^node_modules$/, /\.DS_Store$/, /^Thumbs\.db$/, /~$/, /\.log$/];
@@ -195,5 +195,5 @@ const target = path.join(DIST, `chat-pilot-${header}.zip`);
 writeZip(target, files);
 
 const bytes = statSync(target).size;
-console.log(`[build] ${files.length} files -> dist/chat-pilot-${header}.zip (${(bytes / 1024).toFixed(1)} KB)`);
+console.log(`[build] ${files.length} files -> dist/plugin/chat-pilot-${header}.zip (${(bytes / 1024).toFixed(1)} KB)`);
 console.log('[build] upload this file in WordPress: Plugins -> Add New -> Upload Plugin');

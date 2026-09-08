@@ -230,7 +230,7 @@ npm run plugin:major    # 2.0.0 -> 3.0.0   breaking change
 Each command updates the version **in both places it lives** (the plugin header
 WordPress reads, and the `CHAT_PILOT_VERSION` constant used for cache-busting
 and sent to Chat Pilot Cloud), then writes a new
-`dist/chat-pilot-<version>.zip`.
+`dist/plugin/chat-pilot-<version>.zip`.
 
 If the two versions ever disagree the build **refuses to run** rather than
 producing a broken plugin. Fix it with an exact version:

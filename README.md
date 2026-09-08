@@ -77,10 +77,10 @@ provider keys are encrypted and are never shown there either.
 
 ### 3. Install the plugin
 
-1. Build the installable ZIP (or use the one already in `dist/`):
+1. Build the installable ZIP (or use the one already in `dist/plugin/`):
 
    ```bash
-   npm run plugin:build      # -> dist/chat-pilot-<version>.zip
+   npm run plugin:build      # -> dist/plugin/chat-pilot-<version>.zip
    ```
 
    Upload it in WordPress: **Plugins → Add New → Upload Plugin**.
@@ -107,7 +107,7 @@ npm run plugin:major    # 2.0.0 -> 3.0.0   breaking changes
 ```
 
 Each writes the version to **both** places it lives (the plugin header and the
-`CHAT_PILOT_VERSION` constant) and produces a new `dist/chat-pilot-<version>.zip`.
+`CHAT_PILOT_VERSION` constant) and produces a new `dist/plugin/chat-pilot-<version>.zip`.
 If the two ever disagree the build refuses to run. Full details in
 [docs/RUNNING.md](docs/RUNNING.md).
 

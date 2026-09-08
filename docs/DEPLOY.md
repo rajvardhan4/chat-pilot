@@ -6,6 +6,25 @@ It needs a server you control — a VPS — not PHP shared hosting.
 The WordPress plugin is the opposite: it is ordinary PHP and belongs on whatever
 hosting the client's site already uses.
 
+## Two ways to get the code onto the server
+
+**With git** (recommended — `git pull` is the whole update from then on):
+see "Upload the code" below.
+
+**With a ZIP** (no git access on the host, or a one-off manual install):
+
+```bash
+npm run cloud:build
+```
+
+Produces `dist/cloud/chat-pilot-cloud-<date>-<commit>.zip` — everything under
+`saas/` and `deploy/`, minus `node_modules`, `saas/data`, `saas/.env` and
+`saas/tests`. Unzip it as `/var/www/chat-pilot` on the server and every command
+below is identical either way. This is the SIBLING of `npm run plugin:build`,
+not a replacement — one ships to your own VPS, the other to a customer's
+WordPress site. Two different destinations, kept in two different folders:
+`dist/cloud/` and `dist/plugin/`.
+
 ## What ships in `deploy/`
 
 | File | Purpose |
