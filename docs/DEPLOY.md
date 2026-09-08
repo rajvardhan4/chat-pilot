@@ -74,6 +74,64 @@ journalctl -u chat-pilot -n 30
 
 Migrations run at startup. Downtime is the few seconds of the restart.
 
+## Automatic deploys (optional)
+
+`.github/workflows/deploy.yml` redeploys automatically on every push to
+`master`/`main`: SSH in, `git pull`, `npm install`, `chown`, restart, then
+check `/healthz`. It runs the exact commands the manual "Updating" section
+above has you type — nothing Hostinger-specific, it works against any VPS
+reachable over SSH.
+
+Two of Hostinger's own "connect to GitHub" features exist but do not fit this
+app: the generic Git integration in hPanel only copies files into
+`public_html` — no `npm install`, no service restart — and the "Deploy to
+Hostinger VPS" GitHub Action is Docker-only, which this deployment is not.
+Plain SSH is what actually runs the three commands.
+
+### One-time setup, once the VPS exists
+
+1. **Generate a dedicated deploy key** on your own machine — not the key you
+   use to SSH in personally:
+
+   ```bash
+   ssh-keygen -t ed25519 -f chat-pilot-deploy -N "" -C "chat-pilot-deploy"
+   ```
+
+   This makes two files: `chat-pilot-deploy` (private) and
+   `chat-pilot-deploy.pub` (public).
+
+2. **Authorise the public half on the VPS**, for `root` — the workflow
+   connects as `root`, matching every command in "Updating" above:
+
+   ```bash
+   cat chat-pilot-deploy.pub | ssh root@YOUR.VPS.IP "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+   ```
+
+3. **Get the server's host key fingerprint**, so the workflow can tell your
+   real VPS apart from anything else that might end up at that address:
+
+   ```bash
+   ssh-keyscan -t ed25519 YOUR.VPS.IP | ssh-keygen -lf -
+   ```
+
+   Copy the `SHA256:…` part of the output.
+
+4. **Add three repository secrets** — GitHub → this repo → Settings →
+   Secrets and variables → Actions → New repository secret:
+
+   | Secret | Value |
+   | --- | --- |
+   | `VPS_HOST` | the VPS IP or `app.yourdomain.com` |
+   | `VPS_SSH_KEY` | the full contents of `chat-pilot-deploy` (the private file) |
+   | `VPS_HOST_FINGERPRINT` | the `SHA256:…` line from step 3 |
+
+5. **Delete the local key files** once both secrets are saved —
+   `chat-pilot-deploy` and `chat-pilot-deploy.pub` — they only need to exist
+   on GitHub and on the VPS's `authorized_keys` from here on.
+
+Push a change under `saas/` and watch the **Actions** tab. From then on,
+`git push` is the entire deploy.
+
 ## When the database outgrows SQLite
 
 It will not for a long time — chat traffic is small writes, and the AI call

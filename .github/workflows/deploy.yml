@@ -1,0 +1,67 @@
+name: Deploy Chat Pilot Cloud
+
+# Runs the same three commands the deploy guide has you type by hand -
+# git pull, npm install, systemctl restart - except over SSH, on every push
+# to the default branch. Nothing Hostinger-specific: this works against any
+# VPS you can SSH into, because it IS just SSH.
+#
+# Needs three repository secrets, set once, after the VPS exists (see
+# docs/DEPLOY.md "Automatic deploys" for exactly how to produce each one):
+#
+#   VPS_HOST             the server's IP or app.yourdomain.com
+#   VPS_SSH_KEY           the deploy key's PRIVATE half
+#   VPS_HOST_FINGERPRINT  SHA256 fingerprint of the server's SSH host key -
+#                         proves this workflow is really talking to your VPS
+#                         and not, say, a DNS hijack pointed at another host
+#
+# Settings -> Secrets and variables -> Actions -> New repository secret.
+
+on:
+  push:
+    branches: [master, main]
+    # Only redeploy when something that actually runs on the server changed.
+    # A docs-only or plugin-only commit does not need the service restarted.
+    paths:
+      - 'saas/**'
+      - 'deploy/**'
+      - '.github/workflows/deploy.yml'
+
+  # Lets you trigger a redeploy by hand from the Actions tab without a new
+  # commit - useful right after rotating a secret, or to retry a failed run.
+  workflow_dispatch:
+
+concurrency:
+  # A second push while one deploy is running queues behind it instead of
+  # racing it - two `systemctl restart` calls overlapping is how you get a
+  # half-restarted service.
+  group: chat-pilot-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          # root, matching every command in docs/DEPLOY.md: git pull and
+          # npm install both need write access under /var/www/chat-pilot, and
+          # restarting a systemd unit needs root regardless of who owns the
+          # files. A locked-down deploy user with a narrow sudoers rule is a
+          # reasonable next step later; root is what today's manual process
+          # already trusts, so the automated version starts no wider than that.
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          fingerprint: ${{ secrets.VPS_HOST_FINGERPRINT }}
+          script_stop: true
+          script: |
+            set -e
+            cd /var/www/chat-pilot
+            git pull --ff-only
+            cd saas
+            npm install --omit=dev
+            chown -R chatpilot:chatpilot /var/www/chat-pilot
+            systemctl restart chat-pilot
+            sleep 2
+            curl -sf http://127.0.0.1:4000/healthz || (echo "health check failed after deploy" && exit 1)

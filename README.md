@@ -12,7 +12,7 @@ for comparison.
 
 **Documentation**
 * **[How to run it](docs/RUNNING.md)** — setup, the plugin ZIP, and the version-bump rule
-* **[How to deploy it](docs/DEPLOY.md)** — VPS, systemd, nginx, HTTPS, backups
+* **[How to deploy it](docs/DEPLOY.md)** — VPS, systemd, nginx, HTTPS, backups, auto-deploy on push
 * [Architecture map](docs/ARCHITECTURE-MAP.md) — the v1 product, and where every part lives now
 * [Site API contract](docs/API.md) — the plugin ↔ Cloud protocol
 
