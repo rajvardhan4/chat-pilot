@@ -1,0 +1,59 @@
+<%- include('../partials/head') %>
+<%- include('../partials/admin-header') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">Plans</h2>
+  <div class="cp-table-wrap">
+    <table class="cp-table">
+      <thead><tr><th>Plan</th><th>Slug</th><th>Price</th><th>Websites</th><th>Documents</th><th>Messages/mo</th><th>Storage</th><th>Active</th></tr></thead>
+      <tbody>
+      <% plans.forEach(function (p) { %>
+        <tr>
+          <td><strong><%= p.name %></strong></td>
+          <td><span class="cp-code"><%= p.slug %></span></td>
+          <td>$<%= (p.price_cents / 100).toFixed(2) %></td>
+          <td><%= p.max_websites %></td>
+          <td><%= p.max_documents.toLocaleString() %></td>
+          <td><%= p.max_messages_month.toLocaleString() %></td>
+          <td><%= p.max_storage_mb %> MB</td>
+          <td><%= p.is_active ? 'yes' : 'no' %></td>
+        </tr>
+      <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="cp-grid cp-grid-2">
+  <form class="cp-card" method="post" action="/admin/plans">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h3 class="cp-card-title">Create or update a plan</h3>
+    <p class="cp-description">Saving an existing slug updates that plan in place.</p>
+    <div class="cp-grid cp-grid-2">
+      <div class="cp-form-group"><label class="cp-label" for="name">Name</label><input class="cp-input" id="name" name="name" required></div>
+      <div class="cp-form-group"><label class="cp-label" for="slug">Slug</label><input class="cp-input" id="slug" name="slug" placeholder="growth" required></div>
+      <div class="cp-form-group"><label class="cp-label" for="price_cents">Price (cents)</label><input class="cp-input" type="number" id="price_cents" name="price_cents" value="0" min="0" required></div>
+      <div class="cp-form-group"><label class="cp-label" for="max_websites">Max websites</label><input class="cp-input" type="number" id="max_websites" name="max_websites" value="1" min="0" required></div>
+      <div class="cp-form-group"><label class="cp-label" for="max_documents">Max documents</label><input class="cp-input" type="number" id="max_documents" name="max_documents" value="500" min="0" required></div>
+      <div class="cp-form-group"><label class="cp-label" for="max_messages_month">Messages / month</label><input class="cp-input" type="number" id="max_messages_month" name="max_messages_month" value="2000" min="0" required></div>
+      <div class="cp-form-group"><label class="cp-label" for="max_storage_mb">Storage (MB)</label><input class="cp-input" type="number" id="max_storage_mb" name="max_storage_mb" value="100" min="0" required></div>
+    </div>
+    <label class="cp-checkbox-label"><input type="checkbox" name="is_active" checked> Plan is selectable</label>
+    <button class="cp-btn cp-btn-primary" type="submit">Save plan</button>
+  </form>
+
+  <form class="cp-card" method="post" action="/admin/pricing">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h3 class="cp-card-title">Model cost estimates</h3>
+    <p class="cp-description">
+      USD per 1,000,000 tokens. These drive the estimated cost shown to customers &mdash; they are Chat Pilot
+      estimates, not provider invoices. Editing here overrides the built-in table.
+    </p>
+    <div class="cp-form-group">
+      <textarea class="cp-input" name="rates" rows="16" style="font-family:ui-monospace,Consolas,monospace; font-size:0.8rem"><%= JSON.stringify(rates, null, 2) %></textarea>
+    </div>
+    <button class="cp-btn cp-btn-primary" type="submit">Save pricing</button>
+  </form>
+</div>
+
+<%- include('../partials/foot') %>

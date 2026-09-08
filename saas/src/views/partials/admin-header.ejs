@@ -1,0 +1,38 @@
+<div class="cp-shell">
+  <div id="cp-toast" class="cp-alert cp-toast"></div>
+
+  <header class="cp-header">
+    <div class="cp-logo">
+      <a href="/admin" class="cp-logo-img" aria-label="Chat Pilot master admin"></a>
+      <div>
+        <h1>Chat Pilot Master Admin</h1>
+        <span class="cp-badge-pilot">MASTER</span>
+        <p class="cp-brand-sub">Platform administration &middot; <strong>Local Marketing Geeks</strong></p>
+      </div>
+    </div>
+    <div class="cp-header-actions">
+      <%- include('./theme-toggle') %>
+      <span class="cp-status-badge is-admin"><span class="cp-status-dot"></span> <%= user.email %></span>
+      <a class="cp-btn cp-btn-secondary cp-btn-sm" href="/app">Client portal</a>
+      <form method="post" action="/logout" style="margin:0">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit" class="cp-btn cp-btn-secondary cp-btn-sm">Sign out</button>
+      </form>
+    </div>
+  </header>
+
+  <nav class="cp-tabs-nav">
+    <a class="cp-tab-link <%= activeTab === 'dashboard' ? 'active' : '' %>" href="/admin">Dashboard</a>
+    <a class="cp-tab-link <%= activeTab === 'accounts' ? 'active' : '' %>" href="/admin/accounts">Customers</a>
+    <a class="cp-tab-link <%= activeTab === 'websites' ? 'active' : '' %>" href="/admin/websites">Websites</a>
+    <a class="cp-tab-link <%= activeTab === 'plans' ? 'active' : '' %>" href="/admin/plans">Plans &amp; Pricing</a>
+    <a class="cp-tab-link <%= activeTab === 'health' ? 'active' : '' %>" href="/admin/health">System Health</a>
+    <a class="cp-tab-link <%= activeTab === 'audit' ? 'active' : '' %>" href="/admin/audit">Audit Log</a>
+  </nav>
+
+  <% if (typeof notice !== 'undefined' && notice) { %>
+    <div class="cp-alert cp-alert-success">✓ <%= notice %></div>
+  <% } %>
+  <% if (typeof error !== 'undefined' && error) { %>
+    <div class="cp-alert cp-alert-error">✕ <%= error %></div>
+  <% } %>

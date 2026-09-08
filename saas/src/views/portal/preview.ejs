@@ -1,0 +1,49 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<div data-website-id="<%= website.id %>"></div>
+<%- include('../partials/portal-tabs') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">Developer Chat Preview <small>Same engine as the live widget</small></h2>
+  <p class="cp-description">
+    This preview runs the exact response pipeline your visitors hit &mdash; context resolution, retrieval,
+    source priority, AI instructions, provider and model. Only the diagnostics panel is extra; visitors
+    never see it.
+  </p>
+  <% if (!providerConfig.active_provider || !providerConfig.active_model) { %>
+    <div class="cp-alert cp-alert-warning">
+      ⚠ No AI provider is selected yet. <a href="/app/websites/<%= website.id %>/providers">Configure a provider</a> to generate real answers.
+    </div>
+  <% } %>
+  <% if (knowledge.totalDocuments === 0) { %>
+    <div class="cp-alert cp-alert-warning">
+      ⚠ Your Knowledge Base is empty, so every business question will return the Missing Knowledge Fallback.
+    </div>
+  <% } %>
+</div>
+
+<div class="cp-grid cp-grid-sidebar">
+  <div class="cp-card">
+    <h3 class="cp-card-title">Conversation
+      <button class="cp-btn cp-btn-secondary cp-btn-sm" type="button" id="cp-preview-reset">Start new session</button>
+    </h3>
+    <div class="cp-chat-panel">
+      <div class="cp-chat-stream" id="cp-preview-stream">
+        <div class="cp-chat-msg is-bot"><div class="cp-chat-bubble"><%= instructions.greeting_response %></div></div>
+      </div>
+      <form class="cp-chat-composer" id="cp-preview-form">
+        <input class="cp-input" id="cp-preview-input" placeholder="Ask a question as a visitor would…" autocomplete="off">
+        <button class="cp-btn cp-btn-primary" type="submit">Send</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="cp-card">
+    <h3 class="cp-card-title">Diagnostics</h3>
+    <div id="cp-preview-diagnostics">
+      <p class="cp-muted">Send a message to see intent, retrieval scores, source priority, provider, model, tokens and latency.</p>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/foot', { pageScripts: ['/assets/js/preview.js'] }) %>

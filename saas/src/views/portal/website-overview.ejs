@@ -1,0 +1,84 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<div data-website-id="<%= website.id %>"></div>
+<%- include('../partials/portal-tabs') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">
+    <%= website.name %>
+    <span class="cp-flex">
+      <span class="cp-pill <%= website.status === 'active' ? 'cp-pill-success' : 'cp-pill-error' %>"><%= website.status %></span>
+      <% if (website.verified_at) { %><span class="cp-pill cp-pill-info">ownership verified</span><% } %>
+    </span>
+  </h2>
+  <p class="cp-description"><%= website.url %> &middot; registered <%= website.created_at %></p>
+
+  <div class="cp-kpi-grid">
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">💬</div><div><div class="cp-kpi-value"><%= analytics.conversations %></div><div class="cp-kpi-label">Conversations (30d)</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🎯</div><div><div class="cp-kpi-value"><%= analytics.leads %></div><div class="cp-kpi-label">Leads (30d)</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">📚</div><div><div class="cp-kpi-value"><%= knowledge.totalDocuments %></div><div class="cp-kpi-label">Knowledge Docs</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🤖</div><div><div class="cp-kpi-value"><%= analytics.aiRequests %></div><div class="cp-kpi-label">AI Requests (30d)</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">⚡</div><div><div class="cp-kpi-value"><%= analytics.avgLatencyMs %>ms</div><div class="cp-kpi-label">Avg Latency</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">💵</div><div><div class="cp-kpi-value">$<%= analytics.estimatedCost.toFixed(4) %></div><div class="cp-kpi-label">Est. Cost (30d)</div></div></div>
+  </div>
+</div>
+
+<div class="cp-grid cp-grid-2">
+  <div class="cp-card">
+    <h3 class="cp-card-title">Setup checklist</h3>
+    <ul class="cp-inline-list">
+      <li><span>AI provider connected</span><span>
+        <% const connected = providers.filter(function (p) { return p.status === 'connected'; }); %>
+        <% if (connected.length) { %><span class="cp-pill cp-pill-success">yes</span><% } else { %><a class="cp-btn cp-btn-primary cp-btn-sm" href="/app/websites/<%= website.id %>/providers">Connect</a><% } %>
+      </span></li>
+      <li><span>Model selected</span><span>
+        <% if (providerConfig.active_model) { %><span class="cp-pill cp-pill-success"><%= providerConfig.active_model %></span><% } else { %><span class="cp-pill cp-pill-warning">not set</span><% } %>
+      </span></li>
+      <li><span>Knowledge base</span><span>
+        <% if (knowledge.totalDocuments > 0) { %><span class="cp-pill cp-pill-success"><%= knowledge.totalDocuments %> docs</span><% } else { %><a class="cp-btn cp-btn-secondary cp-btn-sm" href="/app/websites/<%= website.id %>/knowledge">Add knowledge</a><% } %>
+      </span></li>
+      <li><span>Site API Key issued</span><span>
+        <% const activeKeys = keys.filter(function (k) { return k.status === 'active'; }); %>
+        <% if (activeKeys.length) { %><span class="cp-pill cp-pill-success"><%= activeKeys.length %> active</span><% } else { %><a class="cp-btn cp-btn-secondary cp-btn-sm" href="/app/websites/<%= website.id %>/connection">Generate key</a><% } %>
+      </span></li>
+      <li><span>Plugin connected</span><span>
+        <% if (website.last_connected_at) { %><span class="cp-pill cp-pill-success"><%= website.last_connected_at %></span><% } else { %><span class="cp-pill cp-pill-warning">waiting</span><% } %>
+      </span></li>
+      <li><span>Widget enabled</span><span>
+        <% if (widget.enabled) { %><span class="cp-pill cp-pill-success">on</span><% } else { %><span class="cp-pill cp-pill-warning">off</span><% } %>
+      </span></li>
+    </ul>
+  </div>
+
+  <div class="cp-card">
+    <h3 class="cp-card-title">Knowledge sources</h3>
+    <ul class="cp-inline-list">
+      <li><span>FAQs</span><span><%= knowledge.byType.faq.total %></span></li>
+      <li><span>Manual knowledge</span><span><%= knowledge.byType.manual.total %></span></li>
+      <li><span>Uploaded documents</span><span><%= knowledge.byType.file.total %></span></li>
+      <li><span>Website pages</span><span><%= knowledge.byType.website.total %></span></li>
+      <li><span>Total words indexed</span><span><%= knowledge.totalWords.toLocaleString() %></span></li>
+    </ul>
+    <a class="cp-btn cp-btn-secondary cp-btn-sm cp-mt" href="/app/websites/<%= website.id %>/knowledge">Manage knowledge</a>
+  </div>
+</div>
+
+<div class="cp-card">
+  <h3 class="cp-card-title">AI usage by model <small>Last 30 days</small></h3>
+  <% if (!analytics.byModel.length) { %>
+    <div class="cp-empty">No AI requests recorded yet.</div>
+  <% } else { %>
+    <div class="cp-table-wrap">
+      <table class="cp-table">
+        <thead><tr><th>Provider</th><th>Model</th><th>Requests</th><th>Tokens</th><th>Est. cost</th></tr></thead>
+        <tbody>
+        <% analytics.byModel.forEach(function (m) { %>
+          <tr><td><%= m.provider %></td><td><%= m.model %></td><td><%= m.requests %></td><td><%= m.tokens.toLocaleString() %></td><td>$<%= m.cost.toFixed(4) %></td></tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../partials/foot') %>

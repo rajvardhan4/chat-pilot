@@ -1,0 +1,50 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<div data-website-id="<%= website.id %>"></div>
+<%- include('../partials/portal-tabs') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">Conversations <small><%= total %> total on this website</small></h2>
+  <form method="get" class="cp-flex" style="margin-bottom:1rem">
+    <select class="cp-select" name="status" style="max-width:180px">
+      <% ['all','active','completed','archived'].forEach(function (s) { %>
+        <option value="<%= s %>" <%= filter.status === s ? 'selected' : '' %>><%= s %></option>
+      <% }); %>
+    </select>
+    <select class="cp-select" name="source" style="max-width:200px">
+      <% ['all','widget','preview'].forEach(function (s) { %>
+        <option value="<%= s %>" <%= filter.source === s ? 'selected' : '' %>><%= s === 'preview' ? 'developer preview' : s %></option>
+      <% }); %>
+    </select>
+    <input class="cp-input" name="search" value="<%= filter.search %>" placeholder="Search visitor or summary" style="max-width:300px">
+    <button class="cp-btn cp-btn-secondary" type="submit">Filter</button>
+  </form>
+
+  <% if (!conversations.length) { %>
+    <div class="cp-empty">No conversations match these filters.</div>
+  <% } else { %>
+    <div class="cp-table-wrap">
+      <table class="cp-table">
+        <thead><tr><th>Started</th><th>Visitor</th><th>Summary</th><th>Source</th><th>Status</th><th>Messages</th><th></th></tr></thead>
+        <tbody>
+        <% conversations.forEach(function (c) { %>
+          <tr>
+            <td class="cp-nowrap cp-muted"><%= c.created_at %></td>
+            <td>
+              <strong><%= c.visitor_name || 'Anonymous' %></strong>
+              <% if (c.visitor_email) { %><br><span class="cp-muted"><%= c.visitor_email %></span><% } %>
+            </td>
+            <td><%= c.summary || '—' %></td>
+            <td><span class="cp-pill <%= c.source === 'preview' ? 'cp-pill-purple' : 'cp-pill-info' %>"><%= c.source %></span></td>
+            <td><span class="cp-pill <%= c.status === 'active' ? 'cp-pill-success' : '' %>"><%= c.status %></span></td>
+            <td><%= c.message_count %></td>
+            <td class="cp-right"><a class="cp-btn cp-btn-secondary cp-btn-sm" href="/app/websites/<%= website.id %>/conversations/<%= c.id %>">Open</a></td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../partials/foot') %>

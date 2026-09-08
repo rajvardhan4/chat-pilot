@@ -1,0 +1,170 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<div data-website-id="<%= website.id %>"></div>
+<%- include('../partials/portal-tabs') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">WordPress Connection</h2>
+  <p class="cp-description">
+    Generate a Chat Pilot Site API Key, then paste it into the Chat Pilot plugin on
+    <strong><%= website.primary_domain %></strong>. The key authorises this one website and nothing else &mdash;
+    it cannot read your account, your other websites, or your AI provider key.
+  </p>
+
+  <div class="cp-grid cp-grid-3">
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🔌</div><div>
+      <div class="cp-kpi-value" style="font-size:1rem"><%= website.last_connected_at || 'Not connected' %></div>
+      <div class="cp-kpi-label">Last plugin handshake</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🔐</div><div>
+      <div class="cp-kpi-value" style="font-size:1rem"><%= website.verified_at ? 'Verified' : 'Unverified' %></div>
+      <div class="cp-kpi-label">Domain ownership</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🧩</div><div>
+      <div class="cp-kpi-value" style="font-size:1rem"><%= website.connected_plugin_ver || '—' %></div>
+      <div class="cp-kpi-label">Plugin version</div></div></div>
+  </div>
+</div>
+
+<div class="cp-grid cp-grid-sidebar">
+  <div>
+    <div class="cp-card">
+      <h3 class="cp-card-title">Site API Keys
+        <span class="cp-flex">
+          <label class="cp-sr-only" for="cp-key-label">Key label</label>
+          <input class="cp-input cp-input-sm" id="cp-key-label" value="Primary" maxlength="60"
+                 placeholder="Label, e.g. Production site" style="max-width:220px">
+          <button class="cp-btn cp-btn-primary cp-btn-sm" type="button" id="cp-generate-key">+ Generate key</button>
+        </span>
+      </h3>
+
+      <div id="cp-new-key-panel" style="display:none">
+        <div class="cp-alert cp-alert-warning">
+          ⚠ Copy this key now. For your security it is stored only as a hash and can never be shown again.
+        </div>
+        <div class="cp-mono-key" id="cp-new-key-value"></div>
+        <div class="cp-actions-row cp-mt">
+          <button class="cp-btn cp-btn-secondary cp-btn-sm" type="button" data-copy="#cp-new-key-value">Copy key</button>
+        </div>
+      </div>
+
+      <% if (!keys.length) { %>
+        <div class="cp-empty">No keys yet. Generate one to connect your WordPress site.</div>
+      <% } else { %>
+        <div class="cp-table-wrap cp-mt">
+          <table class="cp-table">
+            <thead><tr><th>Label</th><th>Key</th><th>Status</th><th>Created</th><th>Last used</th><th></th></tr></thead>
+            <tbody>
+            <% keys.forEach(function (k) { %>
+              <tr>
+                <td><%= k.label %></td>
+                <td><span class="cp-code"><%= k.key_prefix %><%= k.key_id.slice(0, 6) %>…<%= k.last_four %></span></td>
+                <td><span class="cp-pill <%= k.status === 'active' ? 'cp-pill-success' : 'cp-pill-error' %>"><%= k.status %></span></td>
+                <td class="cp-muted cp-nowrap"><%= k.created_at %></td>
+                <td class="cp-muted cp-nowrap"><%= k.last_used_at || 'never' %></td>
+                <td class="cp-right">
+                  <% if (k.status === 'active') { %>
+                    <button class="cp-btn cp-btn-danger cp-btn-sm" data-post="/keys/<%= k.id %>/revoke" data-confirm="Revoke this key? The plugin using it will disconnect immediately.">Revoke</button>
+                  <% } %>
+                </td>
+              </tr>
+            <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+
+    <div class="cp-card">
+      <h3 class="cp-card-title">Website settings</h3>
+      <form method="post" action="/app/websites/<%= website.id %>/settings">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="cp-grid cp-grid-2">
+          <div class="cp-form-group">
+            <label class="cp-label" for="name">Website name</label>
+            <input class="cp-input" id="name" name="name" value="<%= website.name %>">
+          </div>
+          <div class="cp-form-group">
+            <label class="cp-label" for="url">Website URL</label>
+            <input class="cp-input" id="url" name="url" value="<%= website.url %>">
+            <p class="cp-help-text">Changing this changes which domain the Site API Key will work on.</p>
+          </div>
+          <div class="cp-form-group">
+            <label class="cp-label" for="status">Status</label>
+            <select class="cp-select" id="status" name="status">
+              <option value="active" <%= website.status === 'active' ? 'selected' : '' %>>Active</option>
+              <option value="inactive" <%= website.status === 'inactive' ? 'selected' : '' %>>Inactive (widget stops responding)</option>
+            </select>
+          </div>
+          <div class="cp-form-group">
+            <label class="cp-label" for="inactivity_timeout_minutes">Conversation timeout (minutes)</label>
+            <input class="cp-input" type="number" min="0" max="1440" id="inactivity_timeout_minutes" name="inactivity_timeout_minutes" value="<%= website.inactivity_timeout_minutes %>">
+            <p class="cp-help-text">An idle conversation moves from Active to Completed after this long. 0 disables it.</p>
+          </div>
+          <div class="cp-form-group">
+            <label class="cp-label" for="retention_days">Conversation retention (days)</label>
+            <input class="cp-input" type="number" min="0" max="3650" id="retention_days" name="retention_days" value="<%= website.retention_days %>">
+            <p class="cp-help-text">Conversations, transcripts and leads older than this are deleted. 0 keeps them forever.</p>
+          </div>
+        </div>
+        <button class="cp-btn cp-btn-primary" type="submit">Save website settings</button>
+      </form>
+    </div>
+
+    <div class="cp-card">
+      <h3 class="cp-card-title">Additional allowed domains</h3>
+      <p class="cp-description">Staging or alternate hostnames that may use this Site API Key.</p>
+      <% if (domains.length) { %>
+        <div class="cp-table-wrap" style="margin-bottom:1rem">
+          <table class="cp-table" style="min-width:auto">
+            <tbody>
+            <% domains.forEach(function (d) { %>
+              <tr>
+                <td><%= d.domain %></td>
+                <td class="cp-right">
+                  <form method="post" action="/app/websites/<%= website.id %>/domains/<%= d.id %>/delete" style="display:inline">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button class="cp-btn cp-btn-danger cp-btn-sm" type="submit">Remove</button>
+                  </form>
+                </td>
+              </tr>
+            <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+      <form method="post" action="/app/websites/<%= website.id %>/domains" class="cp-flex">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input class="cp-input" name="domain" placeholder="staging.<%= website.primary_domain %>" style="max-width:340px">
+        <button class="cp-btn cp-btn-secondary" type="submit">Add domain</button>
+      </form>
+    </div>
+  </div>
+
+  <div>
+    <div class="cp-card">
+      <h3 class="cp-card-title">Connect your WordPress site</h3>
+      <ol class="cp-secondary" style="padding-left:1.1rem; font-size:0.875rem; line-height:1.85">
+        <li>Install and activate the Chat Pilot plugin.</li>
+        <li>Open <strong>Chat Pilot &rarr; Connection</strong> in WordPress.</li>
+        <li>Paste your Site API Key and press <strong>Connect Chat Pilot</strong>.</li>
+        <li>The plugin verifies the key, the domain and your subscription, then the widget goes live.</li>
+      </ol>
+      <p class="cp-help-text">
+        Chat Pilot also asks your site to echo a one-time ownership token from
+        <span class="cp-code">/wp-json/chat-pilot/v1/site-token</span>. If your site is behind HTTP auth or a
+        firewall the connection still works, but stays marked unverified.
+      </p>
+    </div>
+
+    <div class="cp-card">
+      <h3 class="cp-card-title">Security notes</h3>
+      <ul class="cp-secondary" style="padding-left:1.1rem; font-size:0.85rem; line-height:1.8">
+        <li>The key is stored only as an HMAC hash. We cannot recover it for you.</li>
+        <li>Every plugin request is signed and timestamped, so a captured request cannot be replayed.</li>
+        <li>A key presented from an unregistered domain is rejected with a Domain Mismatch error.</li>
+        <li>Revoking a key disconnects that site immediately.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/foot', { pageScripts: ['/assets/js/connection.js'] }) %>

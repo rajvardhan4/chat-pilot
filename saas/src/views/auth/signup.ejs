@@ -1,0 +1,38 @@
+<%- include('../partials/head') %>
+<div class="cp-auth-wrap">
+  <form class="cp-auth-card" method="post" action="/signup">
+    <div class="cp-logo">
+      <span class="cp-logo-img" aria-hidden="true"></span>
+      <h1 class="cp-sr-only">Chat Pilot Cloud</h1>
+    </div>
+
+    <% if (error) { %><div class="cp-alert cp-alert-error">✕ <%= error %></div><% } %>
+
+    <div class="cp-form-group">
+      <label class="cp-label" for="full_name">Your name</label>
+      <input class="cp-input <%= fields.full_name ? 'has-error' : '' %>" id="full_name" name="full_name" value="<%= values.full_name || '' %>" required autofocus>
+      <% if (fields.full_name) { %><div class="cp-field-error"><%= fields.full_name %></div><% } %>
+    </div>
+    <div class="cp-form-group">
+      <label class="cp-label" for="company_name">Company / account name</label>
+      <input class="cp-input <%= fields.company_name ? 'has-error' : '' %>" id="company_name" name="company_name" value="<%= values.company_name || '' %>" required>
+      <% if (fields.company_name) { %><div class="cp-field-error"><%= fields.company_name %></div><% } %>
+    </div>
+    <div class="cp-form-group">
+      <label class="cp-label" for="email">Work email</label>
+      <input class="cp-input <%= fields.email ? 'has-error' : '' %>" type="email" id="email" name="email" value="<%= values.email || '' %>" autocomplete="username" required>
+      <% if (fields.email) { %><div class="cp-field-error"><%= fields.email %></div><% } %>
+    </div>
+    <div class="cp-form-group">
+      <label class="cp-label" for="password">Password</label>
+      <input class="cp-input <%= fields.password ? 'has-error' : '' %>" type="password" id="password" name="password" autocomplete="new-password" required>
+      <p class="cp-help-text">At least 10 characters, including a number or symbol.</p>
+      <% if (fields.password) { %><div class="cp-field-error"><%= fields.password %></div><% } %>
+    </div>
+
+    <button class="cp-btn cp-btn-primary cp-btn-lg cp-btn-block" type="submit">Create account</button>
+    <p class="cp-auth-foot">Already have an account? <a href="/login">Sign in</a></p>
+  </form>
+</div>
+</body>
+</html>

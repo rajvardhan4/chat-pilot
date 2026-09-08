@@ -1,0 +1,12 @@
+{
+  "name": "chat-pilot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chat Pilot - multi-tenant SaaS control plane + WordPress connector plugin",
+  "scripts": {
+    "plugin:build": "node scripts/build-plugin.mjs",
+    "plugin:patch": "node scripts/build-plugin.mjs --bump patch",
+    "plugin:minor": "node scripts/build-plugin.mjs --bump minor",
+    "plugin:major": "node scripts/build-plugin.mjs --bump major"
+  }
+}

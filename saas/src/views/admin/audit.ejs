@@ -1,0 +1,38 @@
+<%- include('../partials/head') %>
+<%- include('../partials/admin-header') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">Audit Log <small><%= entries.length %> most recent entries</small></h2>
+  <form method="get" class="cp-flex" style="margin-bottom:1rem">
+    <select class="cp-select" name="action" style="max-width:320px">
+      <option value="">All actions</option>
+      <% actions.forEach(function (a) { %>
+        <option value="<%= a %>" <%= action === a ? 'selected' : '' %>><%= a %></option>
+      <% }); %>
+    </select>
+    <button class="cp-btn cp-btn-secondary" type="submit">Filter</button>
+  </form>
+
+  <% if (!entries.length) { %>
+    <div class="cp-empty">No audit entries.</div>
+  <% } else { %>
+    <div class="cp-table-wrap">
+      <table class="cp-table">
+        <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th><th>Metadata</th></tr></thead>
+        <tbody>
+        <% entries.forEach(function (e) { %>
+          <tr>
+            <td class="cp-nowrap cp-muted"><%= e.created_at %></td>
+            <td><span class="cp-pill <%= e.actor_type === 'super_admin' ? 'cp-pill-purple' : (e.actor_type === 'site_key' ? 'cp-pill-info' : '') %>"><%= e.actor_type %></span></td>
+            <td><%= e.action %></td>
+            <td class="cp-muted"><%= e.target_type %><% if (e.target_id) { %> <%= String(e.target_id).slice(0, 12) %><% } %></td>
+            <td class="cp-muted" style="max-width:340px; word-break:break-word"><%= e.metadata %></td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../partials/foot') %>

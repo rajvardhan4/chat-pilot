@@ -1,0 +1,54 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<%- include('../partials/account-tabs') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">Support Center</h2>
+  <p class="cp-description">Chat Pilot is built and supported by <strong>Local Marketing Geeks</strong>.</p>
+  <ul class="cp-inline-list">
+    <li><span>Phone</span><span>888-299-2726</span></li>
+    <li><span>Email</span><span>info@localmarketinggeeks.com</span></li>
+  </ul>
+  <p class="cp-help-text">
+    These details are for Chat Pilot product support only. They are never injected into answers your chatbot
+    gives to your own website visitors &mdash; visitors always receive your business contact information from
+    your Knowledge Base.
+  </p>
+</div>
+
+<div class="cp-grid cp-grid-2">
+  <div class="cp-card">
+    <h3 class="cp-card-title">Getting started</h3>
+    <ol class="cp-secondary" style="padding-left:1.1rem; line-height:1.9; font-size:0.875rem">
+      <li><strong>Register your website</strong> &mdash; the domain you enter is the only domain your Site API Key will work on.</li>
+      <li><strong>Connect an AI provider</strong> &mdash; paste your own OpenAI or Gemini key. It is encrypted and never leaves our servers.</li>
+      <li><strong>Test the connection</strong> &mdash; Chat Pilot discovers the models your key can actually use.</li>
+      <li><strong>Build your Knowledge Base</strong> &mdash; scan your site, add FAQs, paste manual facts, upload documents.</li>
+      <li><strong>Tune AI Instructions</strong> &mdash; tone, length, and what to say when it does not know.</li>
+      <li><strong>Try the Developer Chat Preview</strong> &mdash; same engine as the live widget, with diagnostics.</li>
+      <li><strong>Generate a Site API Key</strong> and paste it into the WordPress plugin.</li>
+    </ol>
+  </div>
+
+  <div class="cp-card">
+    <h3 class="cp-card-title">Troubleshooting</h3>
+    <dl class="cp-secondary" style="font-size:0.875rem; line-height:1.7">
+      <dt><strong>&ldquo;Domain Mismatch&rdquo; in WordPress</strong></dt>
+      <dd style="margin:0 0 0.9rem">The site URL does not match the registered domain. Update the Website URL on the Connection tab, or add the hostname as an additional allowed domain.</dd>
+
+      <dt><strong>The bot always says it cannot find information</strong></dt>
+      <dd style="margin:0 0 0.9rem">Your Knowledge Base is empty or the retrieval threshold is too high. Use Retrieval Diagnostics on the Knowledge Base tab to see actual scores.</dd>
+
+      <dt><strong>&ldquo;Having trouble generating a response&rdquo;</strong></dt>
+      <dd style="margin:0 0 0.9rem">That is the AI provider failure message, not a knowledge problem. Check AI Providers &rarr; connection status; usually a quota or an expired key.</dd>
+
+      <dt><strong>Widget does not appear</strong></dt>
+      <dd style="margin:0 0 0.9rem">Check that the widget is enabled on the Chat Widget tab, the website status is Active, and the plugin shows Connected.</dd>
+
+      <dt><strong>Models list is empty</strong></dt>
+      <dd style="margin:0">Run &ldquo;Test connection &amp; discover models&rdquo;. Chat Pilot never shows a hardcoded model list &mdash; if your key cannot use a model, it will not appear.</dd>
+    </dl>
+  </div>
+</div>
+
+<%- include('../partials/foot') %>

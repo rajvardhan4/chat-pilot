@@ -1,0 +1,37 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<%- include('../partials/account-tabs') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">My Websites
+    <a class="cp-btn cp-btn-primary cp-btn-sm" href="/app/websites/new">+ Add website</a>
+  </h2>
+  <p class="cp-description">
+    Each registered website has its own knowledge base, AI provider configuration, widget settings and Site API Key.
+    <% if (websiteLimit > 0) { %>Your plan allows <%= websiteLimit %> website<%= websiteLimit === 1 ? '' : 's' %>.<% } %>
+  </p>
+
+  <% if (!websites.length) { %>
+    <div class="cp-empty">No websites registered yet.</div>
+  <% } else { %>
+    <div class="cp-table-wrap">
+      <table class="cp-table">
+        <thead><tr><th>Website</th><th>Domain</th><th>Status</th><th>Last connected</th><th>Ownership</th><th></th></tr></thead>
+        <tbody>
+        <% websites.forEach(function (w) { %>
+          <tr>
+            <td><a href="/app/websites/<%= w.id %>"><strong><%= w.name %></strong></a></td>
+            <td class="cp-nowrap"><%= w.primary_domain %></td>
+            <td><span class="cp-pill <%= w.status === 'active' ? 'cp-pill-success' : (w.status === 'suspended' ? 'cp-pill-error' : 'cp-pill-warning') %>"><%= w.status %></span></td>
+            <td class="cp-nowrap cp-muted"><%= w.last_connected_at || 'Never' %></td>
+            <td><% if (w.verified_at) { %><span class="cp-pill cp-pill-success">verified</span><% } else { %><span class="cp-pill">unverified</span><% } %></td>
+            <td class="cp-right"><a class="cp-btn cp-btn-secondary cp-btn-sm" href="/app/websites/<%= w.id %>/connection">Connection</a></td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../partials/foot') %>

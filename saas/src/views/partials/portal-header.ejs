@@ -1,0 +1,52 @@
+<div class="cp-shell">
+  <div id="cp-toast" class="cp-alert cp-toast"></div>
+
+  <header class="cp-header">
+    <div class="cp-logo">
+      <a href="/app" class="cp-logo-img" aria-label="Chat Pilot"></a>
+      <div class="cp-logo-meta">
+        <h1>Chat Pilot Cloud</h1>
+        <span class="cp-badge-pilot">CLOUD</span>
+        <p class="cp-brand-sub">by <strong>Local Marketing Geeks</strong></p>
+      </div>
+    </div>
+    <div class="cp-header-actions">
+      <%- include('./theme-toggle') %>
+
+      <% if (typeof websites !== 'undefined' && websites.length && typeof website !== 'undefined' && website) { %>
+        <div class="cp-website-switcher">
+          <label class="cp-sr-only" for="cp-site-switch">Website</label>
+          <select id="cp-site-switch" class="cp-select" data-website-switcher>
+            <% websites.forEach(function (site) { %>
+              <option value="<%= site.id %>" <%= site.id === website.id ? 'selected' : '' %>>
+                <%= site.name %> (<%= site.primary_domain %>)
+              </option>
+            <% }); %>
+          </select>
+        </div>
+      <% } %>
+
+      <% if (typeof account !== 'undefined' && account) { %>
+        <span class="cp-status-badge <%= account.status === 'active' ? '' : 'is-error' %>">
+          <span class="cp-status-dot"></span>
+          <span><%= account.name %></span>
+        </span>
+      <% } %>
+
+      <% if (user && user.platform_role === 'super_admin') { %>
+        <a class="cp-status-badge is-admin" href="/admin"><span class="cp-status-dot"></span> Master Admin</a>
+      <% } %>
+
+      <form method="post" action="/logout" style="margin:0">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit" class="cp-btn cp-btn-secondary cp-btn-sm">Sign out</button>
+      </form>
+    </div>
+  </header>
+
+  <% if (typeof notice !== 'undefined' && notice) { %>
+    <div class="cp-alert cp-alert-success">✓ <%= notice %></div>
+  <% } %>
+  <% if (typeof error !== 'undefined' && error) { %>
+    <div class="cp-alert cp-alert-error">✕ <%= error %></div>
+  <% } %>

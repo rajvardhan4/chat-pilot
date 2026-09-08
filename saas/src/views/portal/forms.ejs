@@ -1,0 +1,69 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<div data-website-id="<%= website.id %>"></div>
+<%- include('../partials/portal-tabs') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">Forms <small>Pre-chat lead capture</small></h2>
+  <p class="cp-description">
+    The active form is rendered by the widget before the conversation starts. Required fields and formats are
+    validated on the Chat Pilot server, so a tampered browser cannot skip them.
+  </p>
+  <p class="cp-help-text">
+    Active form: <strong><%= (forms.find(function (f) { return f.id === widgetSettings.active_form_id; }) || {}).name || 'none (chat starts immediately)' %></strong>
+  </p>
+</div>
+
+<% forms.forEach(function (form) { %>
+  <div class="cp-card">
+    <h3 class="cp-card-title">
+      <span><%= form.name %>
+        <% if (form.is_default) { %><span class="cp-pill cp-pill-info">default</span><% } %>
+        <% if (form.id === widgetSettings.active_form_id) { %><span class="cp-pill cp-pill-success">active on widget</span><% } %>
+      </span>
+      <span class="cp-actions-row">
+        <button class="cp-btn cp-btn-secondary cp-btn-sm" data-post="/forms/<%= form.id %>/duplicate" data-success="Form duplicated.">Duplicate</button>
+        <% if (form.id !== widgetSettings.active_form_id) { %>
+          <button class="cp-btn cp-btn-secondary cp-btn-sm" data-activate-form="<%= form.id %>">Use on widget</button>
+        <% } %>
+        <button class="cp-btn cp-btn-danger cp-btn-sm" data-post="/forms/<%= form.id %>/delete" data-confirm="Delete this form?">Delete</button>
+      </span>
+    </h3>
+
+    <div class="cp-table-wrap">
+      <table class="cp-table">
+        <thead><tr><th>Field</th><th>Key</th><th>Type</th><th>Required</th><th>Enabled</th></tr></thead>
+        <tbody>
+        <% form.fields.forEach(function (f) { %>
+          <tr>
+            <td><%= f.label %><% if (f.placeholder) { %><br><span class="cp-muted"><%= f.placeholder %></span><% } %></td>
+            <td><span class="cp-code"><%= f.field_key %></span></td>
+            <td><%= f.type %></td>
+            <td><%= f.required ? 'Yes' : 'No' %></td>
+            <td><%= f.enabled ? 'Yes' : 'No' %></td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+    <button class="cp-btn cp-btn-secondary cp-btn-sm cp-mt" data-edit-form="<%= form.id %>">Edit fields</button>
+  </div>
+<% }); %>
+
+<div class="cp-card">
+  <h3 class="cp-card-title">Form builder</h3>
+  <div class="cp-form-group">
+    <label class="cp-label" for="cp-form-name">Form name</label>
+    <input class="cp-input" id="cp-form-name" placeholder="Pre-chat form">
+  </div>
+  <input type="hidden" id="cp-form-id" value="">
+  <div id="cp-field-rows"></div>
+  <div class="cp-actions-row cp-mt">
+    <button class="cp-btn cp-btn-secondary" type="button" id="cp-add-field">+ Add field</button>
+    <button class="cp-btn cp-btn-primary" type="button" id="cp-save-form">Save form</button>
+    <button class="cp-btn cp-btn-secondary" type="button" id="cp-reset-builder">Clear</button>
+  </div>
+</div>
+
+<script id="cp-forms-data" type="application/json"><%- JSON.stringify(forms) %></script>
+<%- include('../partials/foot', { pageScripts: ['/assets/js/forms.js'] }) %>

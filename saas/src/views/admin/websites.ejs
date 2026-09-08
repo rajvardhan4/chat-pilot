@@ -1,0 +1,49 @@
+<%- include('../partials/head') %>
+<%- include('../partials/admin-header') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">Websites <small><%= websites.length %> shown</small>
+    <span class="cp-actions-row">
+      <% ['all','active','inactive','suspended'].forEach(function (s) { %>
+        <a class="cp-btn <%= status === s ? 'cp-btn-primary' : 'cp-btn-secondary' %> cp-btn-sm" href="?status=<%= s %>"><%= s %></a>
+      <% }); %>
+    </span>
+  </h2>
+
+  <% if (!websites.length) { %>
+    <div class="cp-empty">No websites match this filter.</div>
+  <% } else { %>
+    <div class="cp-table-wrap">
+      <table class="cp-table">
+        <thead><tr><th>Website</th><th>Account</th><th>Status</th><th>Keys</th><th>Conversations</th><th>Verified</th><th>Last connected</th><th></th></tr></thead>
+        <tbody>
+        <% websites.forEach(function (w) { %>
+          <tr>
+            <td><strong><%= w.name %></strong><br><span class="cp-muted"><%= w.primary_domain %></span></td>
+            <td><a href="/admin/accounts/<%= w.account_id %>"><%= w.account_name %></a>
+              <% if (w.account_status !== 'active') { %><br><span class="cp-pill cp-pill-error">account <%= w.account_status %></span><% } %>
+            </td>
+            <td><span class="cp-pill <%= w.status === 'active' ? 'cp-pill-success' : (w.status === 'suspended' ? 'cp-pill-error' : 'cp-pill-warning') %>"><%= w.status %></span></td>
+            <td><%= w.active_keys %></td>
+            <td><%= w.conversations %></td>
+            <td><%= w.verified_at ? 'yes' : 'no' %></td>
+            <td class="cp-muted cp-nowrap"><%= w.last_connected_at || 'never' %></td>
+            <td class="cp-right">
+              <form method="post" action="/admin/websites/<%= w.id %>/status" style="display:inline">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="status" value="<%= w.status === 'suspended' ? 'active' : 'suspended' %>">
+                <input type="hidden" name="reason" value="Platform action">
+                <button class="cp-btn <%= w.status === 'suspended' ? 'cp-btn-secondary' : 'cp-btn-danger' %> cp-btn-sm" type="submit">
+                  <%= w.status === 'suspended' ? 'Unsuspend' : 'Suspend' %>
+                </button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../partials/foot') %>

@@ -1,0 +1,96 @@
+<%- include('../partials/head') %>
+<%- include('../partials/admin-header') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">
+    Platform overview <small><%= stats.range.start %> to <%= stats.range.end %></small>
+    <span class="cp-actions-row">
+      <% ['today','7days','30days','90days'].forEach(function (r) { %>
+        <a class="cp-btn <%= preset === r ? 'cp-btn-primary' : 'cp-btn-secondary' %> cp-btn-sm" href="?range=<%= r %>"><%= r %></a>
+      <% }); %>
+    </span>
+  </h2>
+
+  <div class="cp-kpi-grid">
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🏢</div><div><div class="cp-kpi-value"><%= stats.accounts %></div><div class="cp-kpi-label">Accounts</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">👥</div><div><div class="cp-kpi-value"><%= stats.customers %></div><div class="cp-kpi-label">Customers</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🌐</div><div><div class="cp-kpi-value"><%= stats.websites %></div><div class="cp-kpi-label">Websites</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">✅</div><div><div class="cp-kpi-value"><%= stats.activeWebsites %></div><div class="cp-kpi-label">Active</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">⏸️</div><div><div class="cp-kpi-value"><%= stats.inactiveWebsites %></div><div class="cp-kpi-label">Inactive</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🚫</div><div><div class="cp-kpi-value"><%= stats.suspendedWebsites %></div><div class="cp-kpi-label">Suspended</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">💬</div><div><div class="cp-kpi-value"><%= stats.conversations %></div><div class="cp-kpi-label">Conversations</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🎯</div><div><div class="cp-kpi-value"><%= stats.leads %></div><div class="cp-kpi-label">Leads</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🤖</div><div><div class="cp-kpi-value"><%= stats.aiRequests %></div><div class="cp-kpi-label">AI Requests</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🔢</div><div><div class="cp-kpi-value"><%= stats.totalTokens.toLocaleString() %></div><div class="cp-kpi-label">Tokens</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">💵</div><div><div class="cp-kpi-value">$<%= stats.estimatedCost.toFixed(2) %></div><div class="cp-kpi-label">Est. AI Cost</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">⚠️</div><div><div class="cp-kpi-value"><%= stats.providerErrors %></div><div class="cp-kpi-label">Provider Errors</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🔑</div><div><div class="cp-kpi-value"><%= stats.activeKeys %></div><div class="cp-kpi-label">Active Site Keys</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🗝️</div><div><div class="cp-kpi-value"><%= stats.revokedKeys %></div><div class="cp-kpi-label">Revoked Keys</div></div></div>
+  </div>
+</div>
+
+<div class="cp-grid cp-grid-2">
+  <div class="cp-card">
+    <h3 class="cp-card-title">Busiest accounts</h3>
+    <div class="cp-table-wrap">
+      <table class="cp-table" style="min-width:auto">
+        <thead><tr><th>Account</th><th>Status</th><th>Requests</th><th>Tokens</th><th>Cost</th></tr></thead>
+        <tbody>
+        <% stats.topAccounts.forEach(function (a) { %>
+          <tr>
+            <td><a href="/admin/accounts/<%= a.id %>"><%= a.name %></a></td>
+            <td><span class="cp-pill <%= a.status === 'active' ? 'cp-pill-success' : 'cp-pill-error' %>"><%= a.status %></span></td>
+            <td><%= a.requests %></td>
+            <td><%= a.tokens.toLocaleString() %></td>
+            <td>$<%= a.cost.toFixed(4) %></td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="cp-card">
+    <h3 class="cp-card-title">Provider health</h3>
+    <% if (!stats.providerHealth.length) { %>
+      <div class="cp-empty">No provider credentials configured yet.</div>
+    <% } else { %>
+      <ul class="cp-inline-list">
+        <% stats.providerHealth.forEach(function (p) { %>
+          <li>
+            <span><%= p.provider %> &middot; <%= p.status %></span>
+            <span><span class="cp-pill <%= p.status === 'connected' ? 'cp-pill-success' : (p.status === 'not_configured' ? '' : 'cp-pill-error') %>"><%= p.count %></span></span>
+          </li>
+        <% }); %>
+      </ul>
+    <% } %>
+    <p class="cp-help-text">Customer provider API keys are stored encrypted and are never displayed here.</p>
+  </div>
+</div>
+
+<div class="cp-card">
+  <h3 class="cp-card-title">Recent provider failures</h3>
+  <% if (!stats.recentErrors.length) { %>
+    <div class="cp-empty">No provider failures recorded.</div>
+  <% } else { %>
+    <div class="cp-table-wrap">
+      <table class="cp-table">
+        <thead><tr><th>When</th><th>Account</th><th>Website</th><th>Provider</th><th>Model</th><th>Category</th></tr></thead>
+        <tbody>
+        <% stats.recentErrors.forEach(function (e) { %>
+          <tr>
+            <td class="cp-nowrap cp-muted"><%= e.createdAt %></td>
+            <td><%= e.account %></td>
+            <td><%= e.website %></td>
+            <td><%= e.provider %></td>
+            <td><%= e.model %></td>
+            <td><span class="cp-pill cp-pill-error"><%= e.errorLabel %></span></td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../partials/foot') %>

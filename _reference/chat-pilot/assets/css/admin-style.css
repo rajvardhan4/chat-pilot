@@ -1,0 +1,1397 @@
+/**
+ * Chat Pilot Premium Admin Stylesheet
+ * Brand: Local Marketing Geeks
+ * Design Style: Dark Glassmorphic with Neon Accents (Slate & Cyan)
+ */
+
+#chat-pilot-container {
+    --bg-base: #0b0f19;
+    --bg-card: rgba(17, 24, 39, 0.6);
+    --border-glow: rgba(6, 182, 212, 0.15);
+    --border-glow-hover: rgba(6, 182, 212, 0.4);
+    --accent-cyan: #06b6d4;
+    --accent-purple: #a855f7;
+    --accent-green: #10b981;
+    --accent-red: #ef4444;
+    --text-primary: #f3f4f6;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+    
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    border-radius: 16px;
+    padding: 2rem;
+    margin: 20px 20px 20px 0;
+    min-height: 80vh;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    background-image: 
+        radial-gradient(circle at 10% 20%, rgba(6, 182, 212, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.08) 0%, transparent 40%);
+    background-attachment: local;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+/* Header & Status Section */
+#chat-pilot-container .cp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+#chat-pilot-container .cp-logo h1 {
+    font-family: 'Outfit', -apple-system, sans-serif;
+    font-size: 2.25rem;
+    font-weight: 800;
+    letter-spacing: -0.05em;
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#chat-pilot-container .cp-logo h1::after {
+    content: 'PILOT';
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    background: rgba(6, 182, 212, 0.15);
+    color: var(--accent-cyan);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid rgba(6, 182, 212, 0.3);
+    margin-left: 0.5rem;
+    vertical-align: middle;
+    -webkit-text-fill-color: initial;
+}
+
+#chat-pilot-container .cp-logo .cp-brand-sub {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #ff7631;
+    letter-spacing: 0.04em;
+    margin: 0.2rem 0 0.35rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+#chat-pilot-container .cp-logo .cp-brand-sub span {
+    opacity: 0.7;
+    font-weight: 400;
+    color: var(--text-secondary);
+}
+
+#chat-pilot-container .cp-logo .cp-brand-sub strong {
+    color: #ff7631;
+    font-weight: 700;
+}
+
+#chat-pilot-container .cp-logo p {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin: 0.25rem 0 0 0;
+}
+
+#chat-pilot-container .cp-status-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    color: var(--accent-green);
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+#chat-pilot-container .cp-status-badge.dev-active {
+    background: rgba(168, 85, 247, 0.1);
+    border-color: rgba(168, 85, 247, 0.2);
+    color: var(--accent-purple);
+}
+
+#chat-pilot-container .cp-status-dot {
+    width: 8px;
+    height: 8px;
+    background-color: var(--accent-green);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--accent-green);
+}
+
+#chat-pilot-container .cp-status-badge.dev-active .cp-status-dot {
+    background-color: var(--accent-purple);
+    box-shadow: 0 0 8px var(--accent-purple);
+}
+
+/* Tab Navigation & Sleek Custom Scrollbar */
+#chat-pilot-container .cp-tabs-nav {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 2rem;
+    padding-bottom: 0.5rem;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(6, 182, 212, 0.35) transparent;
+}
+
+#chat-pilot-container .cp-tabs-nav::-webkit-scrollbar {
+    height: 4px !important;
+}
+
+#chat-pilot-container .cp-tabs-nav::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border-radius: 9999px !important;
+}
+
+#chat-pilot-container .cp-tabs-nav::-webkit-scrollbar-thumb {
+    background: rgba(6, 182, 212, 0.35) !important;
+    border-radius: 9999px !important;
+}
+
+#chat-pilot-container .cp-tabs-nav::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-cyan) !important;
+}
+
+#chat-pilot-container .cp-tab-link {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+#chat-pilot-container .cp-tab-link:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+#chat-pilot-container .cp-tab-link.active {
+    color: var(--accent-cyan);
+    background: rgba(6, 182, 212, 0.08);
+    border-color: rgba(6, 182, 212, 0.2);
+}
+
+/* Dashboard Grid Layout */
+#chat-pilot-container .cp-dashboard-grid {
+    display: grid;
+    grid-template-columns: 1.8fr 1.2fr;
+    gap: 2rem;
+}
+
+@media (max-width: 960px) {
+    #chat-pilot-container .cp-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Card Styling */
+#chat-pilot-container .cp-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-glow);
+    border-radius: 12px;
+    padding: 1.75rem;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+#chat-pilot-container .cp-card:hover {
+    border-color: var(--border-glow-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px 0 rgba(6, 182, 212, 0.08);
+}
+
+#chat-pilot-container .cp-card h2.cp-card-title,
+#chat-pilot-container .cp-card h3.cp-card-title,
+#chat-pilot-container .cp-card h4.cp-card-title,
+#chat-pilot-container .cp-card-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0 0 1.5rem 0;
+    color: #ffffff !important;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 0.75rem;
+}
+
+#chat-pilot-container .cp-card h2.cp-card-title svg,
+#chat-pilot-container .cp-card h3.cp-card-title svg,
+#chat-pilot-container .cp-card-title svg {
+    color: var(--accent-cyan);
+    filter: drop-shadow(0 0 4px rgba(6, 182, 212, 0.3));
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+}
+
+/* Forms & Input Fields */
+#chat-pilot-container .cp-form-group {
+    margin-bottom: 1.5rem;
+}
+
+#chat-pilot-container .cp-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #ffffff !important;
+}
+
+#chat-pilot-container input[type="text"],
+#chat-pilot-container input[type="email"],
+#chat-pilot-container input[type="tel"],
+#chat-pilot-container input[type="search"],
+#chat-pilot-container input[type="number"],
+#chat-pilot-container input[type="date"],
+#chat-pilot-container textarea,
+#chat-pilot-container .cp-input-text {
+    width: 100%;
+    color-scheme: dark !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    background: #1e293b !important;
+    background-color: #1e293b !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 8px !important;
+    padding: 0.6rem 0.85rem !important;
+    font-size: 0.9rem !important;
+    transition: all 0.2s ease !important;
+    box-sizing: border-box !important;
+    opacity: 1 !important;
+}
+
+/* Dedicated Native Select Element Styling for Perfect Vertical Alignment & Zero Clipping */
+#chat-pilot-container select,
+#chat-pilot-container select.cp-input-text,
+#chat-pilot-container select.cp-input,
+#chat-pilot-container select.cp-select,
+#chat-pilot-container select:focus,
+#chat-pilot-container select:active,
+#chat-pilot-container select:hover,
+#chat-pilot-container .cp-input select,
+#chat-pilot-container .cp-field-type-in {
+    width: 100%;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    padding: 0 0.85rem !important;
+    line-height: 42px !important;
+    vertical-align: middle !important;
+    color-scheme: dark !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    background: #1e293b !important;
+    background-color: #1e293b !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 8px !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    box-sizing: border-box !important;
+    opacity: 1 !important;
+}
+
+#chat-pilot-container select option {
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    padding: 8px 12px !important;
+}
+
+#chat-pilot-container select option:hover,
+#chat-pilot-container select option:focus,
+#chat-pilot-container select option:checked,
+#chat-pilot-container select option[selected] {
+    background-color: #06b6d4 !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
+#chat-pilot-container input::placeholder,
+#chat-pilot-container textarea::placeholder {
+    color: #94a3b8 !important;
+    opacity: 0.8 !important;
+}
+
+#chat-pilot-container .cp-input-text:focus,
+#chat-pilot-container select:focus,
+#chat-pilot-container .cp-input:focus {
+    outline: none !important;
+    border-color: var(--accent-cyan) !important;
+    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.25) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
+#chat-pilot-container .cp-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+#chat-pilot-container .cp-checkbox {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-cyan);
+    cursor: pointer;
+}
+
+#chat-pilot-container .cp-description {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.35rem;
+    line-height: 1.4;
+}
+
+/* Buttons */
+#chat-pilot-container .cp-btn {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#chat-pilot-container .cp-btn-primary {
+    background: var(--accent-cyan);
+    color: #000;
+}
+
+#chat-pilot-container .cp-btn-primary:hover {
+    background: #0891b2;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.2);
+}
+
+#chat-pilot-container .cp-btn-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+#chat-pilot-container .cp-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+#chat-pilot-container .cp-btn-danger {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: var(--accent-red);
+}
+
+#chat-pilot-container .cp-btn-danger:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: var(--accent-red);
+}
+
+/* System Alerts */
+#chat-pilot-container .cp-alert {
+    border-radius: 8px;
+    padding: 1rem;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+#chat-pilot-container .cp-alert-success {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    color: var(--accent-green);
+}
+
+#chat-pilot-container .cp-alert-error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: var(--accent-red);
+}
+
+/* System Info / Metrics */
+#chat-pilot-container .cp-info-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+#chat-pilot-container .cp-info-row {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    padding: 0.75rem 0;
+    font-size: 0.9rem;
+}
+
+#chat-pilot-container .cp-info-row:last-child {
+    border-bottom: none;
+}
+
+#chat-pilot-container .cp-info-label {
+    color: var(--text-secondary);
+}
+
+#chat-pilot-container .cp-info-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Logs Table */
+#chat-pilot-container .cp-table-wrap {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#chat-pilot-container .cp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    text-align: left;
+}
+
+#chat-pilot-container .cp-table th {
+    background: rgba(15, 23, 42, 0.9);
+    color: var(--text-primary);
+    font-weight: 600;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#chat-pilot-container .cp-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    color: var(--text-secondary);
+}
+
+#chat-pilot-container .cp-table tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+#chat-pilot-container .cp-badge-log {
+    display: inline-block;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+#chat-pilot-container .cp-badge-log.info { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); }
+#chat-pilot-container .cp-badge-log.error { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+#chat-pilot-container .cp-badge-log.debug { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); }
+
+/* Provider Connection Badges */
+#chat-pilot-container .status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: 1px solid transparent;
+}
+#chat-pilot-container .status-badge.connected,
+#chat-pilot-container .status-badge.Connected {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.2);
+    color: var(--accent-green);
+}
+#chat-pilot-container .status-badge.error,
+#chat-pilot-container .status-badge.Connection-Failed,
+#chat-pilot-container .status-badge.Authentication-Failed {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
+    color: var(--accent-red);
+}
+#chat-pilot-container .status-badge.disconnected,
+#chat-pilot-container .status-badge.Disconnected,
+#chat-pilot-container .status-badge.Not-Configured {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+}
+#chat-pilot-container .status-badge.Not-Yet-Verified {
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.2);
+    color: var(--accent-orange);
+}
+#chat-pilot-container .status-badge.Rate-Limited {
+    background: rgba(168, 85, 247, 0.1);
+    border-color: rgba(168, 85, 247, 0.2);
+    color: var(--accent-purple);
+}
+#chat-pilot-container .status-badge.API-Unavailable {
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.3);
+    color: var(--accent-orange);
+}
+
+/* ==========================================================================
+   REDESIGNED KNOWLEDGE BASE SAAS INTERFACE STYLING
+   ========================================================================== */
+
+#chat-pilot-container .cp-kb-dashboard-wrapper {
+    margin-top: 1rem;
+}
+
+/* 1. Hero Banner Area */
+#chat-pilot-container .cp-kb-hero {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.05), rgba(6, 182, 212, 0.05));
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 2.5rem 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+#chat-pilot-container .cp-kb-hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, transparent 70%);
+    filter: blur(30px);
+    pointer-events: none;
+}
+#chat-pilot-container .cp-kb-hero h2 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.25rem;
+    font-weight: 800;
+    line-height: 1.3 !important;
+    padding: 0.1em 0 !important;
+    margin: 0 0 0.75rem 0;
+    background: linear-gradient(135deg, var(--text-primary), #a855f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+#chat-pilot-container .cp-kb-hero p {
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+    max-width: 750px;
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* 5. Modern KPI Metric Cards Grid */
+#chat-pilot-container .cp-kb-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
+}
+#chat-pilot-container .cp-kpi-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.2s ease;
+}
+#chat-pilot-container .cp-kpi-card:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(6, 182, 212, 0.2);
+    transform: translateY(-2px);
+}
+#chat-pilot-container .cp-kpi-card .kpi-icon {
+    font-size: 2rem;
+    background: rgba(255, 255, 255, 0.04);
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#chat-pilot-container .cp-kpi-card .kpi-details {
+    display: flex;
+    flex-direction: column;
+}
+#chat-pilot-container .cp-kpi-card .kpi-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+}
+#chat-pilot-container .cp-kpi-card .kpi-val {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+#chat-pilot-container .cp-kpi-card .kpi-val.text-success {
+    color: var(--accent-green);
+    text-shadow: 0 0 10px rgba(34, 197, 94, 0.2);
+}
+#chat-pilot-container .cp-kpi-card .kpi-val.text-danger {
+    color: var(--accent-orange);
+    text-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+}
+
+/* 2. SaaS Ingestion Onboarding Cards */
+#chat-pilot-container .cp-kb-section-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    border-left: 3px solid var(--accent-cyan);
+    padding-left: 0.75rem;
+    line-height: 1;
+}
+#chat-pilot-container .cp-kb-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
+}
+#chat-pilot-container .cp-ingest-card {
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+#chat-pilot-container .cp-ingest-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+#chat-pilot-container .cp-ingest-card:hover {
+    background: rgba(255, 255, 255, 0.03);
+    transform: translateY(-5px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+#chat-pilot-container .cp-ingest-card[data-source="website"]:hover::after {
+    border-color: rgba(6, 182, 212, 0.3);
+}
+#chat-pilot-container .cp-ingest-card[data-source="file"]:hover::after {
+    border-color: rgba(168, 85, 247, 0.3);
+}
+#chat-pilot-container .cp-ingest-card[data-source="manual"]:hover::after {
+    border-color: rgba(34, 197, 94, 0.3);
+}
+#chat-pilot-container .cp-ingest-card[data-source="faq"]:hover::after {
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+#chat-pilot-container .cp-ingest-card.active {
+    background: rgba(255, 255, 255, 0.04);
+}
+#chat-pilot-container .cp-ingest-card[data-source="website"].active::after { border-color: var(--accent-cyan); }
+#chat-pilot-container .cp-ingest-card[data-source="file"].active::after { border-color: var(--accent-purple); }
+#chat-pilot-container .cp-ingest-card[data-source="manual"].active::after { border-color: var(--accent-green); }
+#chat-pilot-container .cp-ingest-card[data-source="faq"].active::after { border-color: var(--accent-orange); }
+
+#chat-pilot-container .cp-ingest-card .ingest-card-icon {
+    font-size: 2.75rem;
+    margin-bottom: 1.25rem;
+    transition: transform 0.3s ease;
+}
+#chat-pilot-container .cp-ingest-card:hover .ingest-card-icon {
+    transform: scale(1.1);
+}
+#chat-pilot-container .cp-ingest-card h4 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary);
+}
+#chat-pilot-container .cp-ingest-card p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0 0 1.5rem 0;
+    flex-grow: 1;
+}
+#chat-pilot-container .cp-ingest-card .card-action-btn {
+    pointer-events: none; /* Let parent click trigger action */
+    font-size: 0.85rem;
+    padding: 0.5rem 1.25rem;
+    width: 100%;
+    justify-content: center;
+    border-radius: 6px;
+}
+
+/* 3. Focused Ingestion Workspace Panel */
+#chat-pilot-container .cp-kb-workspace-container .cp-card {
+    border-color: rgba(6, 182, 212, 0.25);
+    background: rgba(0, 0, 0, 0.4);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    animation: slideDownWorkspace 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes slideDownWorkspace {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+#chat-pilot-container .cp-kb-workspace-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+#chat-pilot-container .workspace-title-block {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+#chat-pilot-container .workspace-badge {
+    font-family: monospace;
+    font-size: 0.7rem;
+    font-weight: 700;
+    background: rgba(6, 182, 212, 0.1);
+    color: var(--accent-cyan);
+    border: 1px solid rgba(6, 182, 212, 0.2);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+}
+#chat-pilot-container .cp-workspace-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0.25rem;
+    transition: color 0.2s ease;
+}
+#chat-pilot-container .cp-workspace-close:hover {
+    color: var(--accent-red);
+}
+#chat-pilot-container .cp-workspace-form-content {
+    display: none;
+}
+#chat-pilot-container .cp-workspace-form-content.active {
+    display: block;
+}
+
+/* File Upload drag zone */
+#chat-pilot-container .cp-file-drag-zone {
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 3.5rem 2rem;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.01);
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+#chat-pilot-container .cp-file-drag-zone.dragover {
+    border-color: var(--accent-cyan);
+    background: rgba(6, 182, 212, 0.05);
+}
+#chat-pilot-container .cp-file-drag-zone .drag-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+#chat-pilot-container .cp-file-drag-zone h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.15rem;
+    color: var(--text-primary);
+}
+#chat-pilot-container .cp-file-drag-zone p {
+    margin: 0 0 1rem 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+#chat-pilot-container .cp-file-drag-zone .file-or {
+    margin: 0.5rem 0;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+#chat-pilot-container .cp-progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    overflow: hidden;
+}
+#chat-pilot-container .cp-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+    transition: width 0.3s ease;
+}
+
+/* Action buttons styling */
+#chat-pilot-container .cp-actions-row {
+    display: inline-flex;
+    gap: 0.35rem;
+}
+#chat-pilot-container .cp-action-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+}
+#chat-pilot-container .cp-action-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Switch sliders */
+#chat-pilot-container .cp-switch {
+    position: relative;
+    display: inline-block;
+    width: 38px;
+    height: 20px;
+}
+#chat-pilot-container .cp-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+#chat-pilot-container .cp-switch-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.1);
+    transition: .3s;
+    border-radius: 20px;
+}
+#chat-pilot-container .cp-switch-slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: var(--text-primary);
+    transition: .3s;
+    border-radius: 50%;
+}
+#chat-pilot-container .cp-switch input:checked + .cp-switch-slider {
+    background-color: var(--accent-cyan);
+}
+#chat-pilot-container .cp-switch input:checked + .cp-switch-slider:before {
+    transform: translateX(18px);
+    background-color: #000;
+}
+
+/* Collapsible nested document details browser */
+#chat-pilot-container .source-row {
+    cursor: pointer;
+}
+#chat-pilot-container .source-row:hover {
+    background: rgba(255, 255, 255, 0.02) !important;
+}
+#chat-pilot-container .docs-sub-row {
+    background: rgba(0, 0, 0, 0.25);
+    display: none;
+}
+#chat-pilot-container .docs-sub-row.active {
+    display: table-row;
+}
+#chat-pilot-container .docs-accordion-content {
+    padding: 1.75rem 2rem;
+    border-left: 3px solid var(--accent-cyan);
+}
+#chat-pilot-container .cp-docs-sub-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.5rem;
+}
+#chat-pilot-container .cp-docs-sub-table th {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    padding: 0.65rem 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+#chat-pilot-container .cp-docs-sub-table td {
+    padding: 0.8rem 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* Onboarding empty state helper */
+#chat-pilot-container .cp-kb-empty-state {
+    text-align: center;
+    padding: 5rem 2rem;
+}
+#chat-pilot-container .cp-kb-empty-state .empty-state-icon {
+    font-size: 3.5rem;
+    display: block;
+    margin-bottom: 1.5rem;
+    filter: drop-shadow(0 0 10px rgba(6, 182, 212, 0.25));
+}
+#chat-pilot-container .cp-kb-empty-state h4 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem 0;
+}
+#chat-pilot-container .cp-kb-empty-state p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+#chat-pilot-container .cp-type-label {
+    font-family: monospace;
+    font-size: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    color: var(--text-secondary);
+}
+
+/* 6. Collapsible Developer Sandbox Tools Drawer */
+#chat-pilot-container .cp-kb-dev-sandbox .cp-card {
+    border-color: rgba(255, 255, 255, 0.05);
+}
+#chat-pilot-container .cp-kb-accordion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 1.25rem 1.5rem;
+    user-select: none;
+}
+#chat-pilot-container .cp-kb-accordion-header h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+}
+#chat-pilot-container .cp-kb-accordion-header:hover h3 {
+    color: var(--text-primary);
+}
+#chat-pilot-container .accordion-arrow {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+}
+#chat-pilot-container .cp-kb-accordion-header.active .accordion-arrow {
+    transform: rotate(180deg);
+}
+
+/* Diagnostic items */
+#chat-pilot-container .cp-diag-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s ease;
+}
+#chat-pilot-container .cp-diag-item:hover {
+    border-color: var(--accent-cyan);
+}
+#chat-pilot-container .cp-diag-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+#chat-pilot-container .cp-diag-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+#chat-pilot-container .cp-diag-score {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--accent-cyan);
+    background: rgba(6, 182, 212, 0.1);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+}
+#chat-pilot-container .cp-diag-source {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+#chat-pilot-container .cp-diag-content {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+/* Redesigned 2-Column Workspaces Grid */
+#chat-pilot-container .cp-workspace-grid {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 2.5rem;
+    align-items: start;
+}
+@media (max-width: 960px) {
+    #chat-pilot-container .cp-workspace-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+}
+#chat-pilot-container .cp-workspace-main {
+    width: 100%;
+}
+#chat-pilot-container .cp-workspace-sidebar {
+    width: 100%;
+}
+
+/* Flex Grid Column Helpers */
+#chat-pilot-container .form-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    margin-right: -12px !important;
+    margin-left: -12px !important;
+}
+#chat-pilot-container .form-row .form-group {
+    padding-right: 12px !important;
+    padding-left: 12px !important;
+    box-sizing: border-box !important;
+    margin-bottom: 2rem !important;
+}
+#chat-pilot-container .col-12 {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+}
+#chat-pilot-container .col-6 {
+    flex: 0 0 50% !important;
+    max-width: 50% !important;
+}
+@media (max-width: 782px) {
+    #chat-pilot-container .col-6 {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+    }
+}
+
+/* Global Slate Glassmorphic Form Inputs */
+#chat-pilot-container .cp-input {
+    display: block !important;
+    width: 100% !important;
+    background: rgba(15, 23, 42, 0.75) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 8px !important;
+    color: var(--text-primary) !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 0.95rem !important;
+    transition: all 0.2s ease !important;
+    box-sizing: border-box !important;
+}
+#chat-pilot-container .cp-input:focus {
+    outline: none !important;
+    border-color: var(--accent-cyan) !important;
+    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2) !important;
+    background: rgba(15, 23, 42, 0.9) !important;
+}
+
+/* Custom Dropdown Arrow for Dark Select box */
+#chat-pilot-container select.cp-input {
+    appearance: none !important;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 1rem center !important;
+    background-size: 1.1em !important;
+    padding-right: 2.75rem !important;
+}
+
+/* Proportional Input Limitations */
+#chat-pilot-container .cp-workspace-main .cp-input-lg {
+    max-width: 480px !important;
+}
+
+/* Sidebar Contextual Info Panel */
+#chat-pilot-container .cp-sidebar-info-card {
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    padding: 1.75rem;
+}
+#chat-pilot-container .cp-sidebar-info-card h4 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0 0 1.25rem 0;
+    color: var(--text-primary);
+}
+#chat-pilot-container .cp-sidebar-info-card ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+#chat-pilot-container .cp-sidebar-info-card ul li {
+    margin-bottom: 1.25rem;
+}
+#chat-pilot-container .cp-sidebar-info-card ul li:last-child {
+    margin-bottom: 0;
+}
+#chat-pilot-container .cp-sidebar-info-card ul li strong {
+    font-size: 0.9rem;
+    color: var(--accent-cyan);
+    display: block;
+    margin-bottom: 0.25rem;
+}
+#chat-pilot-container .cp-sidebar-info-card ul li p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Typography & Contrast accessibility */
+#chat-pilot-container .cp-workspace-form-label {
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    color: #ffffff !important; /* Pure white text */
+    margin-bottom: 0.75rem !important;
+    display: block !important;
+}
+#chat-pilot-container .cp-help-text {
+    display: block !important;
+    margin-top: 0.65rem !important;
+    font-size: 0.85rem !important;
+    color: #cbd5e1 !important; /* Slate-300, highly readable */
+    line-height: 1.5 !important;
+}
+#chat-pilot-container .cp-editor-meta-label {
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    color: #cbd5e1 !important; /* High contrast metadata labels */
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    margin-bottom: 0.65rem !important;
+    display: block !important;
+}
+#chat-pilot-container ::placeholder,
+#chat-pilot-container input::placeholder,
+#chat-pilot-container textarea::placeholder {
+    color: rgba(255, 255, 255, 0.55) !important; /* Lighter, highly visible placeholders */
+    opacity: 1 !important;
+}
+#chat-pilot-container :-ms-input-placeholder {
+    color: rgba(255, 255, 255, 0.55) !important;
+}
+#chat-pilot-container ::-ms-input-placeholder {
+    color: rgba(255, 255, 255, 0.55) !important;
+}
+
+/* Force typed inputs and textareas to high-contrast white text */
+#chat-pilot-container .cp-input,
+#chat-pilot-container select.cp-input,
+#chat-pilot-container .cp-editor-textarea,
+#chat-pilot-container .cp-editor-title {
+    color: #ffffff !important;
+}
+
+/* Form group margins */
+#chat-pilot-container .cp-form-group,
+#chat-pilot-container .form-group {
+    margin-bottom: 2rem !important;
+}
+
+/* Spacing separation on all submit buttons */
+#chat-pilot-container .cp-form button[type="submit"] {
+    margin-top: 2.25rem !important;
+}
+
+/* Large Inputs & Prominent Buttons */
+#chat-pilot-container .cp-input-lg {
+    padding: 0.85rem 1rem !important;
+    font-size: 1rem !important;
+    border-radius: 8px !important;
+}
+#chat-pilot-container .cp-btn-lg {
+    padding: 0.85rem 2.25rem !important;
+    font-size: 0.95rem !important;
+    border-radius: 8px !important;
+}
+#chat-pilot-container .cp-btn-glow {
+    box-shadow: 0 4px 15px rgba(6, 182, 212, 0.25);
+    transition: all 0.2s ease;
+}
+#chat-pilot-container .cp-btn-glow:hover {
+    box-shadow: 0 4px 20px rgba(6, 182, 212, 0.45);
+    transform: translateY(-1px);
+}
+
+/* SaaS Notion-like Editor Styles */
+#chat-pilot-container .cp-saas-editor-form {
+    padding: 0.5rem;
+}
+#chat-pilot-container .cp-editor-title {
+    background: none !important;
+    border: none !important;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.12) !important;
+    font-size: 2rem !important;
+    font-weight: 800 !important;
+    font-family: 'Outfit', sans-serif !important;
+    color: #ffffff !important;
+    padding: 0.5rem 0 1.25rem 0 !important; /* Visual spacing above divider line */
+    margin-bottom: 2.5rem !important; /* Visual spacing below divider line */
+    width: 100% !important;
+    max-width: 100% !important;
+    outline: none !important;
+    border-radius: 0 !important;
+    transition: border-bottom-color 0.3s ease !important;
+}
+#chat-pilot-container .cp-editor-title:focus {
+    border-bottom-color: var(--accent-cyan) !important;
+    box-shadow: none !important;
+}
+#chat-pilot-container .cp-editor-title.qa-question-input:focus {
+    border-bottom-color: var(--accent-orange) !important;
+}
+#chat-pilot-container .cp-editor-meta-input {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+    border-radius: 6px !important;
+}
+#chat-pilot-container .cp-editor-textarea {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 420px !important;
+    font-family: 'Fira Code', Consolas, Monaco, monospace !important;
+    font-size: 0.95rem !important;
+    line-height: 1.6 !important;
+    padding: 1.5rem !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    background: rgba(0, 0, 0, 0.3) !important;
+    border-radius: 12px !important;
+    resize: vertical !important;
+    transition: all 0.2s ease !important;
+    box-sizing: border-box !important;
+}
+#chat-pilot-container .cp-editor-textarea:focus {
+    border-color: var(--accent-cyan) !important;
+    box-shadow: 0 0 12px rgba(6, 182, 212, 0.15) !important;
+}
+#chat-pilot-container .cp-workspace-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0.25rem;
+    transition: color 0.2s ease;
+}
+#chat-pilot-container .cp-workspace-close:hover {
+    color: var(--accent-red);
+}
+#chat-pilot-container .cp-workspace-form-content {
+    display: none;
+}
+#chat-pilot-container .cp-workspace-form-content.active {
+    display: block;
+}
+
+/* Button Loading Spinner Animation */
+#chat-pilot-container .cp-btn-spinner {
+    display: none;
+    width: 16px !important;
+    height: 16px !important;
+    border: 2px solid rgba(255, 255, 255, 0.3) !important;
+    border-radius: 50% !important;
+    border-top-color: #ffffff !important;
+    animation: cp-spin 0.8s linear infinite !important;
+    margin-right: 8px !important;
+    vertical-align: middle !important;
+}
+
+@keyframes cp-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Crawled Pages checklist hover row states */
+#chat-pilot-container .cp-crawled-item-row:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* History logs list scrolling styling */
+#chat-pilot-container .cp-history-list-wrapper::-webkit-scrollbar,
+#chat-pilot-container #cp-crawler-progress-logs::-webkit-scrollbar,
+#chat-pilot-container #cp-summary-pages-list::-webkit-scrollbar {
+    width: 6px !important;
+}
+#chat-pilot-container .cp-history-list-wrapper::-webkit-scrollbar-thumb,
+#chat-pilot-container #cp-crawler-progress-logs::-webkit-scrollbar-thumb,
+#chat-pilot-container #cp-summary-pages-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 3px !important;
+}
+
+/* Modal closing transition rules */
+.cp-modal-overlay {
+    transition: opacity 0.25s ease !important;
+}
+.cp-modal-content {
+    animation: cp-slide-up-fade 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+@keyframes cp-slide-up-fade {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+

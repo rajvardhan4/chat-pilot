@@ -1,0 +1,669 @@
+/**
+ * Chat Pilot SaaS Portal stylesheet.
+ *
+ * The palette is taken from the Chat Pilot logo and nothing else: the cap and
+ * "Chat" navy (#0D1F35) and the bubble/"Pilot" blue (#0678F9). Everything else
+ * is a neutral built from that navy, so the interface stays quiet and the two
+ * brand colours keep their meaning. Semantic colours (green/amber/red) appear
+ * only on status, never on furniture.
+ *
+ * Two themes share one set of component rules. Every colour in this file comes
+ * from a token, and only the token block below is redefined for dark mode - so
+ * a component can never be right in one theme and wrong in the other.
+ *
+ *   :root                      light - what everyone gets by default
+ *   html[data-theme="dark"]    night mode, chosen from the day/night toggle
+ */
+
+:root {
+  /* Brand - straight from the logo. */
+  --cp-ink: #0d1f35;
+  --cp-blue: #0678f9;
+  --cp-blue-hover: #045fcc;
+  --cp-blue-soft: #e8f1fe;
+  --cp-blue-ring: rgba(6, 120, 249, 0.18);
+
+  /* Surfaces. */
+  --bg-base: #f4f7fb;
+  --bg-shell: #ffffff;
+  --bg-card: #ffffff;
+  --bg-subtle: #f7fafd;
+  --bg-inset: #eef3f9;
+
+  /* Lines. */
+  --border: #e3eaf4;
+  --border-strong: #cdd9e9;
+
+  /* Type. */
+  --text-primary: #0d1f35;
+  --text-secondary: #526580;
+  --text-muted: #8395ab;
+  --text-on-brand: #ffffff;
+
+  /* Status - used sparingly. */
+  --ok: #0f9d6e;
+  --ok-bg: #e7f7f1;
+  --warn: #a56a12;
+  --warn-bg: #fdf3e3;
+  --danger: #cf3f55;
+  --danger-bg: #fdedef;
+  --info: #0678f9;
+  --info-bg: #e8f1fe;
+
+  --shadow-sm: 0 1px 2px rgba(13, 31, 53, 0.05);
+  --shadow: 0 2px 8px rgba(13, 31, 53, 0.06), 0 1px 2px rgba(13, 31, 53, 0.04);
+  --shadow-lg: 0 12px 32px rgba(13, 31, 53, 0.1);
+
+  --radius-lg: 14px;
+  --radius-md: 10px;
+  --radius-sm: 7px;
+
+  --logo: url('/assets/img/chat-pilot-logo.png');
+  color-scheme: light;
+}
+
+/* Night mode, chosen explicitly. */
+html[data-theme='dark'] {
+  --cp-blue: #3d95ff;
+  --cp-blue-hover: #67adff;
+  --cp-blue-soft: #14304f;
+  --cp-blue-ring: rgba(61, 149, 255, 0.25);
+
+  --bg-base: #081222;
+  --bg-shell: #0d1f35;
+  --bg-card: #102741;
+  --bg-subtle: #0d2138;
+  --bg-inset: #0a1a2c;
+
+  --border: #1d3552;
+  --border-strong: #2a4a6d;
+
+  --text-primary: #e9f0f8;
+  --text-secondary: #9db0c8;
+  --text-muted: #708aa6;
+  --text-on-brand: #04121f;
+
+  --ok: #34d399;
+  --ok-bg: #0d2f28;
+  --warn: #f0b429;
+  --warn-bg: #33270c;
+  --danger: #f87171;
+  --danger-bg: #35191d;
+  --info: #3d95ff;
+  --info-bg: #102b47;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.45);
+
+  --logo: url('/assets/img/chat-pilot-logo-dark.png');
+  color-scheme: dark;
+}
+
+/*
+ * There is deliberately no prefers-color-scheme rule. Chat Pilot is a light
+ * product by default - dark is a choice the customer makes with the day/night
+ * toggle, and that choice is what data-theme records.
+ */
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; min-height: 100%; }
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--cp-blue); text-decoration: none; }
+a:hover { color: var(--cp-blue-hover); text-decoration: underline; }
+
+h1, h2, h3, h4 {
+  font-family: 'Outfit', -apple-system, sans-serif;
+  color: var(--text-primary);
+  margin: 0 0 0.75rem 0;
+  letter-spacing: -0.01em;
+}
+
+.cp-shell { max-width: 1400px; margin: 0 auto; padding: 1.5rem 1.5rem 4rem; }
+
+/* ------------------------------------------------------------- header -- */
+
+.cp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.25rem;
+  background: var(--bg-shell);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 0.85rem 1.15rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.cp-logo { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
+
+/* The logo image is the wordmark; the swap between themes is a token. */
+.cp-logo-img {
+  /* The lockup is a 4:1 horizontal image; the box matches so nothing is
+     letterboxed by background-size: contain. */
+  width: 168px;
+  height: 42px;
+  background-image: var(--logo);
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: contain;
+  flex-shrink: 0;
+}
+
+.cp-logo h1 {
+  font-size: 0;      /* the wordmark carries the name; this stays for a11y */
+  margin: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+.cp-logo .cp-badge-pilot {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  background: var(--cp-blue-soft);
+  color: var(--cp-blue);
+  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+  white-space: nowrap;
+}
+
+.cp-logo-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.cp-brand-sub { margin: 0; font-size: 0.72rem; color: var(--text-muted); }
+.cp-brand-sub strong { color: var(--text-secondary); font-weight: 600; }
+
+.cp-header-actions { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+
+/* --------------------------------------------------------- theme toggle -- */
+
+.cp-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.2rem;
+}
+
+.cp-theme-toggle button {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+
+.cp-theme-toggle button:hover { color: var(--text-primary); }
+
+.cp-theme-toggle button[aria-pressed='true'] {
+  background: var(--bg-shell);
+  color: var(--cp-blue);
+  box-shadow: var(--shadow-sm);
+}
+
+/* --------------------------------------------------------------- tabs -- */
+
+.cp-tabs-nav {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  background: var(--bg-shell);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.35rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.cp-tabs-nav::-webkit-scrollbar { height: 6px; }
+.cp-tabs-nav::-webkit-scrollbar-track { background: transparent; }
+.cp-tabs-nav::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
+
+.cp-tab-link {
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.cp-tab-link:hover { background: var(--bg-inset); color: var(--text-primary); text-decoration: none; }
+
+.cp-tab-link.active, .cp-tab-link.is-active {
+  background: var(--cp-blue);
+  color: var(--text-on-brand);
+}
+
+.cp-tab-link.active:hover, .cp-tab-link.is-active:hover { color: var(--text-on-brand); text-decoration: none; }
+
+/* -------------------------------------------------------------- cards -- */
+
+.cp-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.35rem;
+  margin-bottom: 1.25rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.cp-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 0.85rem 0;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.cp-card-title small { font-size: 0.76rem; font-weight: 500; color: var(--text-muted); }
+
+.cp-description { color: var(--text-secondary); font-size: 0.9rem; margin: 0 0 1rem 0; }
+.cp-help-text { color: var(--text-muted); font-size: 0.78rem; margin: 0.35rem 0 0 0; }
+.cp-muted { color: var(--text-muted); }
+.cp-mt { margin-top: 1.15rem; }
+.cp-mb0 { margin-bottom: 0; }
+.cp-right { text-align: right; }
+.cp-nowrap { white-space: nowrap; }
+
+.cp-sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* -------------------------------------------------------------- grids -- */
+
+.cp-grid { display: grid; gap: 1rem; }
+.cp-grid-2 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.cp-grid-3 { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.cp-grid-sidebar { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 1.25rem; align-items: start; }
+.cp-flex { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+.cp-actions-row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1rem; }
+/*
+ * Label/value list. Every use in the views is a <ul> of <li> holding two
+ * <span>s - a caption and its value - so it is laid out as rows, not as chips.
+ */
+.cp-inline-list { list-style: none; padding: 0; margin: 0; }
+
+.cp-inline-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.86rem;
+}
+
+.cp-inline-list li:last-child { border-bottom: 0; }
+.cp-inline-list li > span:first-child { color: var(--text-muted); }
+.cp-inline-list li > span:last-child { color: var(--text-primary); font-weight: 600; text-align: right; }
+
+.cp-secondary { color: var(--text-secondary); font-size: 0.88rem; }
+
+@media (max-width: 900px) {
+  .cp-grid-sidebar { grid-template-columns: 1fr; }
+}
+
+/* ------------------------------------------------------------ buttons -- */
+
+.cp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-family: inherit;
+  font-size: 0.87rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0.6rem 1.05rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+
+.cp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.cp-btn:focus-visible { outline: 2px solid var(--cp-blue); outline-offset: 2px; }
+
+.cp-btn-primary { background: var(--cp-blue); color: var(--text-on-brand); }
+.cp-btn-primary:hover:not(:disabled) { background: var(--cp-blue-hover); color: var(--text-on-brand); text-decoration: none; }
+
+.cp-btn-secondary { background: var(--bg-shell); color: var(--text-primary); border-color: var(--border-strong); }
+.cp-btn-secondary:hover:not(:disabled) { background: var(--bg-inset); color: var(--text-primary); text-decoration: none; }
+
+.cp-btn-danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+.cp-btn-danger:hover:not(:disabled) { background: var(--danger-bg); color: var(--danger); text-decoration: none; }
+
+.cp-btn-sm { padding: 0.4rem 0.7rem; font-size: 0.8rem; }
+.cp-btn-lg { padding: 0.8rem 1.4rem; font-size: 0.95rem; }
+.cp-btn-block { display: flex; width: 100%; }
+
+/* ------------------------------------------------------------- inputs -- */
+
+.cp-form-group { margin-bottom: 1rem; }
+
+.cp-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.35rem;
+}
+
+.cp-input, .cp-select, textarea.cp-input {
+  width: 100%;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  background: var(--bg-shell);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.58rem 0.7rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.cp-input::placeholder { color: var(--text-muted); }
+
+.cp-input:focus, .cp-select:focus {
+  outline: none;
+  border-color: var(--cp-blue);
+  box-shadow: 0 0 0 3px var(--cp-blue-ring);
+}
+
+.cp-input:disabled, .cp-select:disabled { background: var(--bg-inset); color: var(--text-muted); cursor: not-allowed; }
+
+.cp-input-sm { padding: 0.4rem 0.55rem; font-size: 0.82rem; }
+
+.cp-select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+                    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position: calc(100% - 17px) center, calc(100% - 12px) center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 2rem;
+}
+
+textarea.cp-input { min-height: 120px; resize: vertical; line-height: 1.55; }
+
+.cp-field-error { color: var(--danger); font-size: 0.78rem; margin-top: 0.3rem; display: block; }
+
+.cp-checkbox-label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.87rem; color: var(--text-secondary); cursor: pointer; }
+.cp-checkbox-label input { accent-color: var(--cp-blue); width: 15px; height: 15px; }
+
+/* A password field with a reveal button sitting inside its right edge. */
+.cp-secret-field { position: relative; display: block; }
+.cp-secret-field .cp-input { padding-right: 2.6rem; }
+
+.cp-eye {
+  position: absolute;
+  top: 50%;
+  right: 0.4rem;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 0.3rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  line-height: 0;
+  display: inline-flex;
+}
+
+.cp-eye:hover { color: var(--cp-blue); background: var(--bg-inset); }
+.cp-eye:focus-visible { outline: 2px solid var(--cp-blue); outline-offset: 1px; }
+.cp-eye svg { width: 17px; height: 17px; display: block; }
+.cp-eye .cp-eye-off { display: none; }
+.cp-eye[aria-pressed='true'] .cp-eye-on { display: none; }
+.cp-eye[aria-pressed='true'] .cp-eye-off { display: block; }
+
+/* ------------------------------------------------------------ switches -- */
+
+.cp-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+.cp-switch-row:last-child { border-bottom: 0; }
+.cp-switch-text { font-size: 0.87rem; color: var(--text-primary); }
+
+.cp-switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }
+.cp-switch input { opacity: 0; width: 0; height: 0; }
+
+.cp-switch-slider {
+  position: absolute; inset: 0; cursor: pointer;
+  background: var(--border-strong);
+  border-radius: 999px; transition: background 0.2s;
+}
+
+.cp-switch-slider::before {
+  content: ''; position: absolute;
+  height: 18px; width: 18px; left: 3px; top: 3px;
+  background: #fff; border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: var(--shadow-sm);
+}
+
+.cp-switch input:checked + .cp-switch-slider { background: var(--cp-blue); }
+.cp-switch input:checked + .cp-switch-slider::before { transform: translateX(18px); }
+.cp-switch input:focus-visible + .cp-switch-slider { box-shadow: 0 0 0 3px var(--cp-blue-ring); }
+
+/* -------------------------------------------------------------- pills -- */
+
+.cp-pill {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em;
+  padding: 0.22rem 0.6rem; border-radius: 999px;
+  background: var(--bg-inset); color: var(--text-secondary);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.cp-pill-success { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+.cp-pill-error { background: var(--danger-bg); color: var(--danger); border-color: transparent; }
+.cp-pill-warning { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+.cp-pill-info, .cp-pill-purple { background: var(--info-bg); color: var(--info); border-color: transparent; }
+
+.cp-status-badge {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  font-size: 0.78rem; font-weight: 600;
+  padding: 0.35rem 0.7rem; border-radius: 999px;
+  background: var(--bg-inset); color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.cp-status-badge:hover { text-decoration: none; }
+.cp-status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); flex-shrink: 0; }
+.cp-status-badge.is-error { color: var(--danger); }
+.cp-status-badge.is-error .cp-status-dot { background: var(--danger); }
+.cp-status-badge.is-admin { color: var(--cp-blue); background: var(--cp-blue-soft); border-color: transparent; }
+.cp-status-badge.is-admin .cp-status-dot { background: var(--cp-blue); }
+
+/* ------------------------------------------------------------- alerts -- */
+
+.cp-alert {
+  display: flex; align-items: flex-start; gap: 0.55rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: 0.87rem;
+  margin-bottom: 1rem;
+}
+
+.cp-alert-success { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+.cp-alert-error { background: var(--danger-bg); color: var(--danger); border-color: transparent; }
+.cp-alert-warning { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+.cp-alert-info { background: var(--info-bg); color: var(--info); border-color: transparent; }
+
+.cp-toast {
+  position: fixed; top: 1rem; right: 1rem; z-index: 999;
+  max-width: 380px; display: none;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border);
+}
+
+/* --------------------------------------------------------------- KPIs -- */
+
+.cp-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.9rem; margin-bottom: 1.25rem; }
+
+.cp-kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.cp-kpi-icon { font-size: 1.05rem; margin-bottom: 0.4rem; opacity: 0.85; }
+.cp-kpi-value { font-family: 'Outfit', sans-serif; font-size: 1.7rem; font-weight: 700; color: var(--text-primary); line-height: 1.15; }
+.cp-kpi-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-top: 0.2rem; }
+
+/* ------------------------------------------------------------- tables -- */
+
+.cp-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-card); }
+.cp-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+
+.cp-table th {
+  text-align: left; font-size: 0.68rem; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0.7rem 0.9rem;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.cp-table td { padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--border); color: var(--text-secondary); vertical-align: middle; }
+.cp-table tbody tr:last-child td { border-bottom: 0; }
+.cp-table tbody tr:hover td { background: var(--bg-subtle); }
+.cp-table strong { color: var(--text-primary); font-weight: 600; }
+
+.cp-empty { text-align: center; color: var(--text-muted); padding: 2rem 1rem; font-size: 0.88rem; }
+
+/* --------------------------------------------------------------- bars -- */
+
+.cp-bar { height: 7px; background: var(--bg-inset); border-radius: 999px; overflow: hidden; }
+.cp-bar-fill { height: 100%; background: var(--cp-blue); border-radius: 999px; transition: width 0.3s; }
+
+/* --------------------------------------------------------------- code -- */
+
+.cp-code, .cp-mono-key, .cp-new-key-value, code {
+  font-family: 'SFMono-Regular', ui-monospace, Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.82rem;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.4rem;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.cp-code { display: block; padding: 0.8rem 0.9rem; white-space: pre-wrap; line-height: 1.5; }
+
+.cp-new-key-panel { background: var(--cp-blue-soft); border: 1px solid var(--cp-blue); border-radius: var(--radius-md); padding: 1rem; margin-top: 1rem; }
+.cp-new-key-value { display: block; background: var(--bg-shell); padding: 0.7rem 0.85rem; font-size: 0.86rem; margin: 0.6rem 0; }
+
+/* --------------------------------------------------------------- chat -- */
+
+.cp-chat-panel { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-card); overflow: hidden; }
+.cp-chat-stream, .cp-preview-stream { min-height: 320px; max-height: 460px; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.65rem; background: var(--bg-subtle); }
+.cp-chat-msg { display: flex; }
+.cp-chat-msg.is-user { justify-content: flex-end; }
+
+.cp-chat-bubble {
+  max-width: 78%;
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  background: var(--bg-shell);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.cp-chat-msg.is-user .cp-chat-bubble { background: var(--cp-blue); border-color: var(--cp-blue); color: var(--text-on-brand); }
+
+.cp-chat-composer, .cp-preview-form { display: flex; gap: 0.5rem; padding: 0.75rem; border-top: 1px solid var(--border); background: var(--bg-card); }
+.cp-chat-composer .cp-input, .cp-preview-input { flex: 1; }
+
+.cp-typing { display: inline-flex; gap: 3px; align-items: center; }
+.cp-typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); animation: cp-bounce 1.2s infinite; }
+.cp-typing span:nth-child(2) { animation-delay: 0.15s; }
+.cp-typing span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes cp-bounce { 0%, 60%, 100% { opacity: 0.3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+
+.cp-preview-diagnostics { font-size: 0.78rem; color: var(--text-muted); border-top: 1px dashed var(--border); padding-top: 0.7rem; margin-top: 0.7rem; }
+.cp-retrieval-results { margin-top: 0.75rem; }
+
+/* ------------------------------------------------------- widget preview -- */
+
+.cp-widget-preview { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-subtle); padding: 1rem; min-height: 300px; }
+
+/* -------------------------------------------------------------- forms -- */
+
+.cp-field-rows { display: flex; flex-direction: column; gap: 0.6rem; }
+.cp-form-name { font-weight: 600; color: var(--text-primary); }
+.cp-form-id { font-size: 0.72rem; color: var(--text-muted); }
+.cp-upload-input { display: none; }
+
+/* --------------------------------------------------------------- auth -- */
+
+.cp-auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; background: var(--bg-base); }
+
+.cp-auth-card {
+  width: 100%; max-width: 430px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 2rem 1.75rem;
+}
+
+.cp-auth-card .cp-logo { justify-content: center; margin-bottom: 1.25rem; }
+.cp-auth-card .cp-logo-img { width: 208px; height: 52px; background-position: center; }
+.cp-auth-foot { text-align: center; font-size: 0.84rem; color: var(--text-muted); margin-top: 1.25rem; }
+
+/* ------------------------------------------------------------- misc -- */
+
+.cp-website-switcher .cp-select { min-width: 210px; font-size: 0.84rem; padding: 0.4rem 2rem 0.4rem 0.6rem; }
+.cp-generate-key { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: flex-end; }
+.cp-key-label { max-width: 260px; }
+
+@media (max-width: 640px) {
+  .cp-shell { padding: 1rem 0.85rem 3rem; }
+  .cp-header { padding: 0.75rem 0.85rem; }
+  .cp-logo-img { width: 128px; height: 32px; }
+  .cp-header-actions { width: 100%; }
+  .cp-website-switcher, .cp-website-switcher .cp-select { width: 100%; }
+}

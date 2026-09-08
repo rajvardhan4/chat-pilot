@@ -1,0 +1,76 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<%- include('../partials/account-tabs') %>
+
+<div class="cp-grid cp-grid-2">
+  <form class="cp-card" method="post" action="/app/account">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h2 class="cp-card-title">Account details</h2>
+    <div class="cp-form-group">
+      <label class="cp-label" for="name">Account name</label>
+      <input class="cp-input" id="name" name="name" value="<%= account.name %>">
+    </div>
+    <div class="cp-form-group">
+      <label class="cp-label" for="billing_email">Notification / billing email</label>
+      <input class="cp-input" type="email" id="billing_email" name="billing_email" value="<%= account.billing_email %>">
+      <p class="cp-help-text">Lead alerts, new-conversation alerts and AI provider failure alerts go here.</p>
+    </div>
+    <button class="cp-btn cp-btn-primary" type="submit">Save account</button>
+  </form>
+
+  <form class="cp-card" method="post" action="/account/password">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h2 class="cp-card-title">Change password</h2>
+    <div class="cp-form-group">
+      <label class="cp-label" for="current_password">Current password</label>
+      <input class="cp-input" type="password" id="current_password" name="current_password" autocomplete="current-password" required>
+    </div>
+    <div class="cp-form-group">
+      <label class="cp-label" for="new_password">New password</label>
+      <input class="cp-input" type="password" id="new_password" name="new_password" autocomplete="new-password" required>
+      <p class="cp-help-text">At least 10 characters, including a number or symbol.</p>
+    </div>
+    <button class="cp-btn cp-btn-primary" type="submit">Update password</button>
+  </form>
+
+  <div class="cp-card">
+    <h3 class="cp-card-title">Signed in as</h3>
+    <ul class="cp-inline-list">
+      <li><span>Name</span><span><%= user.full_name %></span></li>
+      <li><span>Email</span><span><%= user.email %></span></li>
+      <li><span>Role</span><span><span class="cp-pill <%= user.platform_role === 'super_admin' ? 'cp-pill-purple' : 'cp-pill-info' %>"><%= user.platform_role %></span></span></li>
+      <li><span>Last sign-in</span><span><%= user.last_login_at || '—' %></span></li>
+    </ul>
+    <h4 class="cp-mt">Accounts you belong to</h4>
+    <ul class="cp-inline-list">
+      <% memberships.forEach(function (m) { %>
+        <li><span><%= m.name %></span><span><span class="cp-pill <%= m.status === 'active' ? 'cp-pill-success' : 'cp-pill-error' %>"><%= m.status %></span></span></li>
+      <% }); %>
+    </ul>
+  </div>
+
+  <div class="cp-card">
+    <h3 class="cp-card-title">Recent notifications</h3>
+    <% if (!notifications.length) { %>
+      <div class="cp-empty">No notifications yet.</div>
+    <% } else { %>
+      <div class="cp-table-wrap">
+        <table class="cp-table" style="min-width:auto">
+          <thead><tr><th>When</th><th>Type</th><th>Subject</th><th>Delivered</th></tr></thead>
+          <tbody>
+          <% notifications.forEach(function (n) { %>
+            <tr>
+              <td class="cp-muted cp-nowrap"><%= n.created_at %></td>
+              <td><span class="cp-pill <%= n.severity === 'error' ? 'cp-pill-error' : 'cp-pill-info' %>"><%= n.type %></span></td>
+              <td><%= n.subject %></td>
+              <td><%= n.delivered ? 'yes' : 'no' %></td>
+            </tr>
+          <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../partials/foot') %>

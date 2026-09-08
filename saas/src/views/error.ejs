@@ -1,0 +1,19 @@
+<%- include('partials/head') %>
+<div class="cp-auth-wrap">
+  <div class="cp-auth-card">
+    <div class="cp-logo">
+      <span class="cp-logo-img" aria-hidden="true"></span>
+      <h1 class="cp-sr-only">Chat Pilot Cloud</h1>
+    </div>
+    <h2 style="text-align:center"><%= status %></h2>
+    <p class="cp-secondary" style="text-align:center"><%= message %></p>
+    <% if (reference) { %>
+      <p class="cp-muted" style="text-align:center; font-size:0.78rem">Reference: <span class="cp-code"><%= reference %></span></p>
+    <% } %>
+    <div class="cp-actions-row" style="justify-content:center; margin-top:1.5rem">
+      <a class="cp-btn cp-btn-primary" href="<%= !user ? '/login' : (user.platform_role === 'super_admin' ? '/admin' : '/app') %>">Back to Chat Pilot</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>

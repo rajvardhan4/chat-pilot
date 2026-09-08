@@ -1,0 +1,30 @@
+{
+  "name": "chat-pilot-saas",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Chat Pilot SaaS Portal - multi-tenant AI chatbot control plane",
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "scripts": {
+    "start": "node --no-warnings src/server.ts",
+    "dev": "node --no-warnings --watch src/server.ts",
+    "migrate": "node --no-warnings src/db/migrate.ts",
+    "seed": "node --no-warnings scripts/seed.ts",
+    "admin:create": "node --no-warnings scripts/create-admin.ts",
+    "test": "node --no-warnings --test \"tests/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3"
+  }
+}

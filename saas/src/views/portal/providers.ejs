@@ -1,0 +1,220 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<div data-website-id="<%= website.id %>"></div>
+<%- include('../partials/portal-tabs') %>
+
+<%
+  // The provider the picker opens on: whichever one is live, else the first one
+  // already configured, else the top of the catalogue.
+  var selected = providerConfig.active_provider ||
+    (providers.filter(function (p) { return p.configured; })[0] || providers[0]).provider;
+%>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">
+    <span>AI Provider</span>
+    <% if (providerConfig.active_provider) { %>
+      <span class="cp-pill cp-pill-success">Live &middot; <%= providerConfig.active_model || 'no model' %></span>
+    <% } else { %>
+      <span class="cp-pill">No provider selected</span>
+    <% } %>
+  </h2>
+
+  <p class="cp-description">
+    Pick the AI you want this website to use, paste that provider&rsquo;s own API key, and test it.
+    Your key is encrypted on our servers and used only to answer questions for this website &mdash;
+    it is never sent to your WordPress site or to a visitor&rsquo;s browser, and it cannot be read
+    back once saved.
+  </p>
+
+  <div class="cp-form-group">
+    <label class="cp-label" for="cp-provider-picker">Which AI do you want to use?</label>
+    <select class="cp-select" id="cp-provider-picker" data-provider-picker style="max-width:460px">
+      <% providers.forEach(function (p) { %>
+        <option value="<%= p.provider %>" <%= p.provider === selected ? 'selected' : '' %>>
+          <%= p.name %><%= p.status === 'not_configured' ? '' : ' — ' + p.statusLabel %>
+        </option>
+      <% }); %>
+    </select>
+    <p class="cp-help-text">
+      Every provider here works the same way: you bring a key from your own account with that
+      provider, so you keep control of the billing and the usage limits.
+    </p>
+  </div>
+</div>
+
+<% providers.forEach(function (p) { %>
+  <div class="cp-card" data-provider-card="<%= p.provider %>" <%= p.provider === selected ? '' : 'hidden' %>>
+    <h3 class="cp-card-title">
+      <span><%= p.name %></span>
+      <span class="cp-pill <%= p.status === 'connected' ? 'cp-pill-success' : (p.status === 'not_configured' ? '' : 'cp-pill-error') %>" data-provider-status><%= p.statusLabel %></span>
+    </h3>
+
+    <p class="cp-description"><%= p.description %></p>
+
+    <!-- Step 1 ------------------------------------------------------------ -->
+    <div class="cp-alert cp-alert-info">
+      <span>
+        <strong>Step 1 &mdash; get your API key.</strong>
+        <% if (p.consoleUrl) { %>
+          Sign in to your <%= p.name %> account and create a key here:
+          <a href="<%= p.consoleUrl %>" target="_blank" rel="noopener noreferrer"><%= p.consoleUrl %></a>.
+        <% } else { %>
+          Use the key issued by your own <%= p.name %> endpoint.
+        <% } %>
+        <% if (p.keyHint) { %> It looks like <code><%= p.keyHint %></code>.<% } %>
+      </span>
+    </div>
+
+    <% if (p.statusDetail) { %>
+      <p class="cp-help-text" data-provider-detail><%= p.statusDetail %></p>
+    <% } %>
+
+    <!-- Step 2 ------------------------------------------------------------ -->
+    <form data-provider-form="<%= p.provider %>">
+      <input type="hidden" name="provider" value="<%= p.provider %>">
+      <div class="cp-grid cp-grid-2">
+        <div class="cp-form-group">
+          <label class="cp-label" for="key-<%= p.provider %>">Step 2 &mdash; paste the API key</label>
+          <span class="cp-secret-field">
+            <input class="cp-input" type="password" id="key-<%= p.provider %>" name="api_key"
+                   placeholder="<%= p.configured ? p.maskedKey : 'Paste your ' + p.name + ' API key' %>"
+                   autocomplete="off" spellcheck="false">
+            <button type="button" class="cp-eye" data-reveal="key-<%= p.provider %>" aria-label="Show key">
+              <svg class="cp-eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              <svg class="cp-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+            </button>
+          </span>
+          <p class="cp-help-text">
+            <% if (p.configured) { %>Saved <%= p.maskedKey %>. Entering a new key replaces it.<% } else { %>Stored encrypted. Never displayed again.<% } %>
+          </p>
+        </div>
+
+        <% if (p.requiresBaseUrl || p.baseUrl) { %>
+          <div class="cp-form-group">
+            <label class="cp-label" for="base-<%= p.provider %>">
+              API base URL<%= p.requiresBaseUrl ? '' : ' (optional)' %>
+            </label>
+            <input class="cp-input" id="base-<%= p.provider %>" name="base_url" value="<%= p.baseUrl %>"
+                   placeholder="https://api.example.com/v1" autocomplete="off">
+            <p class="cp-help-text">
+              <% if (p.requiresBaseUrl) { %>
+                The root that serves <code>/models</code> and <code>/chat/completions</code>.
+              <% } else { %>
+                Leave blank unless you route through a proxy or gateway.
+              <% } %>
+            </p>
+          </div>
+        <% } %>
+
+        <% if (p.supportsOrgId) { %>
+          <div class="cp-form-group">
+            <label class="cp-label" for="org-<%= p.provider %>">Organisation ID (optional)</label>
+            <input class="cp-input" id="org-<%= p.provider %>" name="org_id" value="<%= p.orgId %>" autocomplete="off">
+          </div>
+        <% } %>
+      </div>
+
+      <div class="cp-actions-row">
+        <button class="cp-btn cp-btn-primary" type="submit">Save key</button>
+        <button class="cp-btn cp-btn-secondary" type="button" data-test-provider="<%= p.provider %>" <%= p.configured ? '' : 'disabled' %>>Test connection &amp; find models</button>
+        <% if (p.configured) { %>
+          <button class="cp-btn cp-btn-danger" type="button" data-remove-provider="<%= p.provider %>">Remove key</button>
+        <% } %>
+      </div>
+    </form>
+
+    <!-- Step 3 ------------------------------------------------------------ -->
+    <div class="cp-form-group cp-mt">
+      <label class="cp-label" for="model-<%= p.provider %>">Step 3 &mdash; choose the model this website uses</label>
+      <div class="cp-flex">
+        <select class="cp-select" id="model-<%= p.provider %>" data-model-select="<%= p.provider %>"
+                style="max-width:420px; <%= p.models.length ? '' : 'display:none' %>">
+          <% p.models.forEach(function (m) { %>
+            <option value="<%= m.id %>" <%= providerConfig.active_provider === p.provider && providerConfig.active_model === m.id ? 'selected' : '' %>><%= m.displayName %></option>
+          <% }); %>
+        </select>
+
+        <%# Some OpenAI-compatible gateways never implement /models. Once the
+            connection itself succeeds, the customer types the model id instead
+            of being locked out of a provider that works. %>
+        <input class="cp-input" id="model-manual-<%= p.provider %>" data-model-manual="<%= p.provider %>"
+               placeholder="<%= p.status === 'connected' ? 'Enter a model id' : 'Run a connection test first' %>"
+               value="<%= providerConfig.active_provider === p.provider ? providerConfig.active_model : '' %>"
+               style="max-width:420px; <%= p.models.length ? 'display:none' : '' %>">
+
+        <button class="cp-btn cp-btn-primary" type="button" data-select-provider="<%= p.provider %>"
+                <%= p.status === 'connected' ? '' : 'disabled' %>>Use this AI on my website</button>
+      </div>
+      <p class="cp-help-text">
+        Models are read live from your provider account &mdash; nothing is hardcoded, so retired models
+        disappear on the next test. A provider can only go live once its connection test passes.
+      </p>
+    </div>
+  </div>
+<% }); %>
+
+<%
+  var configured = providers.filter(function (p) { return p.configured; });
+%>
+<% if (configured.length) { %>
+  <div class="cp-card">
+    <h3 class="cp-card-title">Keys saved for this website</h3>
+    <div class="cp-table-wrap">
+      <table class="cp-table">
+        <thead>
+          <tr><th>Provider</th><th>Key</th><th>Status</th><th>Last tested</th><th></th></tr>
+        </thead>
+        <tbody>
+          <% configured.forEach(function (p) { %>
+            <tr>
+              <td>
+                <strong><%= p.name %></strong>
+                <% if (providerConfig.active_provider === p.provider) { %>
+                  <span class="cp-pill cp-pill-info">In use</span>
+                <% } %>
+              </td>
+              <td><code><%= p.maskedKey %></code></td>
+              <td>
+                <span class="cp-pill <%= p.status === 'connected' ? 'cp-pill-success' : 'cp-pill-error' %>"><%= p.statusLabel %></span>
+              </td>
+              <td class="cp-nowrap"><%= p.lastTestedAt || '—' %></td>
+              <td class="cp-right">
+                <button class="cp-btn cp-btn-secondary cp-btn-sm" type="button" data-jump-provider="<%= p.provider %>">Manage</button>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+<% } %>
+
+<div class="cp-card">
+  <h3 class="cp-card-title">Generation tuning</h3>
+  <form data-ajax="/providers/tuning" data-success="Tuning saved.">
+    <div class="cp-grid cp-grid-3">
+      <div class="cp-form-group">
+        <label class="cp-label" for="temperature">Temperature</label>
+        <input class="cp-input" type="number" step="0.05" min="0" max="2" id="temperature" name="temperature" value="<%= providerConfig.temperature %>">
+        <p class="cp-help-text">Lower is more literal and grounded.</p>
+      </div>
+      <div class="cp-form-group">
+        <label class="cp-label" for="max_output_tokens">Max output tokens</label>
+        <input class="cp-input" type="number" min="64" max="8000" id="max_output_tokens" name="max_output_tokens" value="<%= providerConfig.max_output_tokens %>">
+      </div>
+      <div class="cp-form-group">
+        <label class="cp-label" for="retrieval_threshold">Retrieval threshold</label>
+        <input class="cp-input" type="number" step="0.1" min="0" max="50" id="retrieval_threshold" name="retrieval_threshold" value="<%= providerConfig.retrieval_threshold %>">
+        <p class="cp-help-text">Below this relevance score the fallback answer is used.</p>
+      </div>
+      <div class="cp-form-group">
+        <label class="cp-label" for="max_history_messages">Context history messages</label>
+        <input class="cp-input" type="number" min="2" max="50" id="max_history_messages" name="max_history_messages" value="<%= providerConfig.max_history_messages %>">
+      </div>
+    </div>
+    <button class="cp-btn cp-btn-primary" type="submit">Save tuning</button>
+  </form>
+</div>
+
+<%- include('../partials/foot', { pageScripts: ['/assets/js/providers.js'] }) %>

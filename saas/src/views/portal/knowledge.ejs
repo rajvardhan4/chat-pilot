@@ -1,0 +1,189 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<div data-website-id="<%= website.id %>"></div>
+<%- include('../partials/portal-tabs') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">Knowledge Base <small>What the AI knows</small></h2>
+  <p class="cp-description">
+    Retrieval authority runs FAQ &rarr; Manual Knowledge &rarr; Uploaded Documents &rarr; Website Content.
+    Raw documents are never shown to a visitor; they only ground the generated answer.
+  </p>
+  <div class="cp-kpi-grid">
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">❓</div><div><div class="cp-kpi-value"><%= stats.byType.faq.total %></div><div class="cp-kpi-label">FAQs</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">✍️</div><div><div class="cp-kpi-value"><%= stats.byType.manual.total %></div><div class="cp-kpi-label">Manual</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">📄</div><div><div class="cp-kpi-value"><%= stats.byType.file.total %></div><div class="cp-kpi-label">Documents</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🌐</div><div><div class="cp-kpi-value"><%= stats.byType.website.total %></div><div class="cp-kpi-label">Website Pages</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🔤</div><div><div class="cp-kpi-value"><%= stats.totalWords.toLocaleString() %></div><div class="cp-kpi-label">Words Indexed</div></div></div>
+  </div>
+</div>
+
+<div class="cp-grid cp-grid-2">
+  <div class="cp-card">
+    <h3 class="cp-card-title">Website Scanner</h3>
+    <p class="cp-description">Crawls pages on <strong><%= website.primary_domain %></strong> and imports the readable text.</p>
+    <form data-ajax="/knowledge/scan" data-success="Scan complete." data-busy-label="Scanning…" data-reload>
+      <div class="cp-form-group">
+        <label class="cp-label" for="start_url">Start URL</label>
+        <input class="cp-input" id="start_url" name="start_url" value="<%= website.url %>" placeholder="https://<%= website.primary_domain %>">
+      </div>
+      <div class="cp-form-group">
+        <label class="cp-label" for="max_pages">Maximum pages</label>
+        <input class="cp-input" type="number" min="1" max="100" id="max_pages" name="max_pages" value="15">
+      </div>
+      <button class="cp-btn cp-btn-primary" type="submit">Scan website</button>
+    </form>
+
+    <% if (siteSources.length) { %>
+      <div class="cp-table-wrap cp-mt">
+        <table class="cp-table">
+          <thead><tr><th>Source</th><th>Status</th><th>Last sync</th><th></th></tr></thead>
+          <tbody>
+          <% siteSources.forEach(function (s) { %>
+            <tr>
+              <td><%= s.name %><% if (s.error_message) { %><br><span class="cp-muted"><%= s.error_message %></span><% } %></td>
+              <td><span class="cp-pill <%= s.status === 'completed' ? 'cp-pill-success' : (s.status === 'failed' ? 'cp-pill-error' : 'cp-pill-warning') %>"><%= s.status %></span></td>
+              <td class="cp-muted cp-nowrap"><%= s.last_sync_at || '—' %></td>
+              <td class="cp-right"><button class="cp-btn cp-btn-danger cp-btn-sm" data-post="/knowledge/sources/<%= s.id %>/delete" data-confirm="Delete this scan and all imported pages?">Delete</button></td>
+            </tr>
+          <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="cp-card">
+    <h3 class="cp-card-title">Manual Knowledge</h3>
+    <p class="cp-description">Focused entries beat one giant document. Services, pricing, policies, hours, areas served.</p>
+    <form data-ajax="/knowledge/manual" data-success="Manual knowledge saved." data-reload>
+      <div class="cp-form-group">
+        <label class="cp-label" for="manual_title">Title</label>
+        <input class="cp-input" id="manual_title" name="title" placeholder="Service areas" required>
+      </div>
+      <div class="cp-form-group">
+        <label class="cp-label" for="manual_content">Content</label>
+        <textarea class="cp-input" id="manual_content" name="content" rows="6" required></textarea>
+      </div>
+      <button class="cp-btn cp-btn-primary" type="submit">Save entry</button>
+    </form>
+
+    <% if (manual.length) { %>
+      <div class="cp-table-wrap cp-mt">
+        <table class="cp-table">
+          <thead><tr><th>Entry</th><th>Updated</th><th></th></tr></thead>
+          <tbody>
+          <% manual.forEach(function (s) { %>
+            <tr>
+              <td><%= s.name %></td>
+              <td class="cp-muted cp-nowrap"><%= s.updated_at %></td>
+              <td class="cp-right"><button class="cp-btn cp-btn-danger cp-btn-sm" data-post="/knowledge/sources/<%= s.id %>/delete" data-confirm="Delete this entry?">Delete</button></td>
+            </tr>
+          <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="cp-card">
+    <h3 class="cp-card-title">FAQ Manager</h3>
+    <p class="cp-description">FAQs are the highest-authority source for direct questions.</p>
+    <form data-ajax="/knowledge/faq" data-success="FAQ saved." data-reload>
+      <div class="cp-form-group">
+        <label class="cp-label" for="faq_question">Question</label>
+        <input class="cp-input" id="faq_question" name="question" placeholder="Do you offer free estimates?" required>
+      </div>
+      <div class="cp-form-group">
+        <label class="cp-label" for="faq_answer">Answer</label>
+        <textarea class="cp-input" id="faq_answer" name="answer" rows="4" required></textarea>
+      </div>
+      <button class="cp-btn cp-btn-primary" type="submit">Save FAQ</button>
+    </form>
+
+    <% if (faqs.length) { %>
+      <div class="cp-table-wrap cp-mt">
+        <table class="cp-table">
+          <thead><tr><th>Question</th><th></th></tr></thead>
+          <tbody>
+          <% faqs.forEach(function (s) { %>
+            <tr>
+              <td><%= s.name %></td>
+              <td class="cp-right"><button class="cp-btn cp-btn-danger cp-btn-sm" data-post="/knowledge/sources/<%= s.id %>/delete" data-confirm="Delete this FAQ?">Delete</button></td>
+            </tr>
+          <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="cp-card">
+    <h3 class="cp-card-title">Document Upload</h3>
+    <p class="cp-description">
+      .txt, .md, .csv, .pdf or .docx up to <%= Math.round(uploadMaxBytes / 1024 / 1024) %> MB.
+      Scanned image-only PDFs cannot be read and will say so.
+    </p>
+    <div class="cp-form-group">
+      <input class="cp-input" type="file" id="cp-upload-input" accept=".txt,.md,.csv,.pdf,.docx">
+    </div>
+    <button class="cp-btn cp-btn-primary" type="button" id="cp-upload-btn">Upload document</button>
+
+    <% if (files.length) { %>
+      <div class="cp-table-wrap cp-mt">
+        <table class="cp-table">
+          <thead><tr><th>File</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+          <% files.forEach(function (s) { %>
+            <tr>
+              <td><%= s.name %></td>
+              <td><span class="cp-pill <%= s.status === 'completed' ? 'cp-pill-success' : 'cp-pill-error' %>"><%= s.status %></span></td>
+              <td class="cp-right"><button class="cp-btn cp-btn-danger cp-btn-sm" data-post="/knowledge/sources/<%= s.id %>/delete" data-confirm="Delete this document?">Delete</button></td>
+            </tr>
+          <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<div class="cp-card">
+  <h3 class="cp-card-title">Retrieval Diagnostics</h3>
+  <p class="cp-description">See exactly which documents a question would retrieve, and their relevance scores.</p>
+  <div class="cp-flex">
+    <input class="cp-input" id="cp-retrieval-query" placeholder="What areas do you serve?" style="max-width:520px">
+    <button class="cp-btn cp-btn-secondary" type="button" id="cp-retrieval-btn">Test retrieval</button>
+  </div>
+  <div id="cp-retrieval-results" class="cp-mt"></div>
+</div>
+
+<div class="cp-card">
+  <h3 class="cp-card-title">Indexed documents <small><%= documents.length %> shown<% if (maxDocuments > 0) { %> &middot; plan limit <%= maxDocuments %><% } %></small></h3>
+  <% if (!documents.length) { %>
+    <div class="cp-empty">No knowledge indexed yet. Scan your website or add a manual entry above.</div>
+  <% } else { %>
+    <div class="cp-table-wrap">
+      <table class="cp-table">
+        <thead><tr><th>Title</th><th>Source</th><th>Category</th><th>Words</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        <% documents.forEach(function (d) { %>
+          <tr>
+            <td><%= d.title %><% if (d.source_url && d.source_url.indexOf('http') === 0) { %><br><span class="cp-muted"><%= d.source_url %></span><% } %></td>
+            <td><span class="cp-pill cp-pill-info"><%= d.source_type %></span></td>
+            <td class="cp-muted"><%= d.category %></td>
+            <td><%= d.word_count %></td>
+            <td><span class="cp-pill <%= d.status === 'enabled' ? 'cp-pill-success' : '' %>"><%= d.status %></span></td>
+            <td class="cp-right cp-nowrap">
+              <button class="cp-btn cp-btn-secondary cp-btn-sm" data-toggle-doc="<%= d.id %>" data-current="<%= d.status %>"><%= d.status === 'enabled' ? 'Disable' : 'Enable' %></button>
+              <button class="cp-btn cp-btn-danger cp-btn-sm" data-post="/knowledge/documents/<%= d.id %>/delete" data-confirm="Delete this document?">Delete</button>
+            </td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../partials/foot', { pageScripts: ['/assets/js/knowledge.js'] }) %>

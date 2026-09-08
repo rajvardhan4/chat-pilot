@@ -1,0 +1,43 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<%- include('../partials/account-tabs') %>
+
+<% if (welcome) { %>
+  <div class="cp-alert cp-alert-info">👋 Welcome to Chat Pilot. Register your first website to get started.</div>
+<% } %>
+
+<div class="cp-grid cp-grid-sidebar">
+  <form class="cp-card" method="post" action="/app/websites">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h2 class="cp-card-title">Register a website</h2>
+    <% if (formError) { %><div class="cp-alert cp-alert-error">✕ <%= formError %></div><% } %>
+
+    <div class="cp-form-group">
+      <label class="cp-label" for="name">Website name</label>
+      <input class="cp-input <%= fields.name ? 'has-error' : '' %>" id="name" name="name" value="<%= values.name || '' %>" placeholder="Acme Plumbing" required autofocus>
+      <% if (fields.name) { %><div class="cp-field-error"><%= fields.name %></div><% } %>
+    </div>
+
+    <div class="cp-form-group">
+      <label class="cp-label" for="url">Website URL</label>
+      <input class="cp-input <%= fields.url ? 'has-error' : '' %>" id="url" name="url" value="<%= values.url || '' %>" placeholder="https://example.com" required>
+      <p class="cp-help-text">The Site API Key will only work on this domain. The www. variant is allowed automatically.</p>
+      <% if (fields.url) { %><div class="cp-field-error"><%= fields.url %></div><% } %>
+    </div>
+
+    <button class="cp-btn cp-btn-primary cp-btn-lg" type="submit">Register website</button>
+  </form>
+
+  <div class="cp-card">
+    <h3 class="cp-card-title">What happens next</h3>
+    <ol class="cp-secondary" style="padding-left:1.1rem; font-size:0.875rem; line-height:1.9">
+      <li>Connect your own AI provider key (OpenAI or Gemini).</li>
+      <li>Chat Pilot discovers the models your key can actually use.</li>
+      <li>Build your Knowledge Base and AI Instructions.</li>
+      <li>Generate a Site API Key.</li>
+      <li>Paste it into the Chat Pilot WordPress plugin.</li>
+    </ol>
+  </div>
+</div>
+
+<%- include('../partials/foot') %>

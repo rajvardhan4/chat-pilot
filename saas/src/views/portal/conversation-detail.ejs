@@ -1,0 +1,69 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<div data-website-id="<%= website.id %>"></div>
+<%- include('../partials/portal-tabs') %>
+
+<div class="cp-grid cp-grid-sidebar">
+  <div class="cp-card">
+    <h2 class="cp-card-title">
+      Transcript
+      <span class="cp-actions-row">
+        <a class="cp-btn cp-btn-secondary cp-btn-sm" href="/app/websites/<%= website.id %>/conversations">Back</a>
+        <button class="cp-btn cp-btn-danger cp-btn-sm" data-post="/conversations/<%= conversation.id %>/delete" data-confirm="Delete this conversation permanently?">Delete</button>
+      </span>
+    </h2>
+
+    <div class="cp-chat-panel" style="height:auto; max-height:640px">
+      <div class="cp-chat-stream">
+        <% transcript.forEach(function (m) { %>
+          <div class="cp-chat-msg <%= m.role === 'user' ? 'is-user' : 'is-bot' %>">
+            <div class="cp-chat-bubble"><%= m.content %></div>
+          </div>
+        <% }); %>
+        <% if (!transcript.length) { %>
+          <div class="cp-empty">This conversation has no messages.</div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="cp-card">
+      <h3 class="cp-card-title">Visitor</h3>
+      <ul class="cp-inline-list">
+        <li><span>Name</span><span><%= conversation.visitor_name || '—' %></span></li>
+        <li><span>Email</span><span><%= conversation.visitor_email || '—' %></span></li>
+        <li><span>Phone</span><span><%= conversation.visitor_phone || '—' %></span></li>
+        <li><span>Source</span><span><span class="cp-pill <%= conversation.source === 'preview' ? 'cp-pill-purple' : 'cp-pill-info' %>"><%= conversation.source %></span></span></li>
+        <li><span>Status</span><span><span class="cp-pill <%= conversation.status === 'active' ? 'cp-pill-success' : '' %>"><%= conversation.status %></span></span></li>
+        <li><span>Started</span><span><%= conversation.created_at %></span></li>
+        <li><span>Last activity</span><span><%= conversation.last_activity_at %></span></li>
+        <li><span>Messages</span><span><%= conversation.message_count %></span></li>
+        <li><span>Page</span><span style="max-width:60%; word-break:break-all"><%= conversation.page_url || '—' %></span></li>
+      </ul>
+      <div class="cp-actions-row cp-mt">
+        <button class="cp-btn cp-btn-secondary cp-btn-sm" data-post="/conversations/<%= conversation.id %>/status" data-body='{"status":"completed"}' data-success="Marked completed.">Mark completed</button>
+        <button class="cp-btn cp-btn-secondary cp-btn-sm" data-post="/conversations/<%= conversation.id %>/read" data-success="Marked read.">Mark read</button>
+      </div>
+    </div>
+
+    <div class="cp-card">
+      <h3 class="cp-card-title">Form submission</h3>
+      <% if (!submissions.length) { %>
+        <p class="cp-muted cp-mb0">No pre-chat form was submitted for this conversation.</p>
+      <% } else { %>
+        <% submissions.forEach(function (s) { %>
+          <% let extra = {}; try { extra = JSON.parse(s.fields || '{}'); } catch (e) { extra = {}; } %>
+          <ul class="cp-inline-list">
+            <li><span>Submitted</span><span><%= s.created_at %></span></li>
+            <% Object.keys(extra).forEach(function (k) { %>
+              <li><span><%= k %></span><span><%= extra[k] %></span></li>
+            <% }); %>
+          </ul>
+        <% }); %>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/foot') %>

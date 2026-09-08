@@ -1,0 +1,114 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<div data-website-id="<%= website.id %>"></div>
+<%- include('../partials/portal-tabs') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">
+    Analytics <small><%= analytics.range.start %> to <%= analytics.range.end %></small>
+    <span class="cp-actions-row">
+      <% ['today','7days','30days','90days'].forEach(function (r) { %>
+        <a class="cp-btn <%= preset === r ? 'cp-btn-primary' : 'cp-btn-secondary' %> cp-btn-sm" href="?range=<%= r %>"><%= r %></a>
+      <% }); %>
+      <a class="cp-btn cp-btn-secondary cp-btn-sm" href="analytics.csv?range=<%= preset %>">Export CSV</a>
+    </span>
+  </h2>
+
+  <div class="cp-kpi-grid">
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">💬</div><div><div class="cp-kpi-value"><%= analytics.conversations %></div><div class="cp-kpi-label">Conversations</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">👤</div><div><div class="cp-kpi-value"><%= analytics.visitors %></div><div class="cp-kpi-label">Visitors</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🎯</div><div><div class="cp-kpi-value"><%= analytics.leads %></div><div class="cp-kpi-label">Leads</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🤖</div><div><div class="cp-kpi-value"><%= analytics.aiRequests %></div><div class="cp-kpi-label">AI Requests</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">📥</div><div><div class="cp-kpi-value"><%= analytics.inputTokens.toLocaleString() %></div><div class="cp-kpi-label">Input Tokens</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">📤</div><div><div class="cp-kpi-value"><%= analytics.outputTokens.toLocaleString() %></div><div class="cp-kpi-label">Output Tokens</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🔢</div><div><div class="cp-kpi-value"><%= analytics.totalTokens.toLocaleString() %></div><div class="cp-kpi-label">Total Tokens</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">💵</div><div><div class="cp-kpi-value">$<%= analytics.estimatedCost.toFixed(4) %></div><div class="cp-kpi-label">Estimated Cost</div></div></div>
+  </div>
+</div>
+
+<div class="cp-grid cp-grid-2">
+  <div class="cp-card">
+    <h3 class="cp-card-title">Answer quality</h3>
+    <ul class="cp-inline-list">
+      <li><span>Successful generations</span><span><%= analytics.successfulRequests %></span></li>
+      <li><span>Missing-knowledge fallbacks</span><span><%= analytics.fallbackRequests %></span></li>
+      <li><span>AI provider failures</span><span><%= analytics.providerErrors %></span></li>
+      <li><span>Retrieval hit rate</span><span><%= analytics.retrievalHitRate %>%</span></li>
+      <li><span>Average latency</span><span><%= analytics.avgLatencyMs %> ms</span></li>
+    </ul>
+    <p class="cp-help-text">
+      Missing knowledge and provider failure are counted separately &mdash; a spike in one means something very
+      different from a spike in the other.
+    </p>
+  </div>
+
+  <div class="cp-card">
+    <h3 class="cp-card-title">Provider / model breakdown</h3>
+    <% if (!analytics.byModel.length) { %>
+      <div class="cp-empty">No AI requests in this period.</div>
+    <% } else { %>
+      <div class="cp-table-wrap">
+        <table class="cp-table" style="min-width:auto">
+          <thead><tr><th>Provider</th><th>Model</th><th>Requests</th><th>Tokens</th><th>Cost</th></tr></thead>
+          <tbody>
+          <% analytics.byModel.forEach(function (m) { %>
+            <tr><td><%= m.provider %></td><td><%= m.model %></td><td><%= m.requests %></td><td><%= m.tokens.toLocaleString() %></td><td>$<%= m.cost.toFixed(4) %></td></tr>
+          <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+
+  <% if (analytics.topErrors.length) { %>
+    <div class="cp-card">
+      <h3 class="cp-card-title">Provider error categories</h3>
+      <ul class="cp-inline-list">
+        <% analytics.topErrors.forEach(function (e) { %>
+          <li><span><%= e.errorLabel %></span><span><%= e.count %></span></li>
+        <% }); %>
+      </ul>
+    </div>
+  <% } %>
+
+  <div class="cp-card">
+    <h3 class="cp-card-title">Conversation sources</h3>
+    <% if (!analytics.bySource.length) { %>
+      <div class="cp-empty">No conversations in this period.</div>
+    <% } else { %>
+      <ul class="cp-inline-list">
+        <% analytics.bySource.forEach(function (s) { %>
+          <li><span><%= s.source === 'preview' ? 'Developer Preview' : 'Chat Widget' %></span><span><%= s.conversations %></span></li>
+        <% }); %>
+      </ul>
+    <% } %>
+  </div>
+</div>
+
+<div class="cp-card">
+  <h3 class="cp-card-title">Daily trend</h3>
+  <% if (!analytics.trend.length) { %>
+    <div class="cp-empty">No activity in this period.</div>
+  <% } else { %>
+    <% const maxTokens = Math.max.apply(null, analytics.trend.map(function (t) { return t.tokens; }).concat([1])); %>
+    <div class="cp-table-wrap">
+      <table class="cp-table">
+        <thead><tr><th>Date</th><th>Conversations</th><th>AI requests</th><th>Tokens</th><th>Cost</th><th style="width:30%">Volume</th></tr></thead>
+        <tbody>
+        <% analytics.trend.forEach(function (t) { %>
+          <tr>
+            <td class="cp-nowrap"><%= t.date %></td>
+            <td><%= t.conversations %></td>
+            <td><%= t.aiRequests %></td>
+            <td><%= t.tokens.toLocaleString() %></td>
+            <td>$<%= t.cost.toFixed(4) %></td>
+            <td><div class="cp-bar"><div class="cp-bar-fill" style="width:<%= Math.round((t.tokens / maxTokens) * 100) %>%"></div></div></td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../partials/foot') %>

@@ -1,0 +1,21 @@
+<%
+  const base = '/app/websites/' + website.id;
+  const tabs = [
+    ['overview',      'Dashboard',               base],
+    ['providers',     'AI Providers',            base + '/providers'],
+    ['knowledge',     'Knowledge Base',          base + '/knowledge'],
+    ['instructions',  'AI Instructions',         base + '/instructions'],
+    ['preview',       'Developer Chat Preview',  base + '/preview'],
+    ['widget',        'Chat Widget',             base + '/widget'],
+    ['forms',         'Forms',                   base + '/forms'],
+    ['leads',         'Leads',                   base + '/leads'],
+    ['conversations', 'Conversations',           base + '/conversations'],
+    ['analytics',     'Analytics',               base + '/analytics'],
+    ['connection',    'Connection',              base + '/connection'],
+  ];
+%>
+<nav class="cp-tabs-nav">
+  <% tabs.forEach(function (tab) { %>
+    <a class="cp-tab-link <%= activeTab === tab[0] ? 'active' : '' %>" href="<%= tab[2] %>"><%= tab[1] %></a>
+  <% }); %>
+</nav>

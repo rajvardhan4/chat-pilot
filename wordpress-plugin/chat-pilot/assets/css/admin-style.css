@@ -1,0 +1,503 @@
+/**
+ * Chat Pilot - WordPress admin stylesheet.
+ * Brand: Local Marketing Geeks
+ *
+ * Same palette as the Chat Pilot Cloud portal, taken from the logo: the cap and
+ * "Chat" navy (#0D1F35) and the bubble/"Pilot" blue (#0678F9). Two brand
+ * colours, a neutral ramp built from the navy, and semantic colour reserved for
+ * status - so the plugin screen reads as the same product as the portal.
+ *
+ * Everything is scoped to #chat-pilot-container so nothing here can leak into
+ * the rest of wp-admin, and the container sits on a light surface because that
+ * is what wp-admin is.
+ */
+
+#chat-pilot-container {
+    --cp-ink: #0d1f35;
+    --cp-blue: #0678f9;
+    --cp-blue-hover: #045fcc;
+    --cp-blue-soft: #e8f1fe;
+    --cp-blue-ring: rgba(6, 120, 249, 0.18);
+
+    --bg-base: #f7fafd;
+    --bg-card: #ffffff;
+    --bg-inset: #eef3f9;
+
+    --border: #e3eaf4;
+    --border-strong: #cdd9e9;
+
+    --text-primary: #0d1f35;
+    --text-secondary: #526580;
+    --text-muted: #8395ab;
+
+    --ok: #0f9d6e;
+    --ok-bg: #e7f7f1;
+    --warn: #a56a12;
+    --warn-bg: #fdf3e3;
+    --danger: #cf3f55;
+    --danger-bg: #fdedef;
+
+    --radius-lg: 14px;
+    --radius-md: 10px;
+    --radius-sm: 7px;
+
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin: 20px 20px 20px 0;
+    min-height: 80vh;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+#chat-pilot-container * { box-sizing: border-box; }
+
+#chat-pilot-container a { color: var(--cp-blue); text-decoration: none; }
+#chat-pilot-container a:hover { color: var(--cp-blue-hover); text-decoration: underline; }
+
+#chat-pilot-container h1,
+#chat-pilot-container h2,
+#chat-pilot-container h3 {
+    font-family: 'Outfit', -apple-system, sans-serif;
+    color: var(--text-primary);
+    margin: 0 0 0.6rem 0;
+    letter-spacing: -0.01em;
+}
+
+/* ----------------------------------------------------------- header -- */
+
+#chat-pilot-container .cp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 0.9rem 1.15rem;
+    margin-bottom: 1.25rem;
+}
+
+#chat-pilot-container .cp-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+}
+
+/* The wordmark carries the name, so the h1 text itself is hidden. */
+#chat-pilot-container .cp-logo::before {
+    content: '';
+    width: 168px;
+    height: 42px;
+    flex-shrink: 0;
+    background: url('../img/chat-pilot-logo.png') left center / contain no-repeat;
+}
+
+#chat-pilot-container .cp-logo h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}
+
+#chat-pilot-container .cp-logo .cp-brand-sub {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+}
+
+#chat-pilot-container .cp-logo .cp-brand-sub strong { color: var(--text-secondary); font-weight: 600; }
+#chat-pilot-container .cp-logo p { margin: 0.1rem 0 0 0; font-size: 0.74rem; color: var(--text-muted); }
+
+#chat-pilot-container .cp-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
+    background: var(--ok-bg);
+    color: var(--ok);
+}
+
+#chat-pilot-container .cp-status-badge .cp-status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+}
+
+#chat-pilot-container .cp-status-badge.cp-badge-warning { background: var(--warn-bg); color: var(--warn); }
+#chat-pilot-container .cp-status-badge.cp-badge-error { background: var(--danger-bg); color: var(--danger); }
+
+/* ------------------------------------------------------------- tabs -- */
+
+#chat-pilot-container .cp-tabs-nav {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 0.35rem;
+    margin-bottom: 1.25rem;
+}
+
+#chat-pilot-container .cp-tab-link {
+    padding: 0.5rem 0.9rem;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.87rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+}
+
+#chat-pilot-container .cp-tab-link:hover {
+    background: var(--bg-inset);
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+#chat-pilot-container .cp-tab-link.active,
+#chat-pilot-container .cp-tab-link.active:hover {
+    background: var(--cp-blue);
+    color: #fff;
+}
+
+/* ------------------------------------------------------------ cards -- */
+
+#chat-pilot-container .cp-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.3rem;
+    margin-bottom: 1.15rem;
+}
+
+#chat-pilot-container .cp-card-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    font-size: 1.02rem;
+    font-weight: 700;
+    margin: 0 0 0.85rem 0;
+    padding-bottom: 0.7rem;
+    border-bottom: 1px solid var(--border);
+}
+
+#chat-pilot-container .cp-card-title small {
+    font-size: 0.76rem;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+#chat-pilot-container .cp-description { color: var(--text-secondary); font-size: 0.88rem; margin: 0 0 1rem 0; }
+
+/* The "not connected yet" panel that opens a tab with nothing live to show.
+   Dashed, so it reads as a placeholder rather than as real content. */
+#chat-pilot-container .cp-card-empty {
+    border-style: dashed;
+    border-color: var(--border-strong);
+    background: var(--bg-base);
+}
+#chat-pilot-container .cp-help-text { color: var(--text-muted); font-size: 0.78rem; margin: 0.35rem 0 0 0; }
+
+/* ---------------------------------------------------------- buttons -- */
+
+#chat-pilot-container .cp-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    font-family: inherit;
+    font-size: 0.86rem;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 0.6rem 1.05rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+#chat-pilot-container .cp-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+#chat-pilot-container .cp-btn:focus { outline: 2px solid var(--cp-blue); outline-offset: 2px; box-shadow: none; }
+
+#chat-pilot-container .cp-btn-primary { background: var(--cp-blue); color: #fff; }
+#chat-pilot-container .cp-btn-primary:hover:not(:disabled) { background: var(--cp-blue-hover); color: #fff; text-decoration: none; }
+
+#chat-pilot-container .cp-btn-secondary { background: var(--bg-card); color: var(--text-primary); border-color: var(--border-strong); }
+#chat-pilot-container .cp-btn-secondary:hover:not(:disabled) { background: var(--bg-inset); color: var(--text-primary); text-decoration: none; }
+
+#chat-pilot-container .cp-btn-danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+#chat-pilot-container .cp-btn-danger:hover:not(:disabled) { background: var(--danger-bg); color: var(--danger); text-decoration: none; }
+
+#chat-pilot-container .cp-btn-sm { padding: 0.4rem 0.7rem; font-size: 0.8rem; }
+#chat-pilot-container .cp-btn-lg { padding: 0.75rem 1.35rem; font-size: 0.93rem; }
+
+#chat-pilot-container .cp-actions-row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+
+/* ----------------------------------------------------------- inputs -- */
+
+#chat-pilot-container .cp-form-group { margin-bottom: 1rem; }
+
+#chat-pilot-container .cp-label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0.35rem;
+}
+
+#chat-pilot-container .cp-input,
+#chat-pilot-container .cp-select {
+    width: 100%;
+    max-width: 100%;
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    background: var(--bg-card);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 0.55rem 0.7rem;
+    box-shadow: none;
+    line-height: 1.5;
+    min-height: 0;
+}
+
+#chat-pilot-container .cp-input:focus,
+#chat-pilot-container .cp-select:focus {
+    outline: none;
+    border-color: var(--cp-blue);
+    box-shadow: 0 0 0 3px var(--cp-blue-ring);
+}
+
+#chat-pilot-container .cp-input::placeholder { color: var(--text-muted); }
+#chat-pilot-container .cp-input-lg { font-size: 1rem; padding: 0.7rem 0.85rem; }
+
+#chat-pilot-container .cp-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+#chat-pilot-container .cp-checkbox { margin: 0; }
+
+/* A key field with a reveal button inside its right edge. */
+#chat-pilot-container .cp-secret-field { position: relative; display: block; }
+#chat-pilot-container .cp-secret-field .cp-input { padding-right: 2.7rem; }
+
+#chat-pilot-container .cp-eye {
+    position: absolute;
+    top: 50%;
+    right: 0.4rem;
+    transform: translateY(-50%);
+    background: transparent;
+    border: 0;
+    border-radius: var(--radius-sm);
+    padding: 0.3rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    line-height: 0;
+    display: inline-flex;
+}
+
+#chat-pilot-container .cp-eye:hover { color: var(--cp-blue); background: var(--bg-inset); }
+#chat-pilot-container .cp-eye:focus { outline: 2px solid var(--cp-blue); outline-offset: 1px; box-shadow: none; }
+#chat-pilot-container .cp-eye svg { width: 17px; height: 17px; display: block; }
+#chat-pilot-container .cp-eye .cp-eye-off { display: none; }
+#chat-pilot-container .cp-eye[aria-pressed="true"] .cp-eye-on { display: none; }
+#chat-pilot-container .cp-eye[aria-pressed="true"] .cp-eye-off { display: block; }
+
+/* ----------------------------------------------------------- alerts -- */
+
+#chat-pilot-container .cp-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.87rem;
+    margin-bottom: 1rem;
+    background: var(--bg-inset);
+    color: var(--text-secondary);
+}
+
+#chat-pilot-container .cp-alert-success { background: var(--ok-bg); color: var(--ok); }
+#chat-pilot-container .cp-alert-error { background: var(--danger-bg); color: var(--danger); }
+#chat-pilot-container .cp-alert-warning { background: var(--warn-bg); color: var(--warn); }
+
+#cp-notification {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text-primary);
+    border-radius: var(--radius-md);
+    padding: 0.8rem 1rem;
+    font-size: 0.88rem;
+    box-shadow: 0 12px 32px rgba(13, 31, 53, 0.14);
+}
+
+#cp-notification.cp-alert-success { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+#cp-notification.cp-alert-error { background: var(--danger-bg); color: var(--danger); border-color: transparent; }
+#cp-notification.cp-alert-warning { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+
+/* ----------------------------------------------------------- badges -- */
+
+#chat-pilot-container .cp-badge-log {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: var(--bg-inset);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+#chat-pilot-container .cp-badge-log.cp-badge-success { background: var(--ok-bg); color: var(--ok); }
+#chat-pilot-container .cp-badge-log.cp-badge-error { background: var(--danger-bg); color: var(--danger); }
+#chat-pilot-container .cp-badge-log.cp-badge-warning { background: var(--warn-bg); color: var(--warn); }
+
+/* -------------------------------------------------------- info list -- */
+
+#chat-pilot-container .cp-info-list { display: flex; flex-direction: column; }
+
+#chat-pilot-container .cp-info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+#chat-pilot-container .cp-info-row:last-child { border-bottom: 0; }
+#chat-pilot-container .cp-info-label { font-size: 0.82rem; color: var(--text-muted); }
+#chat-pilot-container .cp-info-value { font-size: 0.87rem; color: var(--text-primary); font-weight: 600; text-align: right; }
+
+#chat-pilot-container code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.12rem 0.4rem;
+    color: var(--text-primary);
+    word-break: break-all;
+}
+
+/* -------------------------------------------------------------- KPI -- */
+
+#chat-pilot-container .cp-dashboard-grid,
+#chat-pilot-container .cp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.9rem;
+}
+
+#chat-pilot-container .cp-kpi-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+}
+
+#chat-pilot-container .kpi-icon { font-size: 1.05rem; margin-bottom: 0.35rem; opacity: 0.85; }
+
+#chat-pilot-container .kpi-value {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+#chat-pilot-container .kpi-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+}
+
+/* --------------------------------------------------- cloud link grid -- */
+
+#chat-pilot-container .cp-cloud-links {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.55rem;
+}
+
+#chat-pilot-container .cp-cloud-links .cp-btn { width: 100%; }
+
+/* ----------------------------------------------------------- tables -- */
+
+#chat-pilot-container .cp-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+}
+
+#chat-pilot-container .cp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    background: var(--bg-card);
+}
+
+#chat-pilot-container .cp-table th {
+    text-align: left;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    background: var(--bg-inset);
+    padding: 0.65rem 0.85rem;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+#chat-pilot-container .cp-table td {
+    padding: 0.65rem 0.85rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+    vertical-align: middle;
+}
+
+#chat-pilot-container .cp-table tbody tr:last-child td { border-bottom: 0; }
+
+/* ------------------------------------------------------------ forms -- */
+
+#chat-pilot-container .cp-form { max-width: 100%; }
+#chat-pilot-container .cp-tab-content { display: block; }
+
+@media (max-width: 782px) {
+    #chat-pilot-container { padding: 1rem; margin: 10px 10px 10px 0; }
+    #chat-pilot-container .cp-logo::before { width: 136px; height: 34px; }
+    #chat-pilot-container .cp-info-row { flex-direction: column; align-items: flex-start; gap: 0.2rem; }
+    #chat-pilot-container .cp-info-value { text-align: left; }
+}

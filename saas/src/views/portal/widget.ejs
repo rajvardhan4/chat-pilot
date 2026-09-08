@@ -1,0 +1,102 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<div data-website-id="<%= website.id %>"></div>
+<%- include('../partials/portal-tabs') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">Chat Widget <small>What visitors see on <%= website.primary_domain %></small></h2>
+  <p class="cp-description">
+    These settings are pulled by the WordPress plugin and applied to the live widget. The widget markup and
+    styling stay exactly as they are today; only the values come from here now.
+  </p>
+</div>
+
+<form data-ajax="/widget" data-success="Widget settings saved.">
+  <div class="cp-grid cp-grid-2">
+    <div class="cp-card">
+      <h3 class="cp-card-title">Appearance</h3>
+      <div class="cp-switch-row">
+        <span class="cp-switch-text"><strong>Enable widget</strong><span>When off, the plugin does not render the launcher at all.</span></span>
+        <label class="cp-switch"><input type="checkbox" name="enabled" <%= settings.enabled ? 'checked' : '' %>><span class="cp-switch-slider"></span></label>
+      </div>
+      <div class="cp-form-group">
+        <label class="cp-label" for="display_name">Header title</label>
+        <input class="cp-input" id="display_name" name="display_name" value="<%= settings.display_name %>">
+      </div>
+      <div class="cp-form-group">
+        <label class="cp-label" for="position">Position</label>
+        <select class="cp-select" id="position" name="position">
+          <option value="bottom-right" <%= settings.position === 'bottom-right' ? 'selected' : '' %>>Bottom right</option>
+          <option value="bottom-left" <%= settings.position === 'bottom-left' ? 'selected' : '' %>>Bottom left</option>
+        </select>
+      </div>
+      <div class="cp-form-group">
+        <label class="cp-label" for="primary_color">Primary colour</label>
+        <input class="cp-input" type="color" id="primary_color" name="primary_color" value="<%= settings.primary_color %>" style="height:42px; padding:4px">
+      </div>
+      <div class="cp-form-group">
+        <label class="cp-label" for="logo_url">Logo URL (https)</label>
+        <input class="cp-input" id="logo_url" name="logo_url" value="<%= settings.logo_url %>" placeholder="https://example.com/logo.png">
+      </div>
+    </div>
+
+    <div class="cp-card">
+      <h3 class="cp-card-title">Messaging</h3>
+      <div class="cp-form-group">
+        <label class="cp-label" for="welcome_message">Welcome message</label>
+        <input class="cp-input" id="welcome_message" name="welcome_message" value="<%= settings.welcome_message %>">
+      </div>
+      <div class="cp-form-group">
+        <label class="cp-label" for="placeholder_text">Input placeholder</label>
+        <input class="cp-input" id="placeholder_text" name="placeholder_text" value="<%= settings.placeholder_text %>">
+      </div>
+      <div class="cp-form-group">
+        <label class="cp-label" for="suggested_questions">Suggested questions (one per line)</label>
+        <textarea class="cp-input" id="suggested_questions" name="suggested_questions" rows="5"><%= settings.suggested_questions %></textarea>
+      </div>
+      <div class="cp-form-group">
+        <label class="cp-label" for="active_form_id">Pre-chat form</label>
+        <select class="cp-select" id="active_form_id" name="active_form_id">
+          <option value="" <%= settings.prechat_enabled ? '' : 'selected' %>>No pre-chat form</option>
+          <% forms.forEach(function (f) { %>
+            <option value="<%= f.id %>" <%= (settings.prechat_enabled && settings.active_form_id === f.id) ? 'selected' : '' %>><%= f.name %><%= f.status === 'active' ? '' : ' (inactive)' %></option>
+          <% }); %>
+        </select>
+      </div>
+    </div>
+
+    <div class="cp-card">
+      <h3 class="cp-card-title">Behaviour</h3>
+      <div class="cp-switch-row">
+        <span class="cp-switch-text"><strong>Typing indicator</strong><span>Show animated dots while generating.</span></span>
+        <label class="cp-switch"><input type="checkbox" name="enable_typing" <%= settings.enable_typing ? 'checked' : '' %>><span class="cp-switch-slider"></span></label>
+      </div>
+      <div class="cp-switch-row">
+        <span class="cp-switch-text"><strong>Character streaming</strong><span>Reveal the answer progressively.</span></span>
+        <label class="cp-switch"><input type="checkbox" name="enable_streaming" <%= settings.enable_streaming ? 'checked' : '' %>><span class="cp-switch-slider"></span></label>
+      </div>
+      <div class="cp-switch-row">
+        <span class="cp-switch-text"><strong>Auto open chat</strong><span>Open the window automatically after a delay.</span></span>
+        <label class="cp-switch"><input type="checkbox" name="auto_open_chat" <%= settings.auto_open_chat ? 'checked' : '' %>><span class="cp-switch-slider"></span></label>
+      </div>
+      <div class="cp-switch-row">
+        <span class="cp-switch-text"><strong>Open once per visitor</strong><span>Do not auto-open again for the same visitor.</span></span>
+        <label class="cp-switch"><input type="checkbox" name="open_once_per_visitor" <%= settings.open_once_per_visitor ? 'checked' : '' %>><span class="cp-switch-slider"></span></label>
+      </div>
+      <div class="cp-form-group cp-mt">
+        <label class="cp-label" for="auto_open_delay">Auto open delay (seconds)</label>
+        <input class="cp-input" type="number" min="0" max="120" id="auto_open_delay" name="auto_open_delay" value="<%= settings.auto_open_delay %>">
+      </div>
+    </div>
+
+    <div class="cp-card">
+      <h3 class="cp-card-title">Plugin payload preview</h3>
+      <p class="cp-description">This is the exact JSON the WordPress plugin fetches. No secrets appear in it.</p>
+      <pre class="cp-code" id="cp-widget-preview">loading…</pre>
+    </div>
+  </div>
+
+  <button class="cp-btn cp-btn-primary cp-btn-lg" type="submit">Save widget settings</button>
+</form>
+
+<%- include('../partials/foot', { pageScripts: ['/assets/js/widget-settings.js'] }) %>

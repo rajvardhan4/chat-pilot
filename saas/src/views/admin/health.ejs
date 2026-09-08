@@ -1,0 +1,86 @@
+<%- include('../partials/head') %>
+<%- include('../partials/admin-header') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">System Health <small>Server time <%= serverTime %></small></h2>
+  <p class="cp-description">
+    Provider connection state per website, recent generation failures, and platform warnings. Secrets are
+    redacted from every log line before it is written.
+  </p>
+</div>
+
+<div class="cp-card">
+  <h3 class="cp-card-title">Provider status by website</h3>
+  <% if (!providerHealth.length) { %>
+    <div class="cp-empty">No provider credentials configured yet.</div>
+  <% } else { %>
+    <div class="cp-table-wrap">
+      <table class="cp-table">
+        <thead><tr><th>Account</th><th>Website</th><th>Provider</th><th>Status</th><th>Detail</th><th>Errors</th><th>Last tested</th></tr></thead>
+        <tbody>
+        <% providerHealth.forEach(function (p) { %>
+          <tr>
+            <td><%= p.account_name %></td>
+            <td><%= p.website_name %></td>
+            <td><%= p.provider %></td>
+            <td><span class="cp-pill <%= p.status === 'connected' ? 'cp-pill-success' : (p.status === 'not_configured' ? '' : 'cp-pill-error') %>"><%= p.status %></span></td>
+            <td class="cp-muted"><%= p.status_detail %></td>
+            <td><%= p.error_count %></td>
+            <td class="cp-muted cp-nowrap"><%= p.last_tested_at || '—' %></td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<div class="cp-card">
+  <h3 class="cp-card-title">Recent AI generation failures</h3>
+  <% if (!recentErrors.length) { %>
+    <div class="cp-empty">No failures recorded.</div>
+  <% } else { %>
+    <div class="cp-table-wrap">
+      <table class="cp-table">
+        <thead><tr><th>When</th><th>Account</th><th>Website</th><th>Provider</th><th>Model</th><th>Category</th><th>HTTP</th></tr></thead>
+        <tbody>
+        <% recentErrors.forEach(function (e) { %>
+          <tr>
+            <td class="cp-nowrap cp-muted"><%= e.created_at %></td>
+            <td><%= e.account_name %></td>
+            <td><%= e.website_name %></td>
+            <td><%= e.provider %></td>
+            <td><%= e.model %></td>
+            <td><span class="cp-pill cp-pill-error"><%= e.error_label %></span></td>
+            <td><%= e.http_status %></td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<div class="cp-card">
+  <h3 class="cp-card-title">Warnings and errors</h3>
+  <% if (!logs.length) { %>
+    <div class="cp-empty">No warnings or errors logged.</div>
+  <% } else { %>
+    <div class="cp-table-wrap">
+      <table class="cp-table">
+        <thead><tr><th>When</th><th>Level</th><th>Message</th></tr></thead>
+        <tbody>
+        <% logs.forEach(function (l) { %>
+          <tr>
+            <td class="cp-nowrap cp-muted"><%= l.created_at %></td>
+            <td><span class="cp-pill <%= l.level === 'error' ? 'cp-pill-error' : 'cp-pill-warning' %>"><%= l.level %></span></td>
+            <td><%= l.message %></td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../partials/foot') %>

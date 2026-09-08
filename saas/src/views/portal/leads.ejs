@@ -1,0 +1,62 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<div data-website-id="<%= website.id %>"></div>
+<%- include('../partials/portal-tabs') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">Leads <small><%= submissions.length %> submissions</small></h2>
+  <form method="get" class="cp-flex" style="margin-bottom:1rem">
+    <input class="cp-input" name="search" value="<%= search %>" placeholder="Search name, email or phone" style="max-width:320px">
+    <select class="cp-select" name="form" style="max-width:260px">
+      <option value="">All forms</option>
+      <% forms.forEach(function (f) { %>
+        <option value="<%= f.id %>" <%= formId === f.id ? 'selected' : '' %>><%= f.name %></option>
+      <% }); %>
+    </select>
+    <button class="cp-btn cp-btn-secondary" type="submit">Filter</button>
+  </form>
+
+  <% if (!submissions.length) { %>
+    <div class="cp-empty">No form submissions yet.</div>
+  <% } else { %>
+    <div class="cp-table-wrap">
+      <table class="cp-table">
+        <thead><tr><th>Submitted</th><th>Name</th><th>Email</th><th>Phone</th><th>Form</th><th>Other fields</th><th>Conversation</th><th></th></tr></thead>
+        <tbody>
+        <% submissions.forEach(function (s) { %>
+          <%
+            let extra = {};
+            try { extra = JSON.parse(s.fields || '{}'); } catch (e) { extra = {}; }
+            const extraKeys = Object.keys(extra).filter(function (k) { return ['name','email','phone'].indexOf(k) === -1; });
+            const form = forms.filter(function (f) { return f.id === s.form_id; })[0];
+          %>
+          <tr>
+            <td class="cp-nowrap cp-muted"><%= s.created_at %></td>
+            <td><%= s.name || '—' %></td>
+            <td><%= s.email || '—' %></td>
+            <td><%= s.phone || '—' %></td>
+            <td><%= form ? form.name : '—' %></td>
+            <td>
+              <% if (!extraKeys.length) { %><span class="cp-muted">—</span><% } else { %>
+                <% extraKeys.forEach(function (k) { %>
+                  <div><span class="cp-muted"><%= k %>:</span> <%= extra[k] %></div>
+                <% }); %>
+              <% } %>
+            </td>
+            <td>
+              <% if (s.conversation_id) { %>
+                <a href="/app/websites/<%= website.id %>/conversations/<%= s.conversation_id %>">View</a>
+              <% } else { %><span class="cp-muted">—</span><% } %>
+            </td>
+            <td class="cp-right">
+              <button class="cp-btn cp-btn-danger cp-btn-sm" data-post="/submissions/<%= s.id %>/delete" data-confirm="Delete this lead?">Delete</button>
+            </td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../partials/foot') %>

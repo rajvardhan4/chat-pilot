@@ -1,0 +1,413 @@
+/* ==========================================================================
+   CHAT PILOT FRONTEND WIDGET STYLING (DARK GLASSMORPHIC)
+   ========================================================================== */
+
+#chat-pilot-widget-container {
+    position: fixed;
+    bottom: 24px;
+    z-index: 999999;
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #cbd5e1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+#chat-pilot-widget-container.cp-widget-position-bottom-right {
+    right: 24px;
+    align-items: flex-end;
+}
+
+#chat-pilot-widget-container.cp-widget-position-bottom-left {
+    left: 24px;
+    align-items: flex-start;
+}
+
+/* 1. Floating Launcher Button */
+#chat-pilot-widget-launcher {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--cp-primary-color, #06b6d4), #a855f7);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 8px 32px rgba(6, 182, 212, 0.35);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+    padding: 0;
+}
+
+#chat-pilot-widget-launcher:hover {
+    transform: scale(1.08) rotate(5deg);
+    box-shadow: 0 12px 40px rgba(6, 182, 212, 0.5);
+}
+
+#chat-pilot-widget-launcher svg {
+    width: 26px;
+    height: 26px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* 2. Chat Box Window */
+#chat-pilot-widget-box {
+    width: 380px;
+    height: 600px;
+    max-height: calc(100vh - 120px);
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: cpSlideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform-origin: bottom right;
+}
+
+#chat-pilot-widget-container.cp-widget-open #chat-pilot-widget-launcher {
+    display: none !important;
+}
+
+#chat-pilot-widget-container.cp-widget-position-bottom-left #chat-pilot-widget-box {
+    transform-origin: bottom left;
+}
+
+@keyframes cpSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* 3. Header Styling */
+.cp-widget-header {
+    background: rgba(30, 41, 59, 0.7);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 1rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.cp-widget-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.cp-widget-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cp-widget-logo-placeholder {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cp-widget-brand-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.cp-widget-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.cp-widget-subtitle {
+    font-size: 0.75rem;
+    color: var(--cp-primary-color, #06b6d4);
+    font-weight: 600;
+}
+
+#chat-pilot-widget-close {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 4px;
+    transition: color 0.2s ease;
+}
+
+#chat-pilot-widget-close:hover {
+    color: #ffffff;
+}
+
+/* 4. Chat Body Area */
+.cp-widget-body {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    scroll-behavior: smooth;
+}
+
+/* 5. Messages Layout */
+.cp-widget-msg {
+    display: flex;
+    gap: 0.5rem;
+    max-width: 85%;
+    animation: cpFadeIn 0.25s ease-out;
+}
+
+@keyframes cpFadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.cp-widget-msg.cp-msg-bot {
+    align-self: flex-start;
+}
+
+.cp-widget-msg.cp-msg-user {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+    max-width: 80%;
+}
+
+.cp-msg-bubble {
+    padding: 0.75rem 1rem;
+    border-radius: 14px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.cp-msg-bot .cp-msg-bubble {
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: #e2e8f0;
+    border-top-left-radius: 4px;
+}
+
+.cp-msg-user .cp-msg-bubble {
+    background: var(--cp-primary-color, #06b6d4);
+    color: #ffffff;
+    border-top-right-radius: 4px;
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.15);
+}
+
+/* Suggested Questions list layout */
+.cp-widget-suggestions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-self: flex-start;
+    margin-top: 0.25rem;
+    animation: cpFadeIn 0.3s ease-out;
+}
+
+.cp-widget-suggest-btn {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    padding: 0.5rem 1rem;
+    color: #cbd5e1;
+    font-size: 0.82rem;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s ease;
+    width: fit-content;
+}
+
+.cp-widget-suggest-btn:hover {
+    background: rgba(6, 182, 212, 0.08);
+    border-color: var(--cp-primary-color, #06b6d4);
+    color: #ffffff;
+    transform: translateX(3px);
+}
+
+/* 6. Pre-chat Form Layout */
+#cp-widget-prechat-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 0.5rem;
+}
+
+.cp-widget-prechat-intro {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    line-height: 1.5;
+    margin-bottom: 0.5rem;
+}
+
+.cp-widget-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.cp-widget-form-group label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #cbd5e1;
+}
+
+.cp-widget-input {
+    background: rgba(0, 0, 0, 0.25) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+    color: #ffffff !important;
+    padding: 0.65rem 0.85rem !important;
+    font-size: 0.9rem !important;
+    outline: none !important;
+    transition: border-color 0.2s ease !important;
+    box-shadow: none !important;
+}
+
+.cp-widget-input:focus {
+    border-color: var(--cp-primary-color, #06b6d4) !important;
+}
+
+.cp-widget-btn {
+    background: var(--cp-primary-color, #06b6d4);
+    border: none;
+    border-radius: 8px;
+    color: #ffffff;
+    padding: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+    margin-top: 0.5rem;
+}
+
+.cp-widget-btn:hover {
+    opacity: 0.9;
+}
+
+/* 7. Typing Indicator */
+.cp-typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0.25rem 0;
+}
+
+.cp-typing-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #94a3b8;
+    animation: cpDotPulse 1.4s infinite ease-in-out both;
+}
+
+.cp-typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.cp-typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes cpDotPulse {
+    0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+    40% { transform: scale(1); opacity: 1; }
+}
+
+/* 8. Input Form Footer */
+.cp-widget-footer {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(15, 23, 42, 0.9);
+}
+
+#cp-widget-input-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+#cp-widget-input-field {
+    flex-grow: 1;
+    margin: 0 !important;
+    font-family: inherit;
+}
+
+#cp-widget-send-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #94a3b8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+#cp-widget-send-btn:hover {
+    background: var(--cp-primary-color, #06b6d4);
+    border-color: var(--cp-primary-color, #06b6d4);
+    color: #ffffff;
+}
+
+#cp-widget-send-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.cp-widget-branding-tag {
+    font-size: 0.7rem;
+    color: #475569;
+    text-align: center;
+    margin-top: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* 9. Mobile Responsiveness */
+@media (max-width: 480px) {
+    #chat-pilot-widget-container {
+        bottom: 0 !important;
+        right: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        align-items: stretch !important;
+    }
+    
+    #chat-pilot-widget-launcher {
+        margin: 0 16px 16px auto;
+    }
+    
+    #chat-pilot-widget-container.cp-widget-position-bottom-left #chat-pilot-widget-launcher {
+        margin: 0 auto 16px 16px;
+    }
+
+    #chat-pilot-widget-box {
+        width: 100% !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        margin-bottom: 0 !important;
+        border-radius: 0 !important;
+        border: none !important;
+    }
+}

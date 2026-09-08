@@ -1,0 +1,65 @@
+# Chat Pilot Cloud - systemd unit.
+#
+# Install:
+#   sudo cp deploy/chat-pilot.service /etc/systemd/system/chat-pilot.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now chat-pilot
+#
+# Watch it:      sudo systemctl status chat-pilot
+# Read the log:  sudo journalctl -u chat-pilot -f
+# Restart:       sudo systemctl restart chat-pilot
+#
+# systemd is used rather than pm2 on purpose: it is already on the machine, it
+# starts the service on boot without a second "save the process list" step, and
+# its logs go to journald where the rest of the server's logs already are.
+
+[Unit]
+Description=Chat Pilot Cloud
+Documentation=https://github.com/localmarketinggeeks/chat-pilot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# The service account. Create it with:
+#   sudo adduser --system --group --home /var/www/chat-pilot chatpilot
+User=chatpilot
+Group=chatpilot
+WorkingDirectory=/var/www/chat-pilot/saas
+
+# Absolute path: systemd has no PATH of its own, and `which node` on a login
+# shell often points at an nvm build the service user cannot see.
+ExecStart=/usr/bin/node --no-warnings src/server.ts
+
+Environment=NODE_ENV=production
+EnvironmentFile=/var/www/chat-pilot/saas/.env
+
+Restart=always
+RestartSec=3
+
+# Logs to journald; the app writes structured lines to stdout.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=chat-pilot
+
+# --- Hardening ----------------------------------------------------------
+# The process holds every customer's encrypted AI provider key, so it gets no
+# more of the filesystem than it needs: the data directory, and nothing else.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/chat-pilot/saas/data
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+
+# It listens on localhost only (nginx fronts it) and calls out to AI providers.
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

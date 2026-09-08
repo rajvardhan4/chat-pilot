@@ -1,0 +1,74 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<%- include('../partials/account-tabs') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">Account overview <small>Last 30 days</small></h2>
+  <div class="cp-kpi-grid">
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🌐</div><div><div class="cp-kpi-value"><%= websiteCount %><% if (websiteLimit > 0) { %><span class="cp-muted" style="font-size:1rem">/<%= websiteLimit %></span><% } %></div><div class="cp-kpi-label">Websites</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">💬</div><div><div class="cp-kpi-value"><%= analytics.conversations %></div><div class="cp-kpi-label">Conversations</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🎯</div><div><div class="cp-kpi-value"><%= analytics.leads %></div><div class="cp-kpi-label">Leads</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🤖</div><div><div class="cp-kpi-value"><%= analytics.aiRequests %></div><div class="cp-kpi-label">AI Requests</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">🔢</div><div><div class="cp-kpi-value"><%= analytics.totalTokens.toLocaleString() %></div><div class="cp-kpi-label">Total Tokens</div></div></div>
+    <div class="cp-kpi-card"><div class="cp-kpi-icon">💵</div><div><div class="cp-kpi-value">$<%= analytics.estimatedCost.toFixed(2) %></div><div class="cp-kpi-label">Est. AI Cost</div></div></div>
+  </div>
+</div>
+
+<div class="cp-grid cp-grid-sidebar">
+  <div class="cp-card">
+    <h2 class="cp-card-title">Your websites
+      <a class="cp-btn cp-btn-primary cp-btn-sm" href="/app/websites/new">+ Add website</a>
+    </h2>
+    <% if (!analytics.websites.length) { %>
+      <div class="cp-empty">No websites yet. Register your first website to generate a Site API Key.</div>
+    <% } else { %>
+      <div class="cp-table-wrap">
+        <table class="cp-table">
+          <thead><tr><th>Website</th><th>Status</th><th>Conversations</th><th>Leads</th><th>Tokens</th><th>Est. cost</th></tr></thead>
+          <tbody>
+          <% analytics.websites.forEach(function (w) { %>
+            <tr>
+              <td><a href="/app/websites/<%= w.id %>"><strong><%= w.name %></strong></a><br><span class="cp-muted"><%= w.domain %></span></td>
+              <td><span class="cp-pill <%= w.status === 'active' ? 'cp-pill-success' : (w.status === 'suspended' ? 'cp-pill-error' : 'cp-pill-warning') %>"><%= w.status %></span></td>
+              <td><%= w.conversations %></td>
+              <td><%= w.leads %></td>
+              <td><%= w.tokens.toLocaleString() %></td>
+              <td>$<%= w.cost.toFixed(4) %></td>
+            </tr>
+          <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+
+  <div>
+    <div class="cp-card">
+      <h3 class="cp-card-title">Plan</h3>
+      <% if (subscription) { %>
+        <ul class="cp-inline-list">
+          <li><span>Plan</span><span><strong><%= subscription.plan_name %></strong></span></li>
+          <li><span>Status</span><span><span class="cp-pill <%= subscription.status === 'active' ? 'cp-pill-success' : 'cp-pill-warning' %>"><%= subscription.status %></span></span></li>
+          <li><span>Websites allowed</span><span><%= subscription.max_websites %></span></li>
+          <li><span>Messages / month</span><span><%= Number(subscription.max_messages_month).toLocaleString() %></span></li>
+        </ul>
+      <% } else { %>
+        <p class="cp-secondary cp-mb0">No plan assigned yet.</p>
+      <% } %>
+      <a class="cp-btn cp-btn-secondary cp-btn-sm cp-mt" href="/app/billing">View billing</a>
+    </div>
+
+    <div class="cp-card">
+      <h3 class="cp-card-title">This month</h3>
+      <ul class="cp-inline-list">
+        <li><span>Messages</span><span><%= usage.messages.toLocaleString() %></span></li>
+        <li><span>AI requests</span><span><%= usage.aiRequests.toLocaleString() %></span></li>
+        <li><span>Input tokens</span><span><%= usage.inputTokens.toLocaleString() %></span></li>
+        <li><span>Output tokens</span><span><%= usage.outputTokens.toLocaleString() %></span></li>
+        <li><span>Estimated cost</span><span>$<%= usage.estimatedCost.toFixed(4) %></span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/foot') %>

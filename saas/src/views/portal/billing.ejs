@@ -1,0 +1,47 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<%- include('../partials/account-tabs') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">Billing</h2>
+  <div class="cp-alert cp-alert-info">
+    ℹ Payment collection is not connected in this build. Plans, limits and subscription state are fully
+    functional and enforced; a payment processor is the remaining integration point.
+  </div>
+
+  <% if (subscription) { %>
+    <ul class="cp-inline-list">
+      <li><span>Current plan</span><span><strong><%= subscription.plan_name %></strong></span></li>
+      <li><span>Status</span><span><span class="cp-pill <%= subscription.status === 'active' ? 'cp-pill-success' : 'cp-pill-warning' %>"><%= subscription.status %></span></span></li>
+      <li><span>Price</span><span>$<%= (Number(subscription.price_cents) / 100).toFixed(2) %> / month</span></li>
+      <li><span>Period ends</span><span><%= subscription.current_period_end %></span></li>
+      <li><span>Messages used this month</span><span><%= usage.messages.toLocaleString() %></span></li>
+    </ul>
+  <% } else { %>
+    <p class="cp-secondary">No subscription is attached to this account yet.</p>
+  <% } %>
+</div>
+
+<div class="cp-card">
+  <h3 class="cp-card-title">Available plans</h3>
+  <div class="cp-table-wrap">
+    <table class="cp-table">
+      <thead><tr><th>Plan</th><th>Price</th><th>Websites</th><th>Documents</th><th>Messages / month</th><th>Storage</th></tr></thead>
+      <tbody>
+      <% plans.forEach(function (p) { %>
+        <tr>
+          <td><strong><%= p.name %></strong><% if (subscription && subscription.plan_slug === p.slug) { %> <span class="cp-pill cp-pill-success">current</span><% } %></td>
+          <td>$<%= (p.price_cents / 100).toFixed(2) %></td>
+          <td><%= p.max_websites %></td>
+          <td><%= p.max_documents.toLocaleString() %></td>
+          <td><%= p.max_messages_month.toLocaleString() %></td>
+          <td><%= p.max_storage_mb %> MB</td>
+        </tr>
+      <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <p class="cp-help-text cp-mt">To change plan, contact Local Marketing Geeks and an administrator will switch it for you.</p>
+</div>
+
+<%- include('../partials/foot') %>

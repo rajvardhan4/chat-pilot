@@ -1,0 +1,219 @@
+<%- include('../partials/head') %>
+<%- include('../partials/admin-header') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">
+    <%= account.name %>
+    <span class="cp-pill <%= account.status === 'active' ? 'cp-pill-success' : 'cp-pill-error' %>"><%= account.status %></span>
+  </h2>
+  <ul class="cp-inline-list">
+    <li><span>Account ID</span><span class="cp-code"><%= account.id %></span></li>
+    <li><span>Billing email</span><span><%= account.billing_email %></span></li>
+    <li><span>Created</span><span><%= account.created_at %></span></li>
+    <% if (account.suspend_reason) { %><li><span>Suspend reason</span><span><%= account.suspend_reason %></span></li><% } %>
+  </ul>
+</div>
+
+<div class="cp-grid cp-grid-3">
+  <form class="cp-card" method="post" action="/admin/accounts/<%= account.id %>/status">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h3 class="cp-card-title">Account status</h3>
+    <div class="cp-form-group">
+      <select class="cp-select" name="status">
+        <% ['active','suspended','closed'].forEach(function (s) { %>
+          <option value="<%= s %>" <%= account.status === s ? 'selected' : '' %>><%= s %></option>
+        <% }); %>
+      </select>
+    </div>
+    <div class="cp-form-group">
+      <input class="cp-input" name="reason" placeholder="Reason (recorded in the audit log)">
+    </div>
+    <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit">Apply</button>
+    <p class="cp-help-text">Suspending an account immediately stops every widget on every one of its websites.</p>
+  </form>
+
+  <form class="cp-card" method="post" action="/admin/accounts/<%= account.id %>/plan">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h3 class="cp-card-title">Plan</h3>
+    <div class="cp-form-group">
+      <select class="cp-select" name="plan_id">
+        <% plans.forEach(function (p) { %>
+          <option value="<%= p.id %>" <%= account.plan_id === p.id ? 'selected' : '' %>><%= p.name %> ($<%= (p.price_cents / 100).toFixed(2) %>)</option>
+        <% }); %>
+      </select>
+    </div>
+    <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit">Assign plan</button>
+  </form>
+
+  <form class="cp-card" method="post" action="/admin/accounts/<%= account.id %>/subscription">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h3 class="cp-card-title">Subscription</h3>
+    <div class="cp-form-group">
+      <select class="cp-select" name="status">
+        <% ['active','trialing','past_due','canceled'].forEach(function (s) { %>
+          <option value="<%= s %>"><%= s %></option>
+        <% }); %>
+      </select>
+    </div>
+    <button class="cp-btn cp-btn-primary cp-btn-sm" type="submit">Update subscription</button>
+    <p class="cp-help-text">Anything other than active or trialing makes the plugin report &ldquo;Subscription Inactive&rdquo;.</p>
+  </form>
+</div>
+
+<div class="cp-card">
+  <h3 class="cp-card-title">Websites</h3>
+  <div class="cp-table-wrap">
+    <table class="cp-table">
+      <thead><tr><th>Website</th><th>Domain</th><th>Status</th><th>Keys</th><th>Docs</th><th>Conversations</th><th>Last connected</th><th></th></tr></thead>
+      <tbody>
+      <% websites.forEach(function (w) { %>
+        <tr>
+          <td><%= w.name %></td>
+          <td><%= w.primary_domain %></td>
+          <td><span class="cp-pill <%= w.status === 'active' ? 'cp-pill-success' : 'cp-pill-error' %>"><%= w.status %></span></td>
+          <td><%= w.active_keys %></td>
+          <td><%= w.documents %></td>
+          <td><%= w.conversations %></td>
+          <td class="cp-muted cp-nowrap"><%= w.last_connected_at || 'never' %></td>
+          <td class="cp-right">
+            <form method="post" action="/admin/websites/<%= w.id %>/status" style="display:inline">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="status" value="<%= w.status === 'suspended' ? 'active' : 'suspended' %>">
+              <input type="hidden" name="reason" value="Platform action">
+              <button class="cp-btn <%= w.status === 'suspended' ? 'cp-btn-secondary' : 'cp-btn-danger' %> cp-btn-sm" type="submit">
+                <%= w.status === 'suspended' ? 'Unsuspend' : 'Suspend' %>
+              </button>
+            </form>
+          </td>
+        </tr>
+      <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="cp-grid cp-grid-2">
+  <div class="cp-card">
+    <h3 class="cp-card-title">AI provider credentials <small>masked</small></h3>
+    <% if (!providers.length) { %>
+      <div class="cp-empty">No provider credentials stored.</div>
+    <% } else { %>
+      <div class="cp-table-wrap">
+        <table class="cp-table" style="min-width:auto">
+          <thead><tr><th>Website</th><th>Provider</th><th>Key</th><th>Status</th><th>Errors</th></tr></thead>
+          <tbody>
+          <% providers.forEach(function (p) { %>
+            <tr>
+              <td><%= p.website_name %></td>
+              <td><%= p.provider %></td>
+              <td><span class="cp-code"><%= p.api_key_masked %></span></td>
+              <td><span class="cp-pill <%= p.status === 'connected' ? 'cp-pill-success' : 'cp-pill-error' %>"><%= p.status %></span></td>
+              <td><%= p.error_count %></td>
+            </tr>
+          <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+    <p class="cp-help-text">Only the masked hint is available. The plaintext key cannot be read from any admin screen.</p>
+  </div>
+
+  <div class="cp-card">
+    <h3 class="cp-card-title">Members</h3>
+    <div class="cp-table-wrap">
+      <table class="cp-table" style="min-width:auto">
+        <thead><tr><th>User</th><th>Role</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        <% members.forEach(function (m) { %>
+          <tr>
+            <td><%= m.full_name %><br><span class="cp-muted"><%= m.email %></span></td>
+            <td><%= m.role %></td>
+            <td><span class="cp-pill <%= m.status === 'active' ? 'cp-pill-success' : 'cp-pill-error' %>"><%= m.status %></span></td>
+            <td class="cp-right">
+              <form method="post" action="/admin/users/<%= m.id %>/status" style="display:inline">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="status" value="<%= m.status === 'suspended' ? 'active' : 'suspended' %>">
+                <button class="cp-btn <%= m.status === 'suspended' ? 'cp-btn-secondary' : 'cp-btn-danger' %> cp-btn-sm" type="submit">
+                  <%= m.status === 'suspended' ? 'Reactivate' : 'Suspend' %>
+                </button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="cp-grid cp-grid-2">
+  <div class="cp-card">
+    <h3 class="cp-card-title">Site API keys</h3>
+    <% if (!keys.length) { %>
+      <div class="cp-empty">No keys issued.</div>
+    <% } else { %>
+      <div class="cp-table-wrap">
+        <table class="cp-table" style="min-width:auto">
+          <thead><tr><th>Website</th><th>Key</th><th>Status</th><th>Last used</th><th></th></tr></thead>
+          <tbody>
+          <% keys.forEach(function (k) { %>
+            <tr>
+              <td><%= k.website_name %></td>
+              <td><span class="cp-code"><%= k.key_prefix %><%= String(k.key_id).slice(0,6) %>…<%= k.last_four %></span></td>
+              <td><span class="cp-pill <%= k.status === 'active' ? 'cp-pill-success' : 'cp-pill-error' %>"><%= k.status %></span></td>
+              <td class="cp-muted cp-nowrap"><%= k.last_used_at || 'never' %></td>
+              <td class="cp-right">
+                <% if (k.status === 'active') { %>
+                  <form method="post" action="/admin/keys/<%= k.id %>/revoke" style="display:inline">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button class="cp-btn cp-btn-danger cp-btn-sm" type="submit">Revoke</button>
+                  </form>
+                <% } %>
+              </td>
+            </tr>
+          <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="cp-card">
+    <h3 class="cp-card-title">Monthly usage</h3>
+    <% if (!usage.length) { %>
+      <div class="cp-empty">No usage recorded.</div>
+    <% } else { %>
+      <div class="cp-table-wrap">
+        <table class="cp-table" style="min-width:auto">
+          <thead><tr><th>Period</th><th>Messages</th><th>Tokens</th><th>Est. cost</th></tr></thead>
+          <tbody>
+          <% usage.forEach(function (u) { %>
+            <tr><td><%= u.period %></td><td><%= Number(u.messages).toLocaleString() %></td><td><%= Number(u.tokens).toLocaleString() %></td><td>$<%= Number(u.cost).toFixed(4) %></td></tr>
+          <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<div class="cp-card">
+  <h3 class="cp-card-title">Audit trail</h3>
+  <div class="cp-table-wrap">
+    <table class="cp-table">
+      <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th></tr></thead>
+      <tbody>
+      <% audit.forEach(function (a) { %>
+        <tr>
+          <td class="cp-nowrap cp-muted"><%= a.created_at %></td>
+          <td><span class="cp-pill <%= a.actor_type === 'super_admin' ? 'cp-pill-purple' : 'cp-pill-info' %>"><%= a.actor_type %></span></td>
+          <td><%= a.action %></td>
+          <td class="cp-muted"><%= a.target_type %> <%= String(a.target_id).slice(0, 12) %></td>
+        </tr>
+      <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%- include('../partials/foot') %>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <% if (typeof csrfToken !== 'undefined' && csrfToken) { %><meta name="cp-csrf" content="<%= csrfToken %>"><% } %>
+  <title><%= typeof title !== 'undefined' ? title : 'Chat Pilot' %> &middot; Chat Pilot</title>
+  <script>
+    /*
+     * Applies the saved theme before the first paint. Inline and synchronous on
+     * purpose: loading it as a file would let one light frame flash through on
+     * every navigation for a visitor who chose night mode.
+     */
+    (function () {
+      try {
+        var saved = localStorage.getItem('cp-theme');
+        if (saved === 'dark' || saved === 'light') {
+          document.documentElement.setAttribute('data-theme', saved);
+        }
+      } catch (e) {
+        /* Private mode or blocked storage: fall back to the OS preference. */
+      }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/chat-pilot.css">
+  <link rel="icon" type="image/png" href="/assets/img/chat-pilot-mark-64.png">
+  <link rel="apple-touch-icon" href="/assets/img/chat-pilot-mark.png">
+</head>
+<body>

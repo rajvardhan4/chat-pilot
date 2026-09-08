@@ -1,0 +1,83 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<div data-website-id="<%= website.id %>"></div>
+<%- include('../partials/portal-tabs') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">AI Instructions <small>How the AI behaves</small></h2>
+  <p class="cp-description">
+    The Knowledge Base decides <em>what</em> the assistant knows. These instructions decide <em>how</em> it
+    answers: tone, length, grounding rules and what it says when it does not know.
+  </p>
+</div>
+
+<form data-ajax="/instructions" data-success="AI instructions saved.">
+  <div class="cp-grid cp-grid-sidebar">
+    <div class="cp-card">
+      <h3 class="cp-card-title">System prompt</h3>
+      <div class="cp-form-group">
+        <label class="cp-label" for="business_name">Business name</label>
+        <input class="cp-input" id="business_name" name="business_name" value="<%= instructions.business_name %>" placeholder="<%= website.name %>">
+        <p class="cp-help-text">Used to introduce the assistant. Everything else comes from your Knowledge Base.</p>
+      </div>
+      <div class="cp-form-group">
+        <label class="cp-label" for="system_prompt">Instructions</label>
+        <textarea class="cp-input" id="system_prompt" name="system_prompt" rows="18"><%= instructions.system_prompt %></textarea>
+      </div>
+      <div class="cp-actions-row">
+        <button class="cp-btn cp-btn-primary" type="submit">Save instructions</button>
+        <button class="cp-btn cp-btn-secondary" type="button" data-post="/instructions/reset" data-confirm="Reset all AI instructions to the Chat Pilot defaults?">Reset to defaults</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="cp-card">
+        <h3 class="cp-card-title">Style</h3>
+        <div class="cp-form-group">
+          <label class="cp-label" for="tone">Tone</label>
+          <select class="cp-select" id="tone" name="tone">
+            <% ['professional','friendly','concise','warm','formal'].forEach(function (t) { %>
+              <option value="<%= t %>" <%= instructions.tone === t ? 'selected' : '' %>><%= t %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="cp-form-group">
+          <label class="cp-label" for="answer_length">Answer length</label>
+          <select class="cp-select" id="answer_length" name="answer_length">
+            <% ['brief','concise','detailed'].forEach(function (t) { %>
+              <option value="<%= t %>" <%= instructions.answer_length === t ? 'selected' : '' %>><%= t %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="cp-switch-row">
+          <span class="cp-switch-text"><strong>Strict grounding</strong><span>Only answer from the Knowledge Base.</span></span>
+          <label class="cp-switch"><input type="checkbox" name="strict_grounding" <%= instructions.strict_grounding ? 'checked' : '' %>><span class="cp-switch-slider"></span></label>
+        </div>
+        <div class="cp-switch-row">
+          <span class="cp-switch-text"><strong>Allow small talk</strong><span>Greetings answered naturally, not as a fallback.</span></span>
+          <label class="cp-switch"><input type="checkbox" name="allow_small_talk" <%= instructions.allow_small_talk ? 'checked' : '' %>><span class="cp-switch-slider"></span></label>
+        </div>
+      </div>
+
+      <div class="cp-card">
+        <h3 class="cp-card-title">Visitor-facing messages</h3>
+        <div class="cp-form-group">
+          <label class="cp-label" for="fallback_response">Missing knowledge fallback</label>
+          <textarea class="cp-input" id="fallback_response" name="fallback_response" rows="3"><%= instructions.fallback_response %></textarea>
+          <p class="cp-help-text">Used when retrieval finds nothing relevant.</p>
+        </div>
+        <div class="cp-form-group">
+          <label class="cp-label" for="generation_error_response">AI provider failure message</label>
+          <textarea class="cp-input" id="generation_error_response" name="generation_error_response" rows="3"><%= instructions.generation_error_response %></textarea>
+          <p class="cp-help-text">Shown when the provider errors. Deliberately different from the fallback above so the two states never blur.</p>
+        </div>
+        <div class="cp-form-group">
+          <label class="cp-label" for="greeting_response">Greeting reply</label>
+          <textarea class="cp-input" id="greeting_response" name="greeting_response" rows="2"><%= instructions.greeting_response %></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+
+<%- include('../partials/foot') %>

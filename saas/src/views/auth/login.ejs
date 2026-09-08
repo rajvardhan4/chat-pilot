@@ -1,0 +1,29 @@
+<%- include('../partials/head') %>
+<div class="cp-auth-wrap">
+  <form class="cp-auth-card" method="post" action="/login">
+    <div class="cp-logo">
+      <span class="cp-logo-img" aria-hidden="true"></span>
+      <h1 class="cp-sr-only">Chat Pilot Cloud</h1>
+    </div>
+
+    <% if (notice) { %><div class="cp-alert cp-alert-success">✓ <%= notice %></div><% } %>
+    <% if (error) { %><div class="cp-alert cp-alert-error">✕ <%= error %></div><% } %>
+
+    <div class="cp-form-group">
+      <label class="cp-label" for="email">Email address</label>
+      <input class="cp-input" type="email" id="email" name="email" value="<%= email %>" autocomplete="username" required autofocus>
+    </div>
+    <div class="cp-form-group">
+      <label class="cp-label" for="password">Password</label>
+      <input class="cp-input" type="password" id="password" name="password" autocomplete="current-password" required>
+    </div>
+    <button class="cp-btn cp-btn-primary cp-btn-lg cp-btn-block" type="submit">Sign in</button>
+
+    <p class="cp-auth-foot">
+      <a href="/forgot-password">Forgot your password?</a><br>
+      New to Chat Pilot? <a href="/signup">Create an account</a>
+    </p>
+  </form>
+</div>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<%- include('../partials/head') %>
+<%- include('../partials/admin-header') %>
+
+<div class="cp-card">
+  <h2 class="cp-card-title">Customers <small><%= accounts.length %> accounts</small></h2>
+  <form method="get" class="cp-flex" style="margin-bottom:1rem">
+    <input class="cp-input" name="search" value="<%= search %>" placeholder="Search by account name or billing email" style="max-width:360px">
+    <button class="cp-btn cp-btn-secondary" type="submit">Search</button>
+  </form>
+
+  <% if (!accounts.length) { %>
+    <div class="cp-empty">No accounts found.</div>
+  <% } else { %>
+    <div class="cp-table-wrap">
+      <table class="cp-table">
+        <thead><tr><th>Account</th><th>Plan</th><th>Status</th><th>Members</th><th>Websites</th><th>Conversations</th><th>Created</th><th></th></tr></thead>
+        <tbody>
+        <% accounts.forEach(function (a) { %>
+          <tr>
+            <td><a href="/admin/accounts/<%= a.id %>"><strong><%= a.name %></strong></a><br><span class="cp-muted"><%= a.billing_email %></span></td>
+            <td><%= a.plan_name || '—' %></td>
+            <td><span class="cp-pill <%= a.status === 'active' ? 'cp-pill-success' : 'cp-pill-error' %>"><%= a.status %></span></td>
+            <td><%= a.member_count %></td>
+            <td><%= a.website_count %></td>
+            <td><%= a.conversation_count %></td>
+            <td class="cp-muted cp-nowrap"><%= a.created_at %></td>
+            <td class="cp-right"><a class="cp-btn cp-btn-secondary cp-btn-sm" href="/admin/accounts/<%= a.id %>">Manage</a></td>
+          </tr>
+        <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<%- include('../partials/foot') %>
