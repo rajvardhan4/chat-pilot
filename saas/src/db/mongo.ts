@@ -50,6 +50,85 @@ export interface AppDocument {
 let client: MongoClient | null = null;
 let connecting: Promise<MongoClient> | null = null;
 
+/**
+ * The connection string with its credentials removed, safe to print.
+ *
+ * A connection string carries the database password in its userinfo, so the
+ * raw value must never reach a log line, a console banner or an error
+ * message - all three end up somewhere they are read by more people than
+ * the person who set the password.
+ */
+function describeTarget(uri: string): string {
+  try {
+    // mongodb+srv:// is not a scheme WHATWG URL knows, so parse it as https.
+    const parsed = new URL(uri.replace(/^mongodb(\+srv)?:\/\//, 'https://'));
+    return parsed.host + '/' + env.MONGODB_DB;
+  } catch {
+    return '(unparseable MONGODB_URI)/' + env.MONGODB_DB;
+  }
+}
+
+/**
+ * Turns a driver connection failure into the one sentence that says what to
+ * go and fix. The driver's own messages are accurate but describe the
+ * symptom ("server selection timed out") rather than the cause, which for a
+ * fresh Atlas cluster is nearly always one of three specific mistakes.
+ */
+function explainConnectionFailure(err: unknown, uri: string): string {
+  const raw = err instanceof Error ? err.message : String(err);
+
+  // Atlas hands you the connection string with <db_username> / <password>
+  // still in it, and it is genuinely easy to paste it in as-is.
+  if (/<[^>]+>/.test(uri)) {
+    return (
+      'MONGODB_URI still contains a placeholder in angle brackets. Atlas gives you the ' +
+      'connection string with <db_username> and <password> as blanks to fill in - replace ' +
+      'them (brackets included) with the database user you created under Database Access.'
+    );
+  }
+  if (/authentication failed|bad auth/i.test(raw)) {
+    return (
+      'MongoDB rejected the credentials in MONGODB_URI. Check the username and password ' +
+      'against Atlas -> Database Access. Note this is the database user, not your Atlas ' +
+      'login, and a password containing @ : / ? # or % must be percent-encoded.'
+    );
+  }
+  // DNS is checked before server selection, and deliberately: a mongodb+srv://
+  // URI needs an SRV lookup before any server is contacted, and the driver
+  // reports that failure wrapped in a server-selection message that also
+  // contains ECONNREFUSED. Testing for server selection first would call
+  // every DNS failure an IP-allowlist problem and send you to the wrong
+  // screen in Atlas.
+  if (/querySrv|ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(raw)) {
+    return (
+      'DNS lookup for the MongoDB host failed (' + raw.slice(0, 120) + '). Either the cluster ' +
+      'address in MONGODB_URI is wrong - check it against Atlas -> Connect -> Drivers - or this ' +
+      'machine cannot make DNS queries at all, which a corporate network, a VPN or a container ' +
+      'without DNS will do.'
+    );
+  }
+  if (/server selection|ETIMEDOUT|ECONNREFUSED/i.test(raw)) {
+    return (
+      'Could not reach the MongoDB server. On Atlas this is almost always the IP allowlist: ' +
+      'add this machine under Atlas -> Network Access. Otherwise the cluster is paused, or a ' +
+      'firewall is blocking the outbound connection.'
+    );
+  }
+  return 'Could not connect to MongoDB: ' + raw;
+}
+
+/**
+ * Raised when the connection fails, so startup can print one clear
+ * explanation instead of a driver stack trace. `cause` keeps the original
+ * error for anyone who does want the detail.
+ */
+export class MongoConnectionError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'MongoConnectionError';
+  }
+}
+
 async function connect(): Promise<MongoClient> {
   if (client) return client;
   if (connecting) return connecting;
@@ -60,7 +139,17 @@ async function connect(): Promise<MongoClient> {
       // production traffic.
       serverApi: { version: '1', strict: true, deprecationErrors: true },
     });
-    await c.connect();
+    try {
+      await c.connect();
+      // Prove the handshake actually reached a server. connect() resolves on
+      // a healthy pool, but a ping is what distinguishes "connected" from
+      // "will fail on the first real query".
+      await c.db(env.MONGODB_DB).command({ ping: 1 });
+    } catch (err) {
+      connecting = null;
+      await c.close().catch(() => { /* nothing useful to do if teardown fails too */ });
+      throw new MongoConnectionError(explainConnectionFailure(err, env.MONGODB_URI), { cause: err });
+    }
     client = c;
     connecting = null;
     return c;
@@ -115,6 +204,13 @@ export async function withTransaction<T>(fn: (session: ClientSession) => Promise
 export async function connectDb(): Promise<void> {
   await connect();
   await ensureIndexes();
+  // Host and database only - describeTarget() strips the credentials, which
+  // is the whole reason the URI is not printed directly. Silent in tests,
+  // where this would repeat for every one of the test files.
+  if (!env.isTest) {
+    // eslint-disable-next-line no-console
+    console.log('[chat-pilot] MongoDB connected — ' + describeTarget(env.MONGODB_URI));
+  }
 }
 
 export async function closeDb(): Promise<void> {

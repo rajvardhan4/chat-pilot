@@ -32,9 +32,12 @@ npm install
 cp .env.example .env
 ```
 
-Set `MONGODB_URI` in `.env` (defaults to `mongodb://127.0.0.1:27017` for a
-local `mongod`; use your Atlas connection string otherwise), then generate
-the three secrets and put them in `.env`:
+Set `MONGODB_URI` in `.env`. If you have no MongoDB on the machine, run
+`npm run mongo:local` in a second terminal — it starts a throwaway one and
+prints the connection string to paste in. For anything you want to keep, use
+your Atlas connection string instead.
+
+Then generate the three secrets and put them in `.env`:
 
 ```bash
 node -e "for (const k of ['ENCRYPTION_KEY','SESSION_SECRET','SITE_KEY_PEPPER']) console.log(k + '=' + require('crypto').randomBytes(32).toString('hex'))"

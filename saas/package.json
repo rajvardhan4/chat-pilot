@@ -12,6 +12,7 @@
     "dev": "node --no-warnings --watch src/server.ts",
     "migrate": "node --no-warnings src/db/migrate.ts",
     "seed": "node --no-warnings scripts/seed.ts",
+    "mongo:local": "node --no-warnings scripts/local-mongo.mjs",
     "admin:create": "node --no-warnings scripts/create-admin.ts",
     "test": "node --no-warnings scripts/run-tests.mjs",
     "typecheck": "tsc --noEmit"

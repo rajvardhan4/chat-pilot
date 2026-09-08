@@ -1,10 +1,31 @@
 import { createApp } from './app.ts';
 import { env } from './config/env.ts';
 import { log } from './core/logger.ts';
-import { closeDb } from './db/mongo.ts';
+import { closeDb, MongoConnectionError } from './db/mongo.ts';
 import { startMaintenanceSchedule } from './services/maintenance.ts';
 
-const app = await createApp();
+/**
+ * Startup needs the database, so a failed connection is a failed start, not
+ * a warning to serve traffic through. A server that boots without its
+ * database only fails later, one confusing request at a time.
+ *
+ * The connection error already carries the sentence describing what to fix
+ * (see explainConnectionFailure in db/mongo.ts); printing a stack trace on
+ * top of it just buries that sentence.
+ */
+let app;
+try {
+  app = await createApp();
+} catch (err) {
+  if (err instanceof MongoConnectionError) {
+    // eslint-disable-next-line no-console
+    console.error('\n[chat-pilot] Cannot start: ' + err.message + '\n');
+  } else {
+    // eslint-disable-next-line no-console
+    console.error('\n[chat-pilot] Cannot start.\n', err, '\n');
+  }
+  process.exit(1);
+}
 
 // Conversation timeouts and retention are enforced by a periodic sweep.
 const stopMaintenance = startMaintenanceSchedule();
