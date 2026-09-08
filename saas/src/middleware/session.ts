@@ -9,6 +9,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { env } from '../config/env.ts';
 import { AppError, forbidden, unauthenticated } from '../core/errors.ts';
+import { asyncRoute } from './errors.ts';
 import { constantTimeEqual, signValue, unsignValue } from '../core/crypto.ts';
 import {
   getValidSession,
@@ -72,7 +73,7 @@ export function clearSessionCookie(res: Response): void {
 /* ---------------------------------------------------------- middleware -- */
 
 /** Populates req.user / req.session when a valid cookie is present. Never throws. */
-export function loadSession(req: Request, _res: Response, next: NextFunction): void {
+export const loadSession = asyncRoute(async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   const cookies = parseCookies(req.headers.cookie);
   const signed = cookies[SESSION_COOKIE];
   if (!signed) return next();
@@ -80,18 +81,18 @@ export function loadSession(req: Request, _res: Response, next: NextFunction): v
   const sessionId = unsignValue(signed);
   if (!sessionId) return next();
 
-  const session = getValidSession(sessionId);
+  const session = await getValidSession(sessionId);
   if (!session) return next();
 
-  const user = findUserById(session.user_id);
+  const user = await findUserById(session.user_id);
   if (!user || user.status !== 'active') return next();
 
   req.session = session;
   req.user = user;
   req.csrfToken = session.csrf_token;
-  req.accounts = listAccountsForUser(user.id);
+  req.accounts = await listAccountsForUser(user.id);
   return next();
-}
+});
 
 export function requireAuth(req: Request, _res: Response, next: NextFunction): void {
   if (!req.user) return next(unauthenticated('Please sign in to continue.'));
@@ -129,24 +130,20 @@ export function requireCsrf(req: Request, _res: Response, next: NextFunction): v
  * The account may be named by `:accountId`, a query param, or defaults to the
  * user's own first account. Membership is always verified.
  */
-export function resolveAccount(req: Request, _res: Response, next: NextFunction): void {
+export const resolveAccount = asyncRoute(async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   if (!req.user) return next(unauthenticated());
-  try {
-    const requested =
-      (req.params.accountId as string | undefined) ??
-      (typeof req.query.account === 'string' ? req.query.account : undefined);
+  const requested =
+    (req.params.accountId as string | undefined) ??
+    (typeof req.query.account === 'string' ? req.query.account : undefined);
 
-    if (requested) {
-      req.account = requireAccountAccess(req.user, requested);
-    } else {
-      const primary = primaryAccountFor(req.user);
-      if (!primary) return next(forbidden('No account is associated with this user.'));
-      req.account = requireAccountAccess(req.user, primary.id);
-    }
-    next();
-  } catch (err) {
-    next(err);
+  if (requested) {
+    req.account = await requireAccountAccess(req.user, requested);
+  } else {
+    const primary = await primaryAccountFor(req.user);
+    if (!primary) return next(forbidden('No account is associated with this user.'));
+    req.account = await requireAccountAccess(req.user, primary.id);
   }
-}
+  next();
+});
 
 export { clientIp };

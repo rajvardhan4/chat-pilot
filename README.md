@@ -22,7 +22,9 @@ for comparison.
 
 ### 1. Run Chat Pilot Cloud
 
-Requires **Node.js 22.6+** (24.x recommended). No build step, no native modules.
+Requires **Node.js 22.6+** (24.x recommended) and a **MongoDB** to connect
+to — a local `mongod` for development, or a free [Atlas](https://www.mongodb.com/cloud/atlas)
+cluster if you don't want to install one. No build step, no native modules.
 
 ```bash
 cd saas
@@ -30,7 +32,9 @@ npm install
 cp .env.example .env
 ```
 
-Generate the three secrets and put them in `.env`:
+Set `MONGODB_URI` in `.env` (defaults to `mongodb://127.0.0.1:27017` for a
+local `mongod`; use your Atlas connection string otherwise), then generate
+the three secrets and put them in `.env`:
 
 ```bash
 node -e "for (const k of ['ENCRYPTION_KEY','SESSION_SECRET','SITE_KEY_PEPPER']) console.log(k + '=' + require('crypto').randomBytes(32).toString('hex'))"
@@ -162,7 +166,7 @@ saas/
   src/
     config/       validated env (nothing else reads process.env)
     core/         errors, crypto, logging + redaction, validation, domain rules
-    db/           schema.sql, migrations, thin typed wrapper over node:sqlite
+    db/           mongo.ts — connection, typed collection accessor, indexes
     providers/    adapter contract + 9 providers (openai, anthropic, gemini,
                   mistral, groq, deepseek, together, openrouter, custom), registry
     middleware/   security headers, rate limit, session/CSRF, site HMAC auth, errors
@@ -211,12 +215,14 @@ _reference/chat-pilot/  the untouched v1.1.7 plugin
 | `ENCRYPTION_KEY` / `SESSION_SECRET` / `SITE_KEY_PEPPER` | required; startup fails without them |
 | `CHAT_PILOT_ENABLE_MOCK_PROVIDER` | must be unset — the mock is refused in production regardless |
 | `MAIL_TRANSPORT` | `log` bundled; wire SMTP for real delivery |
-| `DATABASE_FILE` | SQLite by default; see below |
+| `MONGODB_URI` | MongoDB Atlas connection string in production; see below |
 
-**Database.** The schema is portable relational SQL and everything above
-`src/db/index.ts` speaks only `get/all/run/tx`, so moving to Postgres is a
-rewrite of that one file. SQLite is appropriate for a single-node install and
-is what the test suite exercises.
+**Database.** MongoDB (Atlas in production; the test suite boots its own
+in-memory replica set — see `tests/setup.ts` and `scripts/run-tests.mjs`).
+Everything above `src/db/mongo.ts` goes through one typed collection
+accessor (`col()`) and one transaction helper (`withTransaction()`), so a
+future storage swap is still a rewrite of that one file, not a rewrite of
+the app.
 
 **Still to wire for production:** an SMTP transport, a payment processor
 (plans, limits and subscription state are complete and enforced; only card

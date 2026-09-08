@@ -45,13 +45,13 @@ export const portalRouter: Router = Router();
 portalRouter.use(requireAuth, resolveAccount);
 
 /** Shared view context so every template has nav state without repetition. */
-function baseContext(req: Parameters<typeof asyncRoute>[0] extends never ? never : any) {
+async function baseContext(req: any) {
   return {
     user: req.user,
     account: req.account,
     accounts: req.accounts ?? [],
     csrfToken: req.csrfToken,
-    websites: listWebsites(req.account.id),
+    websites: await listWebsites(req.account.id),
     appUrl: env.APP_URL,
     notice: typeof req.query.notice === 'string' ? req.query.notice : '',
     error: typeof req.query.error === 'string' ? req.query.error : '',
@@ -63,11 +63,15 @@ function baseContext(req: Parameters<typeof asyncRoute>[0] extends never ? never
 portalRouter.get(
   '/',
   asyncRoute(async (req, res) => {
-    const ctx = baseContext(req);
+    const ctx = await baseContext(req);
     const range = resolveRange('30days');
-    const analytics = accountAnalytics(req.account!.id, range);
-    const usage = accountUsage(req.account!.id);
-    const subscription = getSubscription(req.account!.id);
+    const [analytics, usage, subscription, websiteLimit, websiteCount] = await Promise.all([
+      accountAnalytics(req.account!.id, range),
+      accountUsage(req.account!.id),
+      getSubscription(req.account!.id),
+      planLimitFor(req.account!.id, 'max_websites'),
+      countWebsites(req.account!.id),
+    ]);
 
     res.render('portal/dashboard', {
       ...ctx,
@@ -76,8 +80,8 @@ portalRouter.get(
       analytics,
       usage,
       subscription,
-      websiteLimit: planLimitFor(req.account!.id, 'max_websites'),
-      websiteCount: countWebsites(req.account!.id),
+      websiteLimit,
+      websiteCount,
     });
   }),
 );
@@ -88,10 +92,10 @@ portalRouter.get(
   '/websites',
   asyncRoute(async (req, res) => {
     res.render('portal/websites', {
-      ...baseContext(req),
+      ...(await baseContext(req)),
       title: 'My Websites',
       activeTab: 'websites',
-      websiteLimit: planLimitFor(req.account!.id, 'max_websites'),
+      websiteLimit: await planLimitFor(req.account!.id, 'max_websites'),
     });
   }),
 );
@@ -100,7 +104,7 @@ portalRouter.get(
   '/websites/new',
   asyncRoute(async (req, res) => {
     res.render('portal/website-new', {
-      ...baseContext(req),
+      ...(await baseContext(req)),
       title: 'Add a website',
       activeTab: 'websites',
       welcome: req.query.welcome === '1',
@@ -123,7 +127,7 @@ portalRouter.post(
     const raw = (req.body ?? {}) as Record<string, unknown>;
     try {
       const parsed = parseOrThrow(newWebsiteSchema, raw);
-      const site = createWebsite({
+      const site = await createWebsite({
         accountId: req.account!.id,
         name: parsed.name,
         url: parsed.url,
@@ -135,7 +139,7 @@ portalRouter.post(
     } catch (err) {
       const appError = err instanceof AppError ? err : null;
       res.status(appError?.status ?? 422).render('portal/website-new', {
-        ...baseContext(req),
+        ...(await baseContext(req)),
         title: 'Add a website',
         activeTab: 'websites',
         welcome: false,
@@ -151,11 +155,11 @@ portalRouter.post(
 
 const websiteScope = [resolveWebsite] as const;
 
-function websiteContext(req: any) {
+async function websiteContext(req: any) {
   return {
-    ...baseContext(req),
+    ...(await baseContext(req)),
     website: req.website,
-    providerConfig: getConfig(req.account.id, req.website.id),
+    providerConfig: await getConfig(req.account.id, req.website.id),
   };
 }
 
@@ -164,15 +168,23 @@ portalRouter.get(
   ...websiteScope,
   asyncRoute(async (req, res) => {
     const range = resolveRange('30days');
+    const [ctx, analytics, knowledge, providers, keys, widget] = await Promise.all([
+      websiteContext(req),
+      websiteAnalytics(req.account!.id, req.website!.id, range),
+      knowledgeStats(req.account!.id, req.website!.id),
+      providerOverview(req.account!.id, req.website!.id),
+      listSiteKeys(req.account!.id, req.website!.id),
+      publicWidgetConfig(req.account!.id, req.website!.id),
+    ]);
     res.render('portal/website-overview', {
-      ...websiteContext(req),
+      ...ctx,
       title: req.website!.name,
       activeTab: 'overview',
-      analytics: websiteAnalytics(req.account!.id, req.website!.id, range),
-      knowledge: knowledgeStats(req.account!.id, req.website!.id),
-      providers: providerOverview(req.account!.id, req.website!.id),
-      keys: listSiteKeys(req.account!.id, req.website!.id),
-      widget: publicWidgetConfig(req.account!.id, req.website!.id),
+      analytics,
+      knowledge,
+      providers,
+      keys,
+      widget,
     });
   }),
 );
@@ -184,7 +196,7 @@ portalRouter.post(
   asyncRoute(async (req, res) => {
     const raw = (req.body ?? {}) as Record<string, unknown>;
     try {
-      updateWebsite(
+      await updateWebsite(
         req.account!.id,
         req.website!.id,
         {
@@ -212,7 +224,7 @@ portalRouter.post(
   ...websiteScope,
   requireCsrf,
   asyncRoute(async (req, res) => {
-    deleteWebsite(req.account!.id, req.website!.id, req.user!.id);
+    await deleteWebsite(req.account!.id, req.website!.id, req.user!.id);
     res.redirect('/app/websites?notice=' + encodeURIComponent('Website deleted.'));
   }),
 );
@@ -223,11 +235,15 @@ portalRouter.get(
   '/websites/:websiteId/providers',
   ...websiteScope,
   asyncRoute(async (req, res) => {
+    const [ctx, providers] = await Promise.all([
+      websiteContext(req),
+      providerOverview(req.account!.id, req.website!.id),
+    ]);
     res.render('portal/providers', {
-      ...websiteContext(req),
+      ...ctx,
       title: 'AI Providers',
       activeTab: 'providers',
-      providers: providerOverview(req.account!.id, req.website!.id),
+      providers,
     });
   }),
 );
@@ -240,18 +256,29 @@ portalRouter.get(
   asyncRoute(async (req, res) => {
     const accountId = req.account!.id;
     const websiteId = req.website!.id;
+    const [ctx, stats, sources, faqs, manual, files, siteSources, documents, maxDocuments] = await Promise.all([
+      websiteContext(req),
+      knowledgeStats(accountId, websiteId),
+      listSources(accountId, websiteId),
+      listSources(accountId, websiteId, 'faq'),
+      listSources(accountId, websiteId, 'manual'),
+      listSources(accountId, websiteId, 'file'),
+      listSources(accountId, websiteId, 'website'),
+      listDocuments(accountId, websiteId, { limit: 100 }),
+      planLimitFor(accountId, 'max_documents'),
+    ]);
     res.render('portal/knowledge', {
-      ...websiteContext(req),
+      ...ctx,
       title: 'Knowledge Base',
       activeTab: 'knowledge',
-      stats: knowledgeStats(accountId, websiteId),
-      sources: listSources(accountId, websiteId),
-      faqs: listSources(accountId, websiteId, 'faq'),
-      manual: listSources(accountId, websiteId, 'manual'),
-      files: listSources(accountId, websiteId, 'file'),
-      siteSources: listSources(accountId, websiteId, 'website'),
-      documents: listDocuments(accountId, websiteId, { limit: 100 }),
-      maxDocuments: planLimitFor(accountId, 'max_documents'),
+      stats,
+      sources,
+      faqs,
+      manual,
+      files,
+      siteSources,
+      documents,
+      maxDocuments,
       uploadMaxBytes: env.UPLOAD_MAX_BYTES,
     });
   }),
@@ -263,11 +290,15 @@ portalRouter.get(
   '/websites/:websiteId/instructions',
   ...websiteScope,
   asyncRoute(async (req, res) => {
+    const [ctx, instructions] = await Promise.all([
+      websiteContext(req),
+      getInstructions(req.account!.id, req.website!.id),
+    ]);
     res.render('portal/instructions', {
-      ...websiteContext(req),
+      ...ctx,
       title: 'AI Instructions',
       activeTab: 'instructions',
-      instructions: getInstructions(req.account!.id, req.website!.id),
+      instructions,
     });
   }),
 );
@@ -278,13 +309,19 @@ portalRouter.get(
   '/websites/:websiteId/preview',
   ...websiteScope,
   asyncRoute(async (req, res) => {
+    const [ctx, providers, instructions, knowledge] = await Promise.all([
+      websiteContext(req),
+      providerOverview(req.account!.id, req.website!.id),
+      getInstructions(req.account!.id, req.website!.id),
+      knowledgeStats(req.account!.id, req.website!.id),
+    ]);
     res.render('portal/preview', {
-      ...websiteContext(req),
+      ...ctx,
       title: 'Developer Chat Preview',
       activeTab: 'preview',
-      providers: providerOverview(req.account!.id, req.website!.id),
-      instructions: getInstructions(req.account!.id, req.website!.id),
-      knowledge: knowledgeStats(req.account!.id, req.website!.id),
+      providers,
+      instructions,
+      knowledge,
     });
   }),
 );
@@ -295,12 +332,17 @@ portalRouter.get(
   '/websites/:websiteId/widget',
   ...websiteScope,
   asyncRoute(async (req, res) => {
+    const [ctx, settings, forms] = await Promise.all([
+      websiteContext(req),
+      getWidgetSettings(req.account!.id, req.website!.id),
+      listForms(req.account!.id, req.website!.id),
+    ]);
     res.render('portal/widget', {
-      ...websiteContext(req),
+      ...ctx,
       title: 'Chat Widget',
       activeTab: 'widget',
-      settings: getWidgetSettings(req.account!.id, req.website!.id),
-      forms: listForms(req.account!.id, req.website!.id),
+      settings,
+      forms,
     });
   }),
 );
@@ -311,12 +353,17 @@ portalRouter.get(
   '/websites/:websiteId/forms',
   ...websiteScope,
   asyncRoute(async (req, res) => {
+    const [ctx, forms, widgetSettings] = await Promise.all([
+      websiteContext(req),
+      listForms(req.account!.id, req.website!.id),
+      getWidgetSettings(req.account!.id, req.website!.id),
+    ]);
     res.render('portal/forms', {
-      ...websiteContext(req),
+      ...ctx,
       title: 'Forms',
       activeTab: 'forms',
-      forms: listForms(req.account!.id, req.website!.id),
-      widgetSettings: getWidgetSettings(req.account!.id, req.website!.id),
+      forms,
+      widgetSettings,
     });
   }),
 );
@@ -327,16 +374,21 @@ portalRouter.get(
   asyncRoute(async (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search : '';
     const formId = typeof req.query.form === 'string' ? req.query.form : '';
-    res.render('portal/leads', {
-      ...websiteContext(req),
-      title: 'Leads',
-      activeTab: 'leads',
-      submissions: listSubmissions(req.account!.id, req.website!.id, {
+    const [ctx, submissions, forms] = await Promise.all([
+      websiteContext(req),
+      listSubmissions(req.account!.id, req.website!.id, {
         search: search || undefined,
         formId: formId || undefined,
         limit: 100,
       }),
-      forms: listForms(req.account!.id, req.website!.id),
+      listForms(req.account!.id, req.website!.id),
+    ]);
+    res.render('portal/leads', {
+      ...ctx,
+      title: 'Leads',
+      activeTab: 'leads',
+      submissions,
+      forms,
       search,
       formId,
     });
@@ -354,17 +406,22 @@ portalRouter.get(
       source: typeof req.query.source === 'string' ? req.query.source : 'all',
       search: typeof req.query.search === 'string' ? req.query.search : '',
     };
-    res.render('portal/conversations', {
-      ...websiteContext(req),
-      title: 'Conversations',
-      activeTab: 'conversations',
-      conversations: listConversations(req.account!.id, req.website!.id, {
+    const [ctx, conversations, total] = await Promise.all([
+      websiteContext(req),
+      listConversations(req.account!.id, req.website!.id, {
         status: filter.status,
         source: filter.source,
         search: filter.search || undefined,
         limit: 100,
       }),
-      total: countConversations(req.account!.id, req.website!.id),
+      countConversations(req.account!.id, req.website!.id),
+    ]);
+    res.render('portal/conversations', {
+      ...ctx,
+      title: 'Conversations',
+      activeTab: 'conversations',
+      conversations,
+      total,
       filter,
     });
   }),
@@ -374,17 +431,21 @@ portalRouter.get(
   '/websites/:websiteId/conversations/:conversationId',
   ...websiteScope,
   asyncRoute(async (req, res) => {
-    const conversation = getConversation(
+    const conversation = await getConversation(
       req.account!.id, req.website!.id, req.params.conversationId as string,
     );
+    const [ctx, transcript, submissions] = await Promise.all([
+      websiteContext(req),
+      getTranscript(req.account!.id, req.website!.id, conversation.id),
+      listSubmissions(req.account!.id, req.website!.id, { limit: 200 }),
+    ]);
     res.render('portal/conversation-detail', {
-      ...websiteContext(req),
+      ...ctx,
       title: 'Conversation',
       activeTab: 'conversations',
       conversation,
-      transcript: getTranscript(req.account!.id, req.website!.id, conversation.id),
-      submissions: listSubmissions(req.account!.id, req.website!.id, { limit: 200 })
-        .filter((s) => s.conversation_id === conversation.id),
+      transcript,
+      submissions: submissions.filter((s) => s.conversation_id === conversation.id),
     });
   }),
 );
@@ -401,13 +462,18 @@ portalRouter.get(
       typeof req.query.from === 'string' ? req.query.from : undefined,
       typeof req.query.to === 'string' ? req.query.to : undefined,
     );
+    const [ctx, analytics, usage] = await Promise.all([
+      websiteContext(req),
+      websiteAnalytics(req.account!.id, req.website!.id, range),
+      accountUsage(req.account!.id),
+    ]);
     res.render('portal/analytics', {
-      ...websiteContext(req),
+      ...ctx,
       title: 'Analytics',
       activeTab: 'analytics',
       preset,
-      analytics: websiteAnalytics(req.account!.id, req.website!.id, range),
-      usage: accountUsage(req.account!.id),
+      analytics,
+      usage,
     });
   }),
 );
@@ -417,7 +483,7 @@ portalRouter.get(
   ...websiteScope,
   asyncRoute(async (req, res) => {
     const range = resolveRange(typeof req.query.range === 'string' ? req.query.range : '30days');
-    const analytics = websiteAnalytics(req.account!.id, req.website!.id, range);
+    const analytics = await websiteAnalytics(req.account!.id, req.website!.id, range);
     const csv = toCsv(
       analytics.trend.map((t) => ({
         date: t.date,
@@ -439,12 +505,17 @@ portalRouter.get(
   '/websites/:websiteId/connection',
   ...websiteScope,
   asyncRoute(async (req, res) => {
+    const [ctx, keys, domains] = await Promise.all([
+      websiteContext(req),
+      listSiteKeys(req.account!.id, req.website!.id),
+      listDomains(req.account!.id, req.website!.id),
+    ]);
     res.render('portal/connection', {
-      ...websiteContext(req),
+      ...ctx,
       title: 'Connection',
       activeTab: 'connection',
-      keys: listSiteKeys(req.account!.id, req.website!.id),
-      domains: listDomains(req.account!.id, req.website!.id),
+      keys,
+      domains,
       newKey: typeof req.query.key === 'string' ? req.query.key : '',
     });
   }),
@@ -456,7 +527,7 @@ portalRouter.post(
   requireCsrf,
   asyncRoute(async (req, res) => {
     try {
-      addDomain(req.account!.id, req.website!.id, String((req.body as any).domain ?? ''));
+      await addDomain(req.account!.id, req.website!.id, String((req.body as any).domain ?? ''));
       res.redirect('/app/websites/' + req.website!.id + '/connection?notice=' +
         encodeURIComponent('Domain added.'));
     } catch (err) {
@@ -471,7 +542,7 @@ portalRouter.post(
   ...websiteScope,
   requireCsrf,
   asyncRoute(async (req, res) => {
-    removeDomain(req.account!.id, req.website!.id, req.params.domainId as string);
+    await removeDomain(req.account!.id, req.website!.id, req.params.domainId as string);
     res.redirect('/app/websites/' + req.website!.id + '/connection?notice=' +
       encodeURIComponent('Domain removed.'));
   }),
@@ -482,14 +553,21 @@ portalRouter.post(
 portalRouter.get(
   '/usage',
   asyncRoute(async (req, res) => {
+    const [ctx, usage, history, subscription, budget] = await Promise.all([
+      baseContext(req),
+      accountUsage(req.account!.id),
+      usageHistory(req.account!.id, 12),
+      getSubscription(req.account!.id),
+      getBudgetStatus(req.account!.id),
+    ]);
     res.render('portal/usage', {
-      ...baseContext(req),
+      ...ctx,
       title: 'Usage',
       activeTab: 'usage',
-      usage: accountUsage(req.account!.id),
-      history: usageHistory(req.account!.id, 12),
-      subscription: getSubscription(req.account!.id),
-      budget: getBudgetStatus(req.account!.id),
+      usage,
+      history,
+      subscription,
+      budget,
     });
   }),
 );
@@ -507,7 +585,7 @@ portalRouter.post(
         }),
         raw,
       );
-      setBudget(req.account!.id, parsed.monthly_budget, parsed.alert_percent, req.user!.id);
+      await setBudget(req.account!.id, parsed.monthly_budget, parsed.alert_percent, req.user!.id);
       res.redirect('/app/usage?notice=' + encodeURIComponent('Monthly AI budget saved.'));
     } catch (err) {
       const message = err instanceof AppError ? err.publicMessage : 'Could not save that budget.';
@@ -519,13 +597,19 @@ portalRouter.post(
 portalRouter.get(
   '/billing',
   asyncRoute(async (req, res) => {
+    const [ctx, subscription, plans, usage] = await Promise.all([
+      baseContext(req),
+      getSubscription(req.account!.id),
+      listPlans(),
+      accountUsage(req.account!.id),
+    ]);
     res.render('portal/billing', {
-      ...baseContext(req),
+      ...ctx,
       title: 'Billing',
       activeTab: 'billing',
-      subscription: getSubscription(req.account!.id),
-      plans: listPlans(),
-      usage: accountUsage(req.account!.id),
+      subscription,
+      plans,
+      usage,
     });
   }),
 );
@@ -533,12 +617,17 @@ portalRouter.get(
 portalRouter.get(
   '/account',
   asyncRoute(async (req, res) => {
+    const [ctx, memberships, notifications] = await Promise.all([
+      baseContext(req),
+      listAccountsForUser(req.user!.id),
+      listNotifications(req.account!.id, 20),
+    ]);
     res.render('portal/account', {
-      ...baseContext(req),
+      ...ctx,
       title: 'Account',
       activeTab: 'account',
-      memberships: listAccountsForUser(req.user!.id),
-      notifications: listNotifications(req.account!.id, 20),
+      memberships,
+      notifications,
     });
   }),
 );
@@ -548,7 +637,7 @@ portalRouter.post(
   requireCsrf,
   asyncRoute(async (req, res) => {
     const raw = (req.body ?? {}) as Record<string, unknown>;
-    updateAccount(req.account!.id, {
+    await updateAccount(req.account!.id, {
       name: raw.name === undefined ? undefined : String(raw.name),
       billingEmail: raw.billing_email === undefined ? undefined : String(raw.billing_email),
     });
@@ -560,10 +649,9 @@ portalRouter.get(
   '/support',
   asyncRoute(async (req, res) => {
     res.render('portal/support', {
-      ...baseContext(req),
+      ...(await baseContext(req)),
       title: 'Support',
       activeTab: 'support',
     });
   }),
 );
-

@@ -12,7 +12,7 @@
  *  - Presenting a key is not enough: the request must also come from a host
  *    registered to that website (see `authenticateSiteRequest`).
  */
-import { db, nowIso } from '../db/index.ts';
+import { col, nowIso } from '../db/mongo.ts';
 import { AppError, notFound } from '../core/errors.ts';
 import {
   constantTimeEqual,
@@ -41,14 +41,19 @@ export interface SiteKeyRow {
   created_at: string;
 }
 
-export function listSiteKeys(accountId: string, websiteId: string): SiteKeyRow[] {
-  return db.all<SiteKeyRow>(
-    `SELECT * FROM site_api_credentials
-      WHERE website_id = ? AND account_id = ?
-      ORDER BY created_at DESC`,
-    websiteId,
-    accountId,
-  );
+type SiteKeyDoc = Omit<SiteKeyRow, 'id'> & { _id: string };
+
+function toSiteKeyRow(d: SiteKeyDoc): SiteKeyRow {
+  const { _id, ...rest } = d;
+  return { id: _id, ...rest };
+}
+
+export async function listSiteKeys(accountId: string, websiteId: string): Promise<SiteKeyRow[]> {
+  const docs = await col<SiteKeyDoc>('site_api_credentials')
+    .find({ website_id: websiteId, account_id: accountId })
+    .sort({ created_at: -1 })
+    .toArray();
+  return docs.map(toSiteKeyRow);
 }
 
 export interface IssuedKey {
@@ -57,63 +62,72 @@ export interface IssuedKey {
   plaintext: string;
 }
 
-export function issueSiteKey(
+export async function issueSiteKey(
   accountId: string,
   websiteId: string,
   label: string,
   actorId: string,
   opts: { live?: boolean; ip?: string } = {},
-): IssuedKey {
-  getWebsiteForAccount(accountId, websiteId); // tenancy check
+): Promise<IssuedKey> {
+  await getWebsiteForAccount(accountId, websiteId); // tenancy check
 
   const generated = generateSiteKey(opts.live !== false);
   const id = newId();
-  db.run(
-    `INSERT INTO site_api_credentials
-       (id, account_id, website_id, key_id, key_hash, key_prefix, last_four, label, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)`,
-    id,
-    accountId,
-    websiteId,
-    generated.keyId,
-    generated.keyHash,
-    opts.live !== false ? 'cp_live_' : 'cp_test_',
-    generated.lastFour,
-    label.trim() || 'Primary',
-    nowIso(),
-  );
+  const doc: SiteKeyDoc = {
+    _id: id,
+    account_id: accountId,
+    website_id: websiteId,
+    key_id: generated.keyId,
+    key_hash: generated.keyHash,
+    key_prefix: opts.live !== false ? 'cp_live_' : 'cp_test_',
+    last_four: generated.lastFour,
+    label: label.trim() || 'Primary',
+    status: 'active',
+    last_used_at: null,
+    last_used_ip: '',
+    revoked_at: null,
+    created_at: nowIso(),
+  };
+  await col<SiteKeyDoc>('site_api_credentials').insertOne(doc);
 
-  audit({
+  await audit({
     accountId, websiteId, actorType: 'user', actorId,
     action: 'site_key.issued', targetType: 'site_api_credential', targetId: id,
     metadata: { label }, ip: opts.ip,
   });
 
-  return { record: db.get<SiteKeyRow>('SELECT * FROM site_api_credentials WHERE id = ?', id)!, plaintext: generated.plaintext };
+  return { record: toSiteKeyRow(doc), plaintext: generated.plaintext };
 }
 
-export function revokeSiteKey(accountId: string, websiteId: string, keyRecordId: string, actorId: string): void {
-  const row = db.get<SiteKeyRow>(
-    'SELECT * FROM site_api_credentials WHERE id = ? AND website_id = ? AND account_id = ?',
-    keyRecordId, websiteId, accountId,
-  );
+export async function revokeSiteKey(
+  accountId: string,
+  websiteId: string,
+  keyRecordId: string,
+  actorId: string,
+): Promise<void> {
+  const row = await col<SiteKeyDoc>('site_api_credentials').findOne({
+    _id: keyRecordId as never, website_id: websiteId, account_id: accountId,
+  });
   if (!row) throw notFound('API key not found.');
-  db.run(
-    "UPDATE site_api_credentials SET status = 'revoked', revoked_at = ? WHERE id = ?",
-    nowIso(), keyRecordId,
+  await col('site_api_credentials').updateOne(
+    { _id: keyRecordId as never },
+    { $set: { status: 'revoked', revoked_at: nowIso() } },
   );
-  audit({
+  await audit({
     accountId, websiteId, actorType: 'user', actorId,
     action: 'site_key.revoked', targetType: 'site_api_credential', targetId: keyRecordId,
   });
 }
 
 /** Super-admin revocation (no membership required, always audited as admin). */
-export function adminRevokeSiteKey(keyRecordId: string, actorId: string): void {
-  const row = db.get<SiteKeyRow>('SELECT * FROM site_api_credentials WHERE id = ?', keyRecordId);
+export async function adminRevokeSiteKey(keyRecordId: string, actorId: string): Promise<void> {
+  const row = await col<SiteKeyDoc>('site_api_credentials').findOne({ _id: keyRecordId as never });
   if (!row) throw notFound('API key not found.');
-  db.run("UPDATE site_api_credentials SET status = 'revoked', revoked_at = ? WHERE id = ?", nowIso(), keyRecordId);
-  audit({
+  await col('site_api_credentials').updateOne(
+    { _id: keyRecordId as never },
+    { $set: { status: 'revoked', revoked_at: nowIso() } },
+  );
+  await audit({
     accountId: row.account_id, websiteId: row.website_id, actorType: 'super_admin', actorId,
     action: 'site_key.admin_revoked', targetType: 'site_api_credential', targetId: keyRecordId,
   });
@@ -143,7 +157,7 @@ export interface SiteAuthInput {
  * account state, then subscription, then domain. Each failure has its own
  * error code so the plugin can show a specific, friendly status.
  */
-export function authenticateSiteRequest(input: SiteAuthInput): SiteAuthContext {
+export async function authenticateSiteRequest(input: SiteAuthInput): Promise<SiteAuthContext> {
   const presented = (input.presentedKey ?? '').trim();
   if (!presented) {
     throw new AppError('site_key_invalid', 'A Chat Pilot Site API Key is required.');
@@ -154,16 +168,17 @@ export function authenticateSiteRequest(input: SiteAuthInput): SiteAuthContext {
     throw new AppError('site_key_invalid', 'That Site API Key is not recognised.');
   }
 
-  const record = db.get<SiteKeyRow>('SELECT * FROM site_api_credentials WHERE key_id = ?', keyId);
-  if (!record || !constantTimeEqual(record.key_hash, hashSiteKey(presented))) {
+  const recordDoc = await col<SiteKeyDoc>('site_api_credentials').findOne({ key_id: keyId });
+  if (!recordDoc || !constantTimeEqual(recordDoc.key_hash, hashSiteKey(presented))) {
     throw new AppError('site_key_invalid', 'That Site API Key is not recognised.');
   }
+  const record = toSiteKeyRow(recordDoc);
 
   if (record.status !== 'active') {
     throw new AppError('site_key_revoked', 'This Site API Key has been revoked. Generate a new key in your Chat Pilot dashboard.');
   }
 
-  const website = getWebsite(record.website_id);
+  const website = await getWebsite(record.website_id);
   if (!website) {
     throw new AppError('site_key_invalid', 'That Site API Key is not recognised.');
   }
@@ -174,26 +189,29 @@ export function authenticateSiteRequest(input: SiteAuthInput): SiteAuthContext {
     throw new AppError('website_disabled', 'This website is currently disabled in your Chat Pilot dashboard.');
   }
 
-  const account = db.get<AccountRow>('SELECT * FROM accounts WHERE id = ?', record.account_id);
-  if (!account) {
+  const accountDoc = await col<Omit<AccountRow, 'id'> & { _id: string }>('accounts').findOne({
+    _id: record.account_id as never,
+  });
+  if (!accountDoc) {
     throw new AppError('site_key_invalid', 'That Site API Key is not recognised.');
   }
+  const account: AccountRow = { id: accountDoc._id, ...accountDoc };
   if (account.status !== 'active') {
     throw new AppError('account_suspended', 'This Chat Pilot account is suspended. Please contact support.');
   }
 
-  const subscription = db.get<{ status: string; current_period_end: string }>(
-    `SELECT status, current_period_end FROM subscriptions
-      WHERE account_id = ? ORDER BY created_at DESC LIMIT 1`,
-    account.id,
-  );
+  const subscription = await col<{ _id: string; status: string; current_period_end: string; created_at: string }>('subscriptions')
+    .find({ account_id: account.id })
+    .sort({ created_at: -1 })
+    .limit(1)
+    .next();
   if (subscription && !['active', 'trialing'].includes(subscription.status)) {
     throw new AppError('subscription_inactive', 'This Chat Pilot subscription is not active. Please update billing to continue.');
   }
 
   if (input.enforceDomain !== false) {
-    if (!hostIsAllowedForWebsite(website, input.siteUrl)) {
-      audit({
+    if (!(await hostIsAllowedForWebsite(website, input.siteUrl))) {
+      await audit({
         accountId: account.id, websiteId: website.id, actorType: 'site_key', actorId: record.id,
         action: 'site_key.domain_mismatch', metadata: { presented: input.siteUrl }, ip: input.ip,
       });
@@ -204,20 +222,28 @@ export function authenticateSiteRequest(input: SiteAuthInput): SiteAuthContext {
     }
   }
 
-  db.run(
-    'UPDATE site_api_credentials SET last_used_at = ?, last_used_ip = ? WHERE id = ?',
-    nowIso(),
-    (input.ip ?? '').slice(0, 45),
-    record.id,
+  await col('site_api_credentials').updateOne(
+    { _id: record.id as never },
+    { $set: { last_used_at: nowIso(), last_used_ip: (input.ip ?? '').slice(0, 45) } },
   );
 
   return { key: record, website, account };
 }
 
 /** Marks a successful plugin handshake. */
-export function recordConnection(websiteId: string, pluginVersion: string): void {
-  db.run(
-    'UPDATE websites SET last_connected_at = ?, connected_plugin_ver = ?, verified_at = COALESCE(verified_at, ?), updated_at = ? WHERE id = ?',
-    nowIso(), pluginVersion.slice(0, 30), nowIso(), nowIso(), websiteId,
-  );
+export async function recordConnection(websiteId: string, pluginVersion: string): Promise<void> {
+  const now = nowIso();
+  // A pipeline update (the array form) is what lets `verified_at` be set only
+  // the first time - COALESCE(verified_at, ?) in the old SQL - atomically,
+  // without a read-then-write race between two connections arriving together.
+  await col('websites').updateOne({ _id: websiteId as never }, [
+    {
+      $set: {
+        last_connected_at: now,
+        connected_plugin_ver: pluginVersion.slice(0, 30),
+        verified_at: { $ifNull: ['$verified_at', now] },
+        updated_at: now,
+      },
+    },
+  ]);
 }

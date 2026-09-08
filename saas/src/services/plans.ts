@@ -1,4 +1,4 @@
-import { db, nowIso } from '../db/index.ts';
+import { col, nowIso, withTransaction } from '../db/mongo.ts';
 import { newId } from '../core/crypto.ts';
 import { audit } from './audit.ts';
 
@@ -18,18 +18,27 @@ export interface PlanRow {
   updated_at: string;
 }
 
-export function listPlans(includeInactive = false): PlanRow[] {
-  return db.all<PlanRow>(
-    'SELECT * FROM plans' + (includeInactive ? '' : ' WHERE is_active = 1') + ' ORDER BY price_cents ASC',
-  );
+type PlanDoc = Omit<PlanRow, 'id'> & { _id: string };
+
+function toPlanRow(d: PlanDoc): PlanRow {
+  const { _id, ...rest } = d;
+  return { id: _id, ...rest };
 }
 
-export function getPlan(id: string): PlanRow | undefined {
-  return db.get<PlanRow>('SELECT * FROM plans WHERE id = ?', id);
+export async function listPlans(includeInactive = false): Promise<PlanRow[]> {
+  const filter = includeInactive ? {} : { is_active: 1 };
+  const docs = await col<PlanDoc>('plans').find(filter).sort({ price_cents: 1 }).toArray();
+  return docs.map(toPlanRow);
 }
 
-export function getPlanBySlug(slug: string): PlanRow | undefined {
-  return db.get<PlanRow>('SELECT * FROM plans WHERE slug = ?', slug);
+export async function getPlan(id: string): Promise<PlanRow | undefined> {
+  const doc = await col<PlanDoc>('plans').findOne({ _id: id as never });
+  return doc ? toPlanRow(doc) : undefined;
+}
+
+export async function getPlanBySlug(slug: string): Promise<PlanRow | undefined> {
+  const doc = await col<PlanDoc>('plans').findOne({ slug });
+  return doc ? toPlanRow(doc) : undefined;
 }
 
 export interface PlanInput {
@@ -43,94 +52,136 @@ export interface PlanInput {
   isActive?: boolean;
 }
 
-export function upsertPlan(input: PlanInput, actorId: string): PlanRow {
-  const existing = getPlanBySlug(input.slug);
+export async function upsertPlan(input: PlanInput, actorId: string): Promise<PlanRow> {
+  const existing = await getPlanBySlug(input.slug);
   const now = nowIso();
   if (existing) {
-    db.run(
-      `UPDATE plans SET name = ?, price_cents = ?, max_websites = ?, max_documents = ?,
-              max_messages_month = ?, max_storage_mb = ?, is_active = ?, updated_at = ?
-        WHERE id = ?`,
-      input.name, input.priceCents, input.maxWebsites, input.maxDocuments,
-      input.maxMessagesMonth, input.maxStorageMb, input.isActive === false ? 0 : 1, now, existing.id,
+    await col('plans').updateOne(
+      { _id: existing.id as never },
+      {
+        $set: {
+          name: input.name,
+          price_cents: input.priceCents,
+          max_websites: input.maxWebsites,
+          max_documents: input.maxDocuments,
+          max_messages_month: input.maxMessagesMonth,
+          max_storage_mb: input.maxStorageMb,
+          is_active: input.isActive === false ? 0 : 1,
+          updated_at: now,
+        },
+      },
     );
-    audit({ actorType: 'super_admin', actorId, action: 'plan.updated', targetType: 'plan', targetId: existing.id });
-    return getPlan(existing.id)!;
+    await audit({ actorType: 'super_admin', actorId, action: 'plan.updated', targetType: 'plan', targetId: existing.id });
+    return (await getPlan(existing.id))!;
   }
   const id = newId();
-  db.run(
-    `INSERT INTO plans (id, name, slug, price_cents, currency, max_websites, max_documents,
-                        max_messages_month, max_storage_mb, features, is_active, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'USD', ?, ?, ?, ?, '{}', ?, ?, ?)`,
-    id, input.name, input.slug, input.priceCents, input.maxWebsites, input.maxDocuments,
-    input.maxMessagesMonth, input.maxStorageMb, input.isActive === false ? 0 : 1, now, now,
-  );
-  audit({ actorType: 'super_admin', actorId, action: 'plan.created', targetType: 'plan', targetId: id });
-  return getPlan(id)!;
+  await col<PlanDoc>('plans').insertOne({
+    _id: id,
+    name: input.name,
+    slug: input.slug,
+    price_cents: input.priceCents,
+    currency: 'USD',
+    max_websites: input.maxWebsites,
+    max_documents: input.maxDocuments,
+    max_messages_month: input.maxMessagesMonth,
+    max_storage_mb: input.maxStorageMb,
+    features: '{}',
+    is_active: input.isActive === false ? 0 : 1,
+    created_at: now,
+    updated_at: now,
+  });
+  await audit({ actorType: 'super_admin', actorId, action: 'plan.created', targetType: 'plan', targetId: id });
+  return (await getPlan(id))!;
 }
 
-export function assignPlan(accountId: string, planId: string, actorId: string): void {
-  const plan = getPlan(planId);
+export async function assignPlan(accountId: string, planId: string, actorId: string): Promise<void> {
+  const plan = await getPlan(planId);
   if (!plan) return;
   const now = nowIso();
   const periodEnd = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().slice(0, 19).replace('T', ' ');
-  db.tx(() => {
-    db.run('UPDATE accounts SET plan_id = ?, updated_at = ? WHERE id = ?', planId, now, accountId);
-    const sub = db.get<{ id: string }>(
-      'SELECT id FROM subscriptions WHERE account_id = ? ORDER BY created_at DESC LIMIT 1', accountId,
-    );
+
+  await withTransaction(async (session) => {
+    await col('accounts').updateOne({ _id: accountId as never }, { $set: { plan_id: planId, updated_at: now } }, { session });
+    const sub = await col<{ _id: string }>('subscriptions')
+      .find({ account_id: accountId }, { session })
+      .sort({ created_at: -1 })
+      .limit(1)
+      .next();
     if (sub) {
-      db.run(
-        "UPDATE subscriptions SET plan_id = ?, status = 'active', current_period_end = ?, updated_at = ? WHERE id = ?",
-        planId, periodEnd, now, sub.id,
+      await col('subscriptions').updateOne(
+        { _id: sub._id as never },
+        { $set: { plan_id: planId, status: 'active', current_period_end: periodEnd, updated_at: now } },
+        { session },
       );
     } else {
-      db.run(
-        `INSERT INTO subscriptions (id, account_id, plan_id, status, current_period_start, current_period_end, created_at, updated_at)
-         VALUES (?, ?, ?, 'active', ?, ?, ?, ?)`,
-        newId(), accountId, planId, now, periodEnd, now, now,
+      await col('subscriptions').insertOne(
+        {
+          _id: newId(),
+          account_id: accountId,
+          plan_id: planId,
+          status: 'active',
+          current_period_start: now,
+          current_period_end: periodEnd,
+          external_ref: '',
+          created_at: now,
+          updated_at: now,
+        },
+        { session },
       );
     }
   });
-  audit({
+
+  await audit({
     accountId, actorType: 'super_admin', actorId, action: 'plan.assigned',
     targetType: 'account', targetId: accountId, metadata: { planId },
   });
 }
 
-export function setSubscriptionStatus(
+export async function setSubscriptionStatus(
   accountId: string,
   status: 'active' | 'trialing' | 'past_due' | 'canceled',
   actorId: string,
-): void {
-  db.run(
-    'UPDATE subscriptions SET status = ?, updated_at = ? WHERE account_id = ?',
-    status, nowIso(), accountId,
+): Promise<void> {
+  await col('subscriptions').updateMany(
+    { account_id: accountId },
+    { $set: { status, updated_at: nowIso() } },
   );
-  audit({
+  await audit({
     accountId, actorType: 'super_admin', actorId, action: 'subscription.status_changed',
     targetType: 'account', targetId: accountId, metadata: { status },
   });
 }
 
-export function getSubscription(accountId: string) {
-  return db.get<Record<string, unknown>>(
-    `SELECT s.*, p.name AS plan_name, p.slug AS plan_slug, p.price_cents,
-            p.max_websites, p.max_documents, p.max_messages_month
-       FROM subscriptions s JOIN plans p ON p.id = s.plan_id
-      WHERE s.account_id = ? ORDER BY s.created_at DESC LIMIT 1`,
-    accountId,
-  );
+export async function getSubscription(accountId: string): Promise<Record<string, unknown> | undefined> {
+  const sub = await col<Record<string, unknown> & { _id: string; plan_id: string; created_at: string }>('subscriptions')
+    .find({ account_id: accountId })
+    .sort({ created_at: -1 })
+    .limit(1)
+    .next();
+  if (!sub) return undefined;
+  // The old query was an INNER JOIN: no matching plan meant no row at all.
+  const plan = await col<PlanDoc>('plans').findOne({ _id: sub.plan_id as never });
+  if (!plan) return undefined;
+  return {
+    ...sub,
+    id: sub._id,
+    plan_name: plan.name,
+    plan_slug: plan.slug,
+    price_cents: plan.price_cents,
+    max_websites: plan.max_websites,
+    max_documents: plan.max_documents,
+    max_messages_month: plan.max_messages_month,
+  };
 }
 
 /** Seeds the default plan ladder. Idempotent. */
-export function seedDefaultPlans(): void {
+export async function seedDefaultPlans(): Promise<void> {
   const defaults: PlanInput[] = [
     { name: 'Starter', slug: 'starter', priceCents: 0, maxWebsites: 1, maxDocuments: 200, maxMessagesMonth: 1000, maxStorageMb: 50 },
     { name: 'Growth', slug: 'growth', priceCents: 4900, maxWebsites: 5, maxDocuments: 2000, maxMessagesMonth: 10000, maxStorageMb: 500 },
     { name: 'Agency', slug: 'agency', priceCents: 14900, maxWebsites: 25, maxDocuments: 10000, maxMessagesMonth: 50000, maxStorageMb: 2000 },
   ];
   for (const plan of defaults) {
-    if (!getPlanBySlug(plan.slug)) upsertPlan(plan, 'system');
+    if (!(await getPlanBySlug(plan.slug))) await upsertPlan(plan, 'system');
   }
 }

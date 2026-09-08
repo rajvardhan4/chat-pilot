@@ -145,9 +145,9 @@ describe('Plan limits', () => {
   });
 
   it('rejects a duplicate domain on the same account', async () => {
-    const { db } = await import('../src/db/index.ts');
-    const growth = db.get<{ id: string }>("SELECT id FROM plans WHERE slug = 'growth'");
-    db.run('UPDATE accounts SET plan_id = ? WHERE id = ?', growth?.id, alpha.accountId);
+    const { col } = await import('../src/db/mongo.ts');
+    const growth = await col<{ _id: string }>('plans').findOne({ slug: 'growth' });
+    await col('accounts').updateOne({ _id: alpha.accountId as never }, { $set: { plan_id: growth?._id } });
 
     await alpha.client.refreshCsrf('/app');
     const dup = await alpha.client.postForm('/app/websites', {

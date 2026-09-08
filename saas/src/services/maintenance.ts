@@ -12,7 +12,7 @@
  * Aggregate usage rows are deliberately NOT purged: they carry no visitor data
  * and the customer needs the history for billing and trend reporting.
  */
-import { db, nowIso } from '../db/index.ts';
+import { cascadeDeleteConversations, col, nowIso } from '../db/mongo.ts';
 import { log } from '../core/logger.ts';
 
 export interface MaintenanceReport {
@@ -33,30 +33,29 @@ function isoMinutesAgo(minutes: number): string {
 }
 
 /** Marks conversations idle beyond each website's timeout as completed. */
-export function completeInactive(): number {
-  const websites = db.all<{ id: string; inactivity_timeout_minutes: number }>(
-    'SELECT id, inactivity_timeout_minutes FROM websites',
-  );
+export async function completeInactive(): Promise<number> {
+  const websites = await col<{ _id: string; inactivity_timeout_minutes: number }>('websites')
+    .find({}, { projection: { inactivity_timeout_minutes: 1 } })
+    .toArray();
 
   let total = 0;
   for (const site of websites) {
     const minutes = Number(site.inactivity_timeout_minutes ?? 30);
     if (minutes <= 0) continue;
-    const result = db.run(
-      `UPDATE conversations SET status = 'completed', updated_at = ?
-        WHERE website_id = ? AND status = 'active' AND last_activity_at < ?`,
-      nowIso(), site.id, isoMinutesAgo(minutes),
+    const result = await col('conversations').updateMany(
+      { website_id: site._id, status: 'active', last_activity_at: { $lt: isoMinutesAgo(minutes) } },
+      { $set: { status: 'completed', updated_at: nowIso() } },
     );
-    total += result.changes;
+    total += result.modifiedCount;
   }
   return total;
 }
 
 /** Deletes conversation data past each website's retention window. */
-export function purgeExpired(): Omit<MaintenanceReport, 'completed' | 'purgedSessions' | 'purgedLogs'> {
-  const websites = db.all<{ id: string; retention_days: number }>(
-    'SELECT id, retention_days FROM websites',
-  );
+export async function purgeExpired(): Promise<Omit<MaintenanceReport, 'completed' | 'purgedSessions' | 'purgedLogs'>> {
+  const websites = await col<{ _id: string; retention_days: number }>('websites')
+    .find({}, { projection: { retention_days: 1 } })
+    .toArray();
 
   let purgedConversations = 0;
   let purgedSubmissions = 0;
@@ -67,47 +66,32 @@ export function purgeExpired(): Omit<MaintenanceReport, 'completed' | 'purgedSes
     if (days <= 0) continue; // 0 means keep forever
     const cutoff = isoDaysAgo(days);
 
-    db.tx(() => {
-      // messages cascade from conversations via the foreign key.
-      purgedConversations += db.run(
-        'DELETE FROM conversations WHERE website_id = ? AND created_at < ?',
-        site.id, cutoff,
-      ).changes;
+    // Messages cascade with their conversations (see cascadeDeleteConversations).
+    purgedConversations += await cascadeDeleteConversations({ website_id: site._id, created_at: { $lt: cutoff } });
 
-      purgedSubmissions += db.run(
-        'DELETE FROM form_submissions WHERE website_id = ? AND created_at < ?',
-        site.id, cutoff,
-      ).changes;
+    purgedSubmissions += (await col('form_submissions').deleteMany({ website_id: site._id, created_at: { $lt: cutoff } })).deletedCount;
+    purgedAiRequests += (await col('ai_requests').deleteMany({ website_id: site._id, created_at: { $lt: cutoff } })).deletedCount;
 
-      purgedAiRequests += db.run(
-        'DELETE FROM ai_requests WHERE website_id = ? AND created_at < ?',
-        site.id, cutoff,
-      ).changes;
-
-      db.run('DELETE FROM analytics_events WHERE website_id = ? AND created_at < ?', site.id, cutoff);
-      db.run(
-        'DELETE FROM visitors WHERE website_id = ? AND last_seen_at < ?',
-        site.id, cutoff,
-      );
-    });
+    await col('analytics_events').deleteMany({ website_id: site._id, created_at: { $lt: cutoff } });
+    await col('visitors').deleteMany({ website_id: site._id, last_seen_at: { $lt: cutoff } });
   }
 
   return { purgedConversations, purgedSubmissions, purgedAiRequests };
 }
 
 /** Drops expired portal sessions and old platform logs. */
-export function purgePlatformData(): { sessions: number; logs: number } {
-  const sessions = db.run('DELETE FROM sessions WHERE expires_at < ?', nowIso()).changes;
-  const logs = db.run('DELETE FROM system_logs WHERE created_at < ?', isoDaysAgo(30)).changes;
-  db.run('DELETE FROM password_resets WHERE expires_at < ?', nowIso());
-  db.run('DELETE FROM notifications WHERE created_at < ?', isoDaysAgo(90));
+export async function purgePlatformData(): Promise<{ sessions: number; logs: number }> {
+  const sessions = (await col('sessions').deleteMany({ expires_at: { $lt: nowIso() } })).deletedCount;
+  const logs = (await col('system_logs').deleteMany({ created_at: { $lt: isoDaysAgo(30) } })).deletedCount;
+  await col('password_resets').deleteMany({ expires_at: { $lt: nowIso() } });
+  await col('notifications').deleteMany({ created_at: { $lt: isoDaysAgo(90) } });
   return { sessions, logs };
 }
 
-export function runMaintenance(): MaintenanceReport {
-  const completed = completeInactive();
-  const purged = purgeExpired();
-  const platform = purgePlatformData();
+export async function runMaintenance(): Promise<MaintenanceReport> {
+  const completed = await completeInactive();
+  const purged = await purgeExpired();
+  const platform = await purgePlatformData();
 
   const report: MaintenanceReport = {
     completed,
@@ -128,11 +112,9 @@ export function runMaintenance(): MaintenanceReport {
  */
 export function startMaintenanceSchedule(intervalMs = 15 * 60_000): () => void {
   const timer = setInterval(() => {
-    try {
-      runMaintenance();
-    } catch (err) {
+    runMaintenance().catch((err) => {
       log.error('Maintenance sweep failed.', { error: err instanceof Error ? err.message : String(err) });
-    }
+    });
   }, intervalMs);
   timer.unref();
   return () => clearInterval(timer);

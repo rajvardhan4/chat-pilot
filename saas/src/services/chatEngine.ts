@@ -12,7 +12,7 @@
  *   MISSING KNOWLEDGE  -> the configured fallback response
  *   PROVIDER FAILURE   -> the configured generation-error response
  */
-import { db, nowIso } from '../db/index.ts';
+import { col, nowIso } from '../db/mongo.ts';
 import { env } from '../config/env.ts';
 import { newId } from '../core/crypto.ts';
 import { sanitiseAssistantText } from '../core/validate.ts';
@@ -20,7 +20,7 @@ import { log } from '../core/logger.ts';
 import { requireProvider } from '../providers/registry.ts';
 import type { GenerateResult, ProviderErrorType, ProviderStatus } from '../providers/types.ts';
 import { getConfig, recordProviderFailure, recordProviderSuccess, resolveCredentials } from './providerService.ts';
-import { getInstructions } from './instructions.ts';
+import { getInstructions, type InstructionsRow } from './instructions.ts';
 import { resolveContextualQuery, type ConversationTurn } from './contextResolver.ts';
 import { searchKnowledge, type RetrievedDocument } from './retrieval.ts';
 import { estimateCost } from './pricing.ts';
@@ -146,7 +146,7 @@ function buildContextBlock(documents: RetrievedDocument[], charBudget = 12000): 
 }
 
 function buildSystemPrompt(opts: {
-  instructions: ReturnType<typeof getInstructions>;
+  instructions: InstructionsRow;
   contextBlock: string;
   businessName: string;
 }): string {
@@ -201,11 +201,11 @@ export async function generateChatResponse(
   const accountId = request.accountId;
   const websiteId = request.websiteId;
 
-  const config = getConfig(accountId, websiteId);
-  const instructions = getInstructions(accountId, websiteId);
+  const config = await getConfig(accountId, websiteId);
+  const instructions = await getInstructions(accountId, websiteId);
   const threshold = config.retrieval_threshold || 3;
 
-  const conversation = findOrCreateConversation({
+  const conversation = await findOrCreateConversation({
     accountId,
     websiteId,
     sessionKey: request.sessionKey,
@@ -217,7 +217,7 @@ export async function generateChatResponse(
   });
 
   const history = request.history.slice(-Math.max(2, config.max_history_messages));
-  const lastTitles = lastAnswerTitles(conversation.id);
+  const lastTitles = await lastAnswerTitles(conversation.id);
   const resolution = resolveContextualQuery(request.message, history, lastTitles);
   const intent = classifyMessageIntent(request.message);
 
@@ -227,7 +227,7 @@ export async function generateChatResponse(
       intent === 'greeting'
         ? instructions.greeting_response || 'Hello! How can I help you today?'
         : "You're welcome! Is there anything else I can help you with?";
-    return finalise({
+    return await finalise({
       accountId, websiteId, conversationId: conversation.id, request,
       text, status: 'success', providerSlug: config.active_provider, model: config.active_model,
       documents: [], resolution, intent, threshold, startedAt: started,
@@ -237,19 +237,19 @@ export async function generateChatResponse(
   }
 
   /* --------------------------------- retrieval --------------------------- */
-  let documents = searchKnowledge(accountId, websiteId, resolution.searchQuery, {
+  let documents = await searchKnowledge(accountId, websiteId, resolution.searchQuery, {
     limit: 5,
     threshold,
   });
 
   // If the rewritten query found nothing, retry with the raw message.
   if (!documents.length && resolution.usedContext) {
-    documents = searchKnowledge(accountId, websiteId, request.message, { limit: 5, threshold });
+    documents = await searchKnowledge(accountId, websiteId, request.message, { limit: 5, threshold });
   }
 
   const allCandidates = documents.length
     ? documents
-    : searchKnowledge(accountId, websiteId, resolution.searchQuery, {
+    : await searchKnowledge(accountId, websiteId, resolution.searchQuery, {
         limit: 5, threshold, bypassThreshold: true,
       });
   const topScore = allCandidates[0]?.score ?? 0;
@@ -262,7 +262,7 @@ export async function generateChatResponse(
 
   /* ------------------------- missing knowledge --------------------------- */
   if (!documents.length) {
-    return finalise({
+    return await finalise({
       accountId, websiteId, conversationId: conversation.id, request,
       text: instructions.fallback_response, status: 'fallback',
       providerSlug: config.active_provider, model: config.active_model,
@@ -275,7 +275,7 @@ export async function generateChatResponse(
   /* ---------------------------- provider check --------------------------- */
   if (!config.active_provider || !config.active_model) {
     log.warn('Chat request with no configured AI provider.', { websiteId }, { accountId, websiteId });
-    return finalise({
+    return await finalise({
       accountId, websiteId, conversationId: conversation.id, request,
       text: instructions.generation_error_response, status: 'provider_error',
       providerSlug: config.active_provider, model: config.active_model,
@@ -290,9 +290,9 @@ export async function generateChatResponse(
     });
   }
 
-  const credentials = resolveCredentials(accountId, websiteId, config.active_provider);
+  const credentials = await resolveCredentials(accountId, websiteId, config.active_provider);
   if (!credentials) {
-    return finalise({
+    return await finalise({
       accountId, websiteId, conversationId: conversation.id, request,
       text: instructions.generation_error_response, status: 'provider_error',
       providerSlug: config.active_provider, model: config.active_model,
@@ -341,11 +341,11 @@ export async function generateChatResponse(
   }
 
   if (!result.ok) {
-    recordProviderFailure(
+    await recordProviderFailure(
       accountId, websiteId, config.active_provider,
       ERROR_TO_STATUS[result.errorType], result.message,
     );
-    notifyProviderFailure({
+    await notifyProviderFailure({
       accountId, websiteId,
       provider: config.active_provider,
       model: config.active_model,
@@ -355,7 +355,7 @@ export async function generateChatResponse(
       httpStatus: result.httpStatus,
     });
 
-    return finalise({
+    return await finalise({
       accountId, websiteId, conversationId: conversation.id, request,
       text: instructions.generation_error_response, status: 'provider_error',
       providerSlug: config.active_provider, model: config.active_model,
@@ -372,10 +372,10 @@ export async function generateChatResponse(
     });
   }
 
-  recordProviderSuccess(accountId, websiteId, config.active_provider, result.latencyMs);
+  await recordProviderSuccess(accountId, websiteId, config.active_provider, result.latencyMs);
   const text = sanitiseAssistantText(result.text) || instructions.fallback_response;
 
-  return finalise({
+  return await finalise({
     accountId, websiteId, conversationId: conversation.id, request,
     text, status: 'success',
     providerSlug: config.active_provider, model: result.model,
@@ -389,13 +389,12 @@ export async function generateChatResponse(
 
 /* ------------------------------------------------------------- helpers -- */
 
-function lastAnswerTitles(conversationId: string): string[] {
-  const row = db.get<{ metadata: string }>(
-    `SELECT metadata FROM messages
-      WHERE conversation_id = ? AND role = 'assistant'
-      ORDER BY seq DESC LIMIT 1`,
-    conversationId,
-  );
+async function lastAnswerTitles(conversationId: string): Promise<string[]> {
+  const row = await col<{ _id: string; metadata: string }>('messages')
+    .find({ conversation_id: conversationId, role: 'assistant' })
+    .sort({ seq: -1 })
+    .limit(1)
+    .next();
   if (!row) return [];
   try {
     const parsed = JSON.parse(row.metadata) as { documentTitles?: string[] };
@@ -434,13 +433,13 @@ interface FinaliseInput {
   };
 }
 
-function finalise(input: FinaliseInput): ChatResponse {
+async function finalise(input: FinaliseInput): Promise<ChatResponse> {
   const {
     accountId, websiteId, conversationId, request, text, documents, resolution,
   } = input;
 
   const totalTokens = input.inputTokens + input.outputTokens;
-  const cost = estimateCost(input.providerSlug, input.model, input.inputTokens, input.outputTokens);
+  const cost = await estimateCost(input.providerSlug, input.model, input.inputTokens, input.outputTokens);
 
   const retrievedSources: Record<string, boolean> = { faq: false, manual: false, file: false, website: false };
   for (const doc of documents) retrievedSources[doc.sourceType] = true;
@@ -450,7 +449,7 @@ function finalise(input: FinaliseInput): ChatResponse {
   const sourcesUsed = activeTypes.length ? activeTypes.join(' + ') : 'None';
 
   // Persist the exchange.
-  appendMessages(
+  await appendMessages(
     { accountId, websiteId, conversationId },
     [
       { role: 'user', content: request.message, metadata: {} },
@@ -470,22 +469,31 @@ function finalise(input: FinaliseInput): ChatResponse {
   );
 
   // Analytics / usage.
-  db.run(
-    `INSERT INTO ai_requests
-       (id, account_id, website_id, conversation_id, provider, model, status, error_type, error_label,
-        http_status, intent, retrieval_hit, top_score, sources_used, input_tokens, output_tokens,
-        total_tokens, estimated_cost, latency_ms, source, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    newId(), accountId, websiteId, conversationId,
-    input.providerSlug, input.model, input.engineStatus,
-    input.failure?.errorType ?? '', input.failure ? ERROR_LABELS[input.failure.errorType] : '',
-    input.failure?.httpStatus ?? 0, input.intent,
-    documents.length ? 1 : 0, input.topScore ?? documents[0]?.score ?? 0, sourcesUsed,
-    input.inputTokens, input.outputTokens, totalTokens, cost, input.latencyMs,
-    request.source, nowIso(),
-  );
+  await col('ai_requests').insertOne({
+    _id: newId(),
+    account_id: accountId,
+    website_id: websiteId,
+    conversation_id: conversationId,
+    provider: input.providerSlug,
+    model: input.model,
+    status: input.engineStatus,
+    error_type: input.failure?.errorType ?? '',
+    error_label: input.failure ? ERROR_LABELS[input.failure.errorType] : '',
+    http_status: input.failure?.httpStatus ?? 0,
+    intent: input.intent,
+    retrieval_hit: documents.length ? 1 : 0,
+    top_score: input.topScore ?? documents[0]?.score ?? 0,
+    sources_used: sourcesUsed,
+    input_tokens: input.inputTokens,
+    output_tokens: input.outputTokens,
+    total_tokens: totalTokens,
+    estimated_cost: cost,
+    latency_ms: input.latencyMs,
+    source: request.source,
+    created_at: nowIso(),
+  });
 
-  recordUsage(accountId, websiteId, {
+  await recordUsage(accountId, websiteId, {
     messages: 2,
     aiRequests: 1,
     inputTokens: input.inputTokens,

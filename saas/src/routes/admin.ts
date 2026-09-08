@@ -8,7 +8,7 @@
  */
 import { Router } from 'express';
 import { z } from 'zod';
-import { db, nowIso } from '../db/index.ts';
+import { col, nowIso } from '../db/mongo.ts';
 import { parseOrThrow } from '../core/validate.ts';
 import { badRequest, notFound } from '../core/errors.ts';
 import { asyncRoute } from '../middleware/errors.ts';
@@ -34,6 +34,26 @@ function ctx(req: any) {
   };
 }
 
+/** Merges a count aggregated by a foreign key onto each row of `rows`, 0 when absent. */
+function attachCounts<T extends { id: string }>(
+  rows: T[],
+  counts: Array<{ _id: string; c: number }>,
+  field: string,
+): void {
+  const byId = new Map(counts.map((c) => [c._id, c.c]));
+  for (const row of rows) (row as Record<string, unknown>)[field] = byId.get(row.id) ?? 0;
+}
+
+async function countBy(collection: Parameters<typeof col>[0], key: string, ids: string[]): Promise<Array<{ _id: string; c: number }>> {
+  if (!ids.length) return [];
+  return col(collection)
+    .aggregate<{ _id: string; c: number }>([
+      { $match: { [key]: { $in: ids } } },
+      { $group: { _id: '$' + key, c: { $sum: 1 } } },
+    ])
+    .toArray();
+}
+
 /* ----------------------------------------------------------- dashboard -- */
 
 adminRouter.get(
@@ -45,7 +65,7 @@ adminRouter.get(
       title: 'Platform Dashboard',
       activeTab: 'dashboard',
       preset,
-      stats: platformAnalytics(resolveRange(preset)),
+      stats: await platformAnalytics(resolveRange(preset)),
     });
   }),
 );
@@ -56,19 +76,31 @@ adminRouter.get(
   '/accounts',
   asyncRoute(async (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
-    const where = search ? 'WHERE a.name LIKE ? OR a.billing_email LIKE ?' : '';
-    const params: unknown[] = search ? ['%' + search + '%', '%' + search + '%'] : [];
+    const filter: Record<string, unknown> = {};
+    if (search) {
+      const pattern = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.$or = [
+        { name: { $regex: pattern, $options: 'i' } },
+        { billing_email: { $regex: pattern, $options: 'i' } },
+      ];
+    }
 
-    const accounts = db.all<Record<string, unknown>>(
-      `SELECT a.*, p.name AS plan_name,
-              (SELECT COUNT(*) FROM websites w WHERE w.account_id = a.id) AS website_count,
-              (SELECT COUNT(*) FROM account_members m WHERE m.account_id = a.id) AS member_count,
-              (SELECT COUNT(*) FROM conversations c WHERE c.account_id = a.id) AS conversation_count
-         FROM accounts a LEFT JOIN plans p ON p.id = a.plan_id
-         ${where}
-        ORDER BY a.created_at DESC LIMIT 200`,
-      ...params,
-    );
+    const docs = await col('accounts').find(filter).sort({ created_at: -1 }).limit(200).toArray();
+    const ids = docs.map((d) => d._id);
+    const planIds = [...new Set(docs.map((d) => d.plan_id).filter(Boolean))] as string[];
+
+    const [plans, websiteCounts, memberCounts, conversationCounts] = await Promise.all([
+      planIds.length ? col('plans').find({ _id: { $in: planIds as never[] } }, { projection: { name: 1 } }).toArray() : [],
+      countBy('websites', 'account_id', ids),
+      countBy('account_members', 'account_id', ids),
+      countBy('conversations', 'account_id', ids),
+    ]);
+    const planNames = new Map(plans.map((p) => [p._id, p.name as string]));
+
+    const accounts = docs.map((d) => ({ ...d, id: d._id, plan_name: d.plan_id ? planNames.get(d.plan_id as string) ?? null : null }));
+    attachCounts(accounts, websiteCounts, 'website_count');
+    attachCounts(accounts, memberCounts, 'member_count');
+    attachCounts(accounts, conversationCounts, 'conversation_count');
 
     res.render('admin/accounts', {
       ...ctx(req),
@@ -76,7 +108,7 @@ adminRouter.get(
       activeTab: 'accounts',
       accounts,
       search,
-      plans: listPlans(true),
+      plans: await listPlans(true),
     });
   }),
 );
@@ -85,47 +117,61 @@ adminRouter.get(
   '/accounts/:accountId',
   asyncRoute(async (req, res) => {
     const accountId = req.params.accountId as string;
-    const account = getAccount(accountId);
+    const account = await getAccount(accountId);
     if (!account) throw notFound('Account not found.');
 
-    const members = db.all<Record<string, unknown>>(
-      `SELECT u.id, u.email, u.full_name, u.status, u.last_login_at, m.role
-         FROM account_members m JOIN users u ON u.id = m.user_id
-        WHERE m.account_id = ?`,
-      accountId,
-    );
+    const [memberships, websiteDocs, providerDocs, usageAgg, keyDocs] = await Promise.all([
+      col('account_members').find({ account_id: accountId }).toArray(),
+      col('websites').find({ account_id: accountId }).sort({ created_at: 1 }).toArray(),
+      col('ai_provider_credentials')
+        .find(
+          { account_id: accountId },
+          { projection: { website_id: 1, provider: 1, api_key_masked: 1, status: 1, status_detail: 1, last_tested_at: 1, error_count: 1 } },
+        )
+        .toArray(),
+      col('usage_records').aggregate<Record<string, unknown>>([
+        { $match: { account_id: accountId } },
+        { $group: { _id: '$period', messages: { $sum: '$messages' }, tokens: { $sum: '$total_tokens' }, cost: { $sum: '$estimated_cost' } } },
+        { $sort: { _id: -1 } },
+        { $limit: 12 },
+      ]).toArray(),
+      col('site_api_credentials').find({ account_id: accountId }).sort({ created_at: -1 }).toArray(),
+    ]);
 
-    const websites = db.all<Record<string, unknown>>(
-      `SELECT w.*,
-              (SELECT COUNT(*) FROM site_api_credentials k WHERE k.website_id = w.id AND k.status = 'active') AS active_keys,
-              (SELECT COUNT(*) FROM knowledge_documents d WHERE d.website_id = w.id) AS documents,
-              (SELECT COUNT(*) FROM conversations c WHERE c.website_id = w.id) AS conversations
-         FROM websites w WHERE w.account_id = ? ORDER BY w.created_at ASC`,
-      accountId,
-    );
+    const users = memberships.length
+      ? await col('users')
+          .find(
+            { _id: { $in: memberships.map((m) => m.user_id) as never[] } },
+            { projection: { email: 1, full_name: 1, status: 1, last_login_at: 1 } },
+          )
+          .toArray()
+      : [];
+    const userById = new Map(users.map((u) => [u._id, u]));
+    const members = memberships.map((m) => {
+      const u = userById.get(m.user_id as string);
+      return { id: u?._id, email: u?.email, full_name: u?.full_name, status: u?.status, last_login_at: u?.last_login_at, role: m.role };
+    });
 
-    // Masked only - the encrypted key is never read on this path.
-    const providers = db.all<Record<string, unknown>>(
-      `SELECT c.website_id, c.provider, c.api_key_masked, c.status, c.status_detail,
-              c.last_tested_at, c.error_count, w.name AS website_name
-         FROM ai_provider_credentials c JOIN websites w ON w.id = c.website_id
-        WHERE c.account_id = ?`,
-      accountId,
-    );
+    const websiteIds = websiteDocs.map((w) => w._id);
+    const [activeKeyCounts, documentCounts, conversationCounts] = await Promise.all([
+      col('site_api_credentials').aggregate<{ _id: string; c: number }>([
+        { $match: { website_id: { $in: websiteIds }, status: 'active' } },
+        { $group: { _id: '$website_id', c: { $sum: 1 } } },
+      ]).toArray(),
+      countBy('knowledge_documents', 'website_id', websiteIds),
+      countBy('conversations', 'website_id', websiteIds),
+    ]);
+    const websites = websiteDocs.map((d) => ({ ...d, id: d._id }));
+    attachCounts(websites, activeKeyCounts, 'active_keys');
+    attachCounts(websites, documentCounts, 'documents');
+    attachCounts(websites, conversationCounts, 'conversations');
 
-    const usage = db.all<Record<string, unknown>>(
-      `SELECT period, SUM(messages) AS messages, SUM(total_tokens) AS tokens,
-              SUM(estimated_cost) AS cost
-         FROM usage_records WHERE account_id = ? GROUP BY period ORDER BY period DESC LIMIT 12`,
-      accountId,
-    );
+    const websiteNames = new Map(websiteDocs.map((w) => [w._id, w.name as string]));
+    const providers = providerDocs.map((p) => ({ ...p, website_name: websiteNames.get(p.website_id as string) ?? '' }));
 
-    const keys = db.all<Record<string, unknown>>(
-      `SELECT k.*, w.name AS website_name FROM site_api_credentials k
-         JOIN websites w ON w.id = k.website_id
-        WHERE k.account_id = ? ORDER BY k.created_at DESC`,
-      accountId,
-    );
+    const usage = usageAgg.map((r) => ({ period: r._id, messages: r.messages, tokens: r.tokens, cost: r.cost }));
+
+    const keys = keyDocs.map((k) => ({ ...k, id: k._id, website_name: websiteNames.get(k.website_id as string) ?? '' }));
 
     res.render('admin/account-detail', {
       ...ctx(req),
@@ -137,8 +183,8 @@ adminRouter.get(
       providers,
       usage,
       keys,
-      plans: listPlans(true),
-      audit: listAudit({ accountId, limit: 50 }),
+      plans: await listPlans(true),
+      audit: await listAudit({ accountId, limit: 50 }),
     });
   }),
 );
@@ -154,7 +200,7 @@ adminRouter.post(
       }),
       req.body ?? {},
     );
-    setAccountStatus(req.params.accountId as string, body.status, body.reason, req.user!.id);
+    await setAccountStatus(req.params.accountId as string, body.status, body.reason, req.user!.id);
     res.redirect('/admin/accounts/' + req.params.accountId + '?notice=' +
       encodeURIComponent('Account status updated.'));
   }),
@@ -166,7 +212,7 @@ adminRouter.post(
   asyncRoute(async (req, res) => {
     const planId = String((req.body as any)?.plan_id ?? '');
     if (!planId) throw badRequest('Choose a plan.');
-    assignPlan(req.params.accountId as string, planId, req.user!.id);
+    await assignPlan(req.params.accountId as string, planId, req.user!.id);
     res.redirect('/admin/accounts/' + req.params.accountId + '?notice=' + encodeURIComponent('Plan updated.'));
   }),
 );
@@ -179,7 +225,7 @@ adminRouter.post(
       z.object({ status: z.enum(['active', 'trialing', 'past_due', 'canceled']) }),
       req.body ?? {},
     );
-    setSubscriptionStatus(req.params.accountId as string, body.status, req.user!.id);
+    await setSubscriptionStatus(req.params.accountId as string, body.status, req.user!.id);
     res.redirect('/admin/accounts/' + req.params.accountId + '?notice=' +
       encodeURIComponent('Subscription status updated.'));
   }),
@@ -190,7 +236,7 @@ adminRouter.post(
   requireCsrf,
   asyncRoute(async (req, res) => {
     const status = (req.body as any)?.status === 'suspended' ? 'suspended' : 'active';
-    setUserStatus(req.params.userId as string, status, req.user!.id);
+    await setUserStatus(req.params.userId as string, status, req.user!.id);
     res.redirect(req.get('referer') ?? '/admin/accounts');
   }),
 );
@@ -201,18 +247,29 @@ adminRouter.get(
   '/websites',
   asyncRoute(async (req, res) => {
     const status = typeof req.query.status === 'string' ? req.query.status : 'all';
-    const where = status !== 'all' ? 'WHERE w.status = ?' : '';
-    const params: unknown[] = status !== 'all' ? [status] : [];
+    const filter: Record<string, unknown> = status !== 'all' ? { status } : {};
 
-    const websites = db.all<Record<string, unknown>>(
-      `SELECT w.*, a.name AS account_name, a.status AS account_status,
-              (SELECT COUNT(*) FROM site_api_credentials k WHERE k.website_id = w.id AND k.status = 'active') AS active_keys,
-              (SELECT COUNT(*) FROM conversations c WHERE c.website_id = w.id) AS conversations
-         FROM websites w JOIN accounts a ON a.id = w.account_id
-         ${where}
-        ORDER BY w.created_at DESC LIMIT 300`,
-      ...params,
-    );
+    const docs = await col('websites').find(filter).sort({ created_at: -1 }).limit(300).toArray();
+    const accountIds = [...new Set(docs.map((d) => d.account_id))];
+    const websiteIds = docs.map((d) => d._id);
+
+    const [accounts, activeKeyCounts, conversationCounts] = await Promise.all([
+      col('accounts').find({ _id: { $in: accountIds as never[] } }, { projection: { name: 1, status: 1 } }).toArray(),
+      col('site_api_credentials').aggregate<{ _id: string; c: number }>([
+        { $match: { website_id: { $in: websiteIds }, status: 'active' } },
+        { $group: { _id: '$website_id', c: { $sum: 1 } } },
+      ]).toArray(),
+      countBy('conversations', 'website_id', websiteIds),
+    ]);
+    const accountById = new Map(accounts.map((a) => [a._id, a]));
+
+    const websites = docs.map((d) => ({
+      ...d, id: d._id,
+      account_name: accountById.get(d.account_id as string)?.name ?? '',
+      account_status: accountById.get(d.account_id as string)?.status ?? '',
+    }));
+    attachCounts(websites, activeKeyCounts, 'active_keys');
+    attachCounts(websites, conversationCounts, 'conversations');
 
     res.render('admin/websites', {
       ...ctx(req),
@@ -235,7 +292,7 @@ adminRouter.post(
       }),
       req.body ?? {},
     );
-    setWebsitePlatformStatus(req.params.websiteId as string, body.status, body.reason, req.user!.id);
+    await setWebsitePlatformStatus(req.params.websiteId as string, body.status, body.reason, req.user!.id);
     res.redirect(req.get('referer') ?? '/admin/websites');
   }),
 );
@@ -244,7 +301,7 @@ adminRouter.post(
   '/keys/:keyId/revoke',
   requireCsrf,
   asyncRoute(async (req, res) => {
-    adminRevokeSiteKey(req.params.keyId as string, req.user!.id);
+    await adminRevokeSiteKey(req.params.keyId as string, req.user!.id);
     res.redirect(req.get('referer') ?? '/admin/websites');
   }),
 );
@@ -258,8 +315,8 @@ adminRouter.get(
       ...ctx(req),
       title: 'Plans',
       activeTab: 'plans',
-      plans: listPlans(true),
-      rates: allRates(),
+      plans: await listPlans(true),
+      rates: await allRates(),
     });
   }),
 );
@@ -281,7 +338,7 @@ adminRouter.post(
       }),
       req.body ?? {},
     );
-    upsertPlan(
+    await upsertPlan(
       {
         name: body.name, slug: body.slug, priceCents: body.price_cents,
         maxWebsites: body.max_websites, maxDocuments: body.max_documents,
@@ -306,7 +363,7 @@ adminRouter.post(
           throw new Error('bad rate for ' + model);
         }
       }
-      setRateOverrides(parsed);
+      await setRateOverrides(parsed);
       res.redirect('/admin/plans?notice=' + encodeURIComponent('Model pricing updated.'));
     } catch {
       res.redirect('/admin/plans?error=' + encodeURIComponent('That pricing JSON could not be parsed.'));
@@ -319,25 +376,43 @@ adminRouter.post(
 adminRouter.get(
   '/health',
   asyncRoute(async (req, res) => {
-    const providerHealth = db.all<Record<string, unknown>>(
-      `SELECT c.provider, c.status, c.status_detail, c.error_count, c.last_tested_at,
-              c.last_failure_at, w.name AS website_name, a.name AS account_name
-         FROM ai_provider_credentials c
-         JOIN websites w ON w.id = c.website_id
-         JOIN accounts a ON a.id = c.account_id
-        ORDER BY c.error_count DESC, c.updated_at DESC LIMIT 200`,
-    );
+    const credDocs = await col('ai_provider_credentials')
+      .find({}, { projection: { provider: 1, status: 1, status_detail: 1, error_count: 1, last_tested_at: 1, last_failure_at: 1, website_id: 1, account_id: 1, updated_at: 1 } })
+      .sort({ error_count: -1, updated_at: -1 })
+      .limit(200)
+      .toArray();
 
-    const recentErrors = db.all<Record<string, unknown>>(
-      `SELECT r.created_at, r.provider, r.model, r.error_label, r.http_status,
-              w.name AS website_name, a.name AS account_name
-         FROM ai_requests r JOIN websites w ON w.id = r.website_id JOIN accounts a ON a.id = r.account_id
-        WHERE r.status = 'provider_error' ORDER BY r.created_at DESC LIMIT 100`,
-    );
+    const errDocs = await col('ai_requests')
+      .find(
+        { status: 'provider_error' },
+        { projection: { created_at: 1, provider: 1, model: 1, error_label: 1, http_status: 1, website_id: 1, account_id: 1 } },
+      )
+      .sort({ created_at: -1 })
+      .limit(100)
+      .toArray();
 
-    const logs = db.all<Record<string, unknown>>(
-      "SELECT * FROM system_logs WHERE level IN ('error','warn') ORDER BY created_at DESC LIMIT 100",
-    );
+    const websiteIds = [...new Set([...credDocs.map((d) => d.website_id), ...errDocs.map((d) => d.website_id)])];
+    const accountIds = [...new Set([...credDocs.map((d) => d.account_id), ...errDocs.map((d) => d.account_id)])];
+    const [websites, accounts] = await Promise.all([
+      websiteIds.length ? col('websites').find({ _id: { $in: websiteIds as never[] } }, { projection: { name: 1 } }).toArray() : [],
+      accountIds.length ? col('accounts').find({ _id: { $in: accountIds as never[] } }, { projection: { name: 1 } }).toArray() : [],
+    ]);
+    const websiteNames = new Map(websites.map((w) => [w._id, w.name as string]));
+    const accountNames = new Map(accounts.map((a) => [a._id, a.name as string]));
+
+    const providerHealth = credDocs
+      .filter((d) => websiteNames.has(d.website_id as string) && accountNames.has(d.account_id as string))
+      .map((d) => ({ ...d, website_name: websiteNames.get(d.website_id as string), account_name: accountNames.get(d.account_id as string) }));
+
+    const recentErrors = errDocs
+      .filter((d) => websiteNames.has(d.website_id as string) && accountNames.has(d.account_id as string))
+      .map((d) => ({ ...d, website_name: websiteNames.get(d.website_id as string), account_name: accountNames.get(d.account_id as string) }));
+
+    const logs = await col('system_logs')
+      .find({ level: { $in: ['error', 'warn'] } })
+      .sort({ created_at: -1 })
+      .limit(100)
+      .toArray();
 
     res.render('admin/health', {
       ...ctx(req),
@@ -357,15 +432,19 @@ adminRouter.get(
   '/audit',
   asyncRoute(async (req, res) => {
     const action = typeof req.query.action === 'string' ? req.query.action : '';
+    // .distinct() is not part of the MongoDB Stable API (v1) this client is
+    // pinned to (see mongo.ts) and is rejected outright under apiStrict, so
+    // the distinct list of actions is built with $group instead.
+    const actionDocs = await col('audit_logs')
+      .aggregate<{ _id: string }>([{ $group: { _id: '$action' } }])
+      .toArray();
     res.render('admin/audit', {
       ...ctx(req),
       title: 'Audit Log',
       activeTab: 'audit',
-      entries: listAudit({ action: action || undefined, limit: 200 }),
+      entries: await listAudit({ action: action || undefined, limit: 200 }),
       action,
-      actions: db.all<{ action: string }>(
-        'SELECT DISTINCT action FROM audit_logs ORDER BY action',
-      ).map((r) => r.action),
+      actions: actionDocs.map((d) => d._id).sort(),
     });
   }),
 );

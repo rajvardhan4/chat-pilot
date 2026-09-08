@@ -11,7 +11,7 @@ import { createHash, createHmac, randomBytes } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import { createApp } from '../src/app.ts';
-import { db } from '../src/db/index.ts';
+import { closeDb, col } from '../src/db/mongo.ts';
 import { resetRateLimits } from '../src/middleware/security.ts';
 import { resetNonceCache } from '../src/middleware/siteAuth.ts';
 
@@ -21,7 +21,7 @@ export interface TestServer {
 }
 
 export async function startServer(): Promise<TestServer> {
-  const app = createApp();
+  const app = await createApp();
   const server: Server = await new Promise((resolve) => {
     const s = app.listen(0, '127.0.0.1', () => resolve(s));
   });
@@ -30,13 +30,10 @@ export async function startServer(): Promise<TestServer> {
   resetNonceCache();
   return {
     base: 'http://127.0.0.1:' + port,
-    close: () =>
-      new Promise((resolve) => {
-        server.close(() => {
-          db.close();
-          resolve();
-        });
-      }),
+    close: async () => {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await closeDb();
+    },
   };
 }
 
@@ -266,11 +263,13 @@ export async function createTenant(
   const websiteId = (/\/app\/websites\/([^/?]+)/.exec(location) ?? [])[1] as string;
   if (!websiteId) throw new Error('Could not determine website id from ' + location);
 
-  const accountRow = db.get<{ id: string }>(
-    'SELECT a.id FROM accounts a JOIN websites w ON w.account_id = a.id WHERE w.id = ?',
-    websiteId,
+  // websites carry account_id directly (see the tenancy note in schema
+  // history), so this is a lookup, not a join.
+  const websiteRow = await col<{ _id: string; account_id: string }>('websites').findOne(
+    { _id: websiteId as never },
+    { projection: { account_id: 1 } },
   );
-  const accountId = accountRow?.id as string;
+  const accountId = websiteRow?.account_id as string;
 
   await client.refreshCsrf('/app/websites/' + websiteId + '/providers');
 
@@ -339,4 +338,4 @@ export async function seedKnowledge(tenant: Tenant): Promise<void> {
   });
 }
 
-export { db };
+export { col };

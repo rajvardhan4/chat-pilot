@@ -2,7 +2,8 @@
  * Website registration and the per-website configuration records that every
  * other module hangs off (provider config, instructions, widget, default form).
  */
-import { db, nowIso } from '../db/index.ts';
+import { cascadeDeleteWebsite, col, nowIso, withTransaction } from '../db/mongo.ts';
+import type { ClientSession } from 'mongodb';
 import { AppError, conflict, notFound, validationFailed } from '../core/errors.ts';
 import { newId, randomToken } from '../core/crypto.ts';
 import { canonicalHost, isLocalHost, normaliseHost } from '../core/domain.ts';
@@ -28,30 +29,32 @@ export interface WebsiteRow {
   updated_at: string;
 }
 
-export function getWebsite(websiteId: string): WebsiteRow | undefined {
-  return db.get<WebsiteRow>('SELECT * FROM websites WHERE id = ?', websiteId);
+type WebsiteDoc = Omit<WebsiteRow, 'id'> & { _id: string };
+
+function toWebsiteRow(d: WebsiteDoc): WebsiteRow {
+  const { _id, ...rest } = d;
+  return { id: _id, ...rest };
+}
+
+export async function getWebsite(websiteId: string): Promise<WebsiteRow | undefined> {
+  const doc = await col<WebsiteDoc>('websites').findOne({ _id: websiteId as never });
+  return doc ? toWebsiteRow(doc) : undefined;
 }
 
 /** Tenant-scoped fetch. Never call getWebsite() directly from a route. */
-export function getWebsiteForAccount(accountId: string, websiteId: string): WebsiteRow {
-  const row = db.get<WebsiteRow>(
-    'SELECT * FROM websites WHERE id = ? AND account_id = ?',
-    websiteId,
-    accountId,
-  );
-  if (!row) throw notFound('Website not found.');
-  return row;
+export async function getWebsiteForAccount(accountId: string, websiteId: string): Promise<WebsiteRow> {
+  const doc = await col<WebsiteDoc>('websites').findOne({ _id: websiteId as never, account_id: accountId });
+  if (!doc) throw notFound('Website not found.');
+  return toWebsiteRow(doc);
 }
 
-export function listWebsites(accountId: string): WebsiteRow[] {
-  return db.all<WebsiteRow>(
-    'SELECT * FROM websites WHERE account_id = ? ORDER BY created_at ASC',
-    accountId,
-  );
+export async function listWebsites(accountId: string): Promise<WebsiteRow[]> {
+  const docs = await col<WebsiteDoc>('websites').find({ account_id: accountId }).sort({ created_at: 1 }).toArray();
+  return docs.map(toWebsiteRow);
 }
 
-export function countWebsites(accountId: string): number {
-  return db.scalar<number>('SELECT COUNT(*) AS c FROM websites WHERE account_id = ?', accountId) ?? 0;
+export async function countWebsites(accountId: string): Promise<number> {
+  return col('websites').countDocuments({ account_id: accountId });
 }
 
 export interface CreateWebsiteInput {
@@ -63,7 +66,7 @@ export interface CreateWebsiteInput {
   ip?: string;
 }
 
-export function createWebsite(input: CreateWebsiteInput): WebsiteRow {
+export async function createWebsite(input: CreateWebsiteInput): Promise<WebsiteRow> {
   const host = normaliseHost(input.url);
   if (!host) {
     throw validationFailed('Enter a valid website URL, for example https://example.com', {
@@ -72,16 +75,15 @@ export function createWebsite(input: CreateWebsiteInput): WebsiteRow {
   }
   const canonical = canonicalHost(host);
 
-  const clash = db.get<{ id: string }>(
-    'SELECT id FROM websites WHERE account_id = ? AND primary_domain = ?',
-    input.accountId,
-    canonical,
+  const clash = await col('websites').findOne(
+    { account_id: input.accountId, primary_domain: canonical },
+    { projection: { _id: 1 } },
   );
   if (clash) throw conflict('That domain is already registered on this account.');
 
   // Enforce the plan's website allowance.
-  const limit = planLimitFor(input.accountId, 'max_websites');
-  if (limit > 0 && countWebsites(input.accountId) >= limit) {
+  const limit = await planLimitFor(input.accountId, 'max_websites');
+  if (limit > 0 && (await countWebsites(input.accountId)) >= limit) {
     throw new AppError(
       'usage_limit_reached',
       `Your plan allows ${limit} website${limit === 1 ? '' : 's'}. Upgrade to add more.`,
@@ -92,34 +94,37 @@ export function createWebsite(input: CreateWebsiteInput): WebsiteRow {
   const now = nowIso();
   const normalisedUrl = input.url.includes('://') ? input.url.trim() : 'https://' + host;
 
-  db.tx(() => {
-    db.run(
-      `INSERT INTO websites (id, account_id, name, primary_domain, url, status, timezone,
-                             verification_token, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)`,
-      id,
-      input.accountId,
-      input.name.trim(),
-      canonical,
-      normalisedUrl,
-      input.timezone ?? 'UTC',
-      randomToken(16),
-      now,
-      now,
+  await withTransaction(async (session) => {
+    await col<WebsiteDoc>('websites').insertOne(
+      {
+        _id: id,
+        account_id: input.accountId,
+        name: input.name.trim(),
+        primary_domain: canonical,
+        url: normalisedUrl,
+        status: 'active',
+        suspend_reason: '',
+        timezone: input.timezone ?? 'UTC',
+        verification_token: randomToken(16),
+        verified_at: null,
+        last_connected_at: null,
+        connected_plugin_ver: '',
+        inactivity_timeout_minutes: 30,
+        retention_days: 90,
+        created_at: now,
+        updated_at: now,
+      },
+      { session },
     );
     // Also allow the www. variant out of the box.
-    db.run(
-      'INSERT INTO website_domains (id, account_id, website_id, domain, created_at) VALUES (?, ?, ?, ?, ?)',
-      newId(),
-      input.accountId,
-      id,
-      'www.' + canonical,
-      now,
+    await col('website_domains').insertOne(
+      { _id: newId(), account_id: input.accountId, website_id: id, domain: 'www.' + canonical, created_at: now },
+      { session },
     );
-    seedWebsiteDefaults(input.accountId, id, input.name.trim());
+    await seedWebsiteDefaults(input.accountId, id, input.name.trim(), session);
   });
 
-  audit({
+  await audit({
     accountId: input.accountId,
     websiteId: id,
     actorType: 'user',
@@ -131,59 +136,134 @@ export function createWebsite(input: CreateWebsiteInput): WebsiteRow {
     ip: input.ip,
   });
 
-  return getWebsite(id)!;
+  return (await getWebsite(id))!;
 }
 
 /** Creates the config rows a website cannot function without. */
-export function seedWebsiteDefaults(accountId: string, websiteId: string, businessName: string): void {
+export async function seedWebsiteDefaults(
+  accountId: string,
+  websiteId: string,
+  businessName: string,
+  session?: ClientSession,
+): Promise<void> {
   const now = nowIso();
+  const opts = session ? { session } : undefined;
 
-  db.run(
-    `INSERT INTO ai_provider_configs (id, account_id, website_id, active_provider, active_model, created_at, updated_at)
-     VALUES (?, ?, ?, '', '', ?, ?)`,
-    newId(), accountId, websiteId, now, now,
+  await col('ai_provider_configs').insertOne(
+    {
+      _id: newId(),
+      account_id: accountId,
+      website_id: websiteId,
+      active_provider: '',
+      active_model: '',
+      temperature: 0.4,
+      max_output_tokens: 800,
+      retrieval_threshold: 3.0,
+      max_history_messages: 20,
+      created_at: now,
+      updated_at: now,
+    },
+    opts,
   );
 
-  db.run(
-    `INSERT INTO ai_instructions (id, account_id, website_id, business_name, system_prompt,
-                                  fallback_response, generation_error_response, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    newId(), accountId, websiteId, businessName,
-    DEFAULT_SYSTEM_PROMPT, DEFAULT_FALLBACK, DEFAULT_GENERATION_ERROR, now, now,
+  await col('ai_instructions').insertOne(
+    {
+      _id: newId(),
+      account_id: accountId,
+      website_id: websiteId,
+      business_name: businessName,
+      system_prompt: DEFAULT_SYSTEM_PROMPT,
+      tone: 'professional',
+      answer_length: 'concise',
+      fallback_response: DEFAULT_FALLBACK,
+      greeting_response: '',
+      generation_error_response: DEFAULT_GENERATION_ERROR,
+      // These flags are stored as 0/1 everywhere else in this codebase (see
+      // widget.ts, forms.ts, instructions.ts), not BSON booleans — matching
+      // that so any equality query against them keeps working.
+      allow_small_talk: 1,
+      strict_grounding: 1,
+      created_at: now,
+      updated_at: now,
+    },
+    opts,
   );
 
-  db.run(
-    `INSERT INTO widget_settings (id, account_id, website_id, display_name, suggested_questions, created_at, updated_at)
-     VALUES (?, ?, ?, 'Chat Pilot', ?, ?, ?)`,
-    newId(), accountId, websiteId,
-    'What services do you provide?\nWhat areas do you serve?\nHow can I contact you?',
-    now, now,
+  await col('widget_settings').insertOne(
+    {
+      _id: newId(),
+      account_id: accountId,
+      website_id: websiteId,
+      enabled: 1,
+      display_name: 'Chat Pilot',
+      position: 'bottom-right',
+      primary_color: '#0678f9',
+      logo_url: '',
+      welcome_message: 'Hi there! How can I help you today?',
+      placeholder_text: 'Ask a question...',
+      suggested_questions: 'What services do you provide?\nWhat areas do you serve?\nHow can I contact you?',
+      enable_typing: 1,
+      enable_streaming: 1,
+      auto_open_chat: 0,
+      auto_open_delay: 5,
+      open_once_per_visitor: 1,
+      prechat_enabled: 1,
+      active_form_id: null,
+      created_at: now,
+      updated_at: now,
+    },
+    opts,
   );
 
   // Default pre-chat form, mirroring the plugin's seeded form.
   const formId = newId();
-  db.run(
-    `INSERT INTO forms (id, account_id, website_id, name, is_default, status, created_at, updated_at)
-     VALUES (?, ?, ?, 'Default Pre-Chat Form', 1, 'active', ?, ?)`,
-    formId, accountId, websiteId, now, now,
+  await col('forms').insertOne(
+    {
+      _id: formId,
+      account_id: accountId,
+      website_id: websiteId,
+      name: 'Default Pre-Chat Form',
+      // is_default is stored as 0/1 everywhere else (see forms.ts), not a
+      // BSON boolean — matching that so the equality queries there find it.
+      is_default: 1,
+      status: 'active',
+      created_at: now,
+      updated_at: now,
+    },
+    opts,
   );
-  const fields: Array<[string, string, string, string, number, number]> = [
+  const fields: Array<[string, string, string, string, 0 | 1, number]> = [
     ['name', 'text', 'Name', 'Enter your name...', 1, 0],
     ['email', 'email', 'Email', 'Enter your email...', 1, 1],
     ['phone', 'phone', 'Phone', 'Enter your phone...', 0, 2],
   ];
   for (const [key, type, label, placeholder, required, order] of fields) {
-    db.run(
-      `INSERT INTO form_fields (id, account_id, website_id, form_id, field_key, type, label,
-                                placeholder, options, required, enabled, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, 1, ?)`,
-      newId(), accountId, websiteId, formId, key, type, label, placeholder, required, order,
+    await col('form_fields').insertOne(
+      {
+        _id: newId(),
+        account_id: accountId,
+        website_id: websiteId,
+        form_id: formId,
+        field_key: key,
+        type,
+        label,
+        placeholder,
+        options: '',
+        required,
+        enabled: 1,
+        sort_order: order,
+      },
+      opts,
     );
   }
-  db.run('UPDATE widget_settings SET active_form_id = ? WHERE website_id = ?', formId, websiteId);
+  await col('widget_settings').updateOne(
+    { website_id: websiteId },
+    { $set: { active_form_id: formId } },
+    opts,
+  );
 }
 
-export function updateWebsite(
+export async function updateWebsite(
   accountId: string,
   websiteId: string,
   patch: {
@@ -195,79 +275,70 @@ export function updateWebsite(
     retention_days?: number;
   },
   actorId: string,
-): WebsiteRow {
-  const site = getWebsiteForAccount(accountId, websiteId);
-  const sets: string[] = [];
-  const params: unknown[] = [];
+): Promise<WebsiteRow> {
+  const site = await getWebsiteForAccount(accountId, websiteId);
+  const set: Record<string, unknown> = {};
 
-  if (patch.name !== undefined) {
-    sets.push('name = ?');
-    params.push(patch.name.trim());
-  }
+  if (patch.name !== undefined) set.name = patch.name.trim();
   if (patch.url !== undefined) {
     const host = normaliseHost(patch.url);
     if (!host) throw validationFailed('Enter a valid website URL.', { url: 'Enter a valid website URL.' });
     const canonical = canonicalHost(host);
-    const clash = db.get<{ id: string }>(
-      'SELECT id FROM websites WHERE account_id = ? AND primary_domain = ? AND id != ?',
-      accountId, canonical, websiteId,
+    const clash = await col('websites').findOne(
+      { account_id: accountId, primary_domain: canonical, _id: { $ne: websiteId as never } },
+      { projection: { _id: 1 } },
     );
     if (clash) throw conflict('That domain is already registered on this account.');
-    sets.push('primary_domain = ?', 'url = ?');
-    params.push(canonical, patch.url.includes('://') ? patch.url.trim() : 'https://' + host);
+    set.primary_domain = canonical;
+    set.url = patch.url.includes('://') ? patch.url.trim() : 'https://' + host;
   }
-  if (patch.timezone !== undefined) {
-    sets.push('timezone = ?');
-    params.push(patch.timezone);
-  }
+  if (patch.timezone !== undefined) set.timezone = patch.timezone;
   if (patch.status !== undefined) {
     if (site.status === 'suspended') {
       throw new AppError('forbidden', 'This website is suspended by the platform administrator.');
     }
-    sets.push('status = ?');
-    params.push(patch.status);
+    set.status = patch.status;
   }
   if (patch.inactivity_timeout_minutes !== undefined) {
-    sets.push('inactivity_timeout_minutes = ?');
-    params.push(Math.min(1440, Math.max(0, Math.round(patch.inactivity_timeout_minutes))));
+    set.inactivity_timeout_minutes = Math.min(1440, Math.max(0, Math.round(patch.inactivity_timeout_minutes)));
   }
   if (patch.retention_days !== undefined) {
-    sets.push('retention_days = ?');
-    params.push(Math.min(3650, Math.max(0, Math.round(patch.retention_days))));
+    set.retention_days = Math.min(3650, Math.max(0, Math.round(patch.retention_days)));
   }
-  if (!sets.length) return site;
+  if (!Object.keys(set).length) return site;
 
-  sets.push('updated_at = ?');
-  params.push(nowIso(), websiteId, accountId);
-  db.run(`UPDATE websites SET ${sets.join(', ')} WHERE id = ? AND account_id = ?`, ...params);
+  set.updated_at = nowIso();
+  await col('websites').updateOne({ _id: websiteId as never, account_id: accountId }, { $set: set });
 
-  audit({
+  await audit({
     accountId, websiteId, actorType: 'user', actorId,
     action: 'website.updated', targetType: 'website', targetId: websiteId, metadata: patch,
   });
   return getWebsiteForAccount(accountId, websiteId);
 }
 
-export function deleteWebsite(accountId: string, websiteId: string, actorId: string): void {
-  getWebsiteForAccount(accountId, websiteId);
-  db.run('DELETE FROM websites WHERE id = ? AND account_id = ?', websiteId, accountId);
-  audit({
+export async function deleteWebsite(accountId: string, websiteId: string, actorId: string): Promise<void> {
+  await getWebsiteForAccount(accountId, websiteId);
+  await cascadeDeleteWebsite(websiteId);
+  await audit({
     accountId, actorType: 'user', actorId,
     action: 'website.deleted', targetType: 'website', targetId: websiteId,
   });
 }
 
-export function setWebsitePlatformStatus(
+export async function setWebsitePlatformStatus(
   websiteId: string,
   status: 'active' | 'suspended',
   reason: string,
   actorId: string,
-): void {
-  const site = getWebsite(websiteId);
+): Promise<void> {
+  const site = await getWebsite(websiteId);
   if (!site) throw notFound('Website not found.');
-  db.run('UPDATE websites SET status = ?, suspend_reason = ?, updated_at = ? WHERE id = ?',
-    status, reason, nowIso(), websiteId);
-  audit({
+  await col('websites').updateOne(
+    { _id: websiteId as never },
+    { $set: { status, suspend_reason: reason, updated_at: nowIso() } },
+  );
+  await audit({
     accountId: site.account_id, websiteId, actorType: 'super_admin', actorId,
     action: 'website.platform_status_changed', targetType: 'website', targetId: websiteId,
     metadata: { status, reason },
@@ -284,34 +355,35 @@ export interface DomainRow {
   created_at: string;
 }
 
-export function listDomains(accountId: string, websiteId: string): DomainRow[] {
-  return db.all<DomainRow>(
-    'SELECT * FROM website_domains WHERE website_id = ? AND account_id = ? ORDER BY domain',
-    websiteId, accountId,
-  );
+type DomainDoc = Omit<DomainRow, 'id'> & { _id: string };
+
+function toDomainRow(d: DomainDoc): DomainRow {
+  const { _id, ...rest } = d;
+  return { id: _id, ...rest };
 }
 
-export function addDomain(accountId: string, websiteId: string, raw: string): DomainRow {
-  getWebsiteForAccount(accountId, websiteId);
+export async function listDomains(accountId: string, websiteId: string): Promise<DomainRow[]> {
+  const docs = await col<DomainDoc>('website_domains')
+    .find({ website_id: websiteId, account_id: accountId })
+    .sort({ domain: 1 })
+    .toArray();
+  return docs.map(toDomainRow);
+}
+
+export async function addDomain(accountId: string, websiteId: string, raw: string): Promise<DomainRow> {
+  await getWebsiteForAccount(accountId, websiteId);
   const host = normaliseHost(raw);
   if (!host) throw validationFailed('Enter a valid domain.', { domain: 'Enter a valid domain.' });
-  const existing = db.get<DomainRow>(
-    'SELECT * FROM website_domains WHERE website_id = ? AND domain = ?', websiteId, host,
-  );
-  if (existing) return existing;
+  const existing = await col<DomainDoc>('website_domains').findOne({ website_id: websiteId, domain: host });
+  if (existing) return toDomainRow(existing);
   const id = newId();
-  db.run(
-    'INSERT INTO website_domains (id, account_id, website_id, domain, created_at) VALUES (?, ?, ?, ?, ?)',
-    id, accountId, websiteId, host, nowIso(),
-  );
-  return db.get<DomainRow>('SELECT * FROM website_domains WHERE id = ?', id)!;
+  const doc: DomainDoc = { _id: id, account_id: accountId, website_id: websiteId, domain: host, created_at: nowIso() };
+  await col<DomainDoc>('website_domains').insertOne(doc);
+  return toDomainRow(doc);
 }
 
-export function removeDomain(accountId: string, websiteId: string, domainId: string): void {
-  db.run(
-    'DELETE FROM website_domains WHERE id = ? AND website_id = ? AND account_id = ?',
-    domainId, websiteId, accountId,
-  );
+export async function removeDomain(accountId: string, websiteId: string, domainId: string): Promise<void> {
+  await col('website_domains').deleteOne({ _id: domainId as never, website_id: websiteId, account_id: accountId });
 }
 
 /**
@@ -320,14 +392,14 @@ export function removeDomain(accountId: string, websiteId: string, domainId: str
  * additional domains. Local/private hosts are accepted only when the website
  * itself is registered on a local host (development installs).
  */
-export function hostIsAllowedForWebsite(site: WebsiteRow, presentedHost: string): boolean {
+export async function hostIsAllowedForWebsite(site: WebsiteRow, presentedHost: string): Promise<boolean> {
   const host = normaliseHost(presentedHost);
   if (!host) return false;
   if (canonicalHost(host) === site.primary_domain) return true;
 
-  const extra = db.get<{ id: string }>(
-    'SELECT id FROM website_domains WHERE website_id = ? AND (domain = ? OR domain = ?)',
-    site.id, host, canonicalHost(host),
+  const extra = await col('website_domains').findOne(
+    { website_id: site.id, domain: { $in: [host, canonicalHost(host)] } },
+    { projection: { _id: 1 } },
   );
   if (extra) return true;
 
@@ -343,13 +415,16 @@ export type PlanLimitKey =
   | 'max_messages_month'
   | 'max_storage_mb';
 
-export function planLimitFor(accountId: string, key: PlanLimitKey): number {
-  const row = db.get<Record<string, number>>(
-    `SELECT p.${key} AS value
-       FROM accounts a LEFT JOIN plans p ON p.id = a.plan_id
-      WHERE a.id = ?`,
-    accountId,
+export async function planLimitFor(accountId: string, key: PlanLimitKey): Promise<number> {
+  const account = await col<{ _id: string; plan_id: string | null }>('accounts').findOne(
+    { _id: accountId as never },
+    { projection: { plan_id: 1 } },
   );
-  const value = row?.value;
-  return typeof value === 'number' ? value : 0; // 0 == unlimited / unset
+  if (!account?.plan_id) return 0; // 0 == unlimited / unset
+  const plan = await col('plans').findOne(
+    { _id: account.plan_id as never },
+    { projection: { [key]: 1 } },
+  );
+  const value = plan?.[key];
+  return typeof value === 'number' ? value : 0;
 }

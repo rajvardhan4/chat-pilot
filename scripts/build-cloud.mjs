@@ -17,7 +17,10 @@
  *   saas/node_modules   installed on the server (`npm install --omit=dev`);
  *                       shipping it would carry native binaries built for
  *                       this machine's OS/arch, not the server's
- *   saas/data           the local dev database — the server gets its own
+ *   saas/data           locally-stored uploads from THIS machine's dev use —
+ *                       the database itself is MongoDB Atlas and was never
+ *                       under here; the server accumulates its own uploads
+ *                       from a clean, empty data/uploads directory
  *   saas/.env            real local secrets never leave this machine
  *   saas/tests            dev-only; needs devDependencies not installed
  *                          in production and a PHP toolchain the server

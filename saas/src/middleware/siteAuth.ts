@@ -27,6 +27,7 @@ import { AppError } from '../core/errors.ts';
 import { constantTimeEqual } from '../core/crypto.ts';
 import { authenticateSiteRequest, type SiteAuthContext } from '../services/siteKeys.ts';
 import { clientIp } from './security.ts';
+import { asyncRoute } from './errors.ts';
 
 export const SIGNATURE_WINDOW_SECONDS = 300;
 
@@ -77,60 +78,56 @@ export interface SiteAuthOptions {
 }
 
 export function siteAuth(options: SiteAuthOptions = {}) {
-  return (req: Request, _res: Response, next: NextFunction): void => {
-    try {
-      const key = (req.get('x-chat-pilot-key') ?? '').trim();
-      const timestamp = (req.get('x-chat-pilot-timestamp') ?? '').trim();
-      const nonce = (req.get('x-chat-pilot-nonce') ?? '').trim();
-      const signature = (req.get('x-chat-pilot-signature') ?? '').trim();
-      const siteUrl = (req.get('x-chat-pilot-site') ?? '').trim();
+  return asyncRoute(async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    const key = (req.get('x-chat-pilot-key') ?? '').trim();
+    const timestamp = (req.get('x-chat-pilot-timestamp') ?? '').trim();
+    const nonce = (req.get('x-chat-pilot-nonce') ?? '').trim();
+    const signature = (req.get('x-chat-pilot-signature') ?? '').trim();
+    const siteUrl = (req.get('x-chat-pilot-site') ?? '').trim();
 
-      if (!key) {
-        throw new AppError('site_key_invalid', 'A Chat Pilot Site API Key is required.');
-      }
-      if (!timestamp || !nonce || !signature) {
-        throw new AppError('site_key_invalid', 'This request is missing its Chat Pilot signature headers.');
-      }
-      if (nonce.length < 16 || nonce.length > 128) {
-        throw new AppError('site_key_invalid', 'This request signature is not valid.');
-      }
-
-      const skew = Math.abs(Math.floor(Date.now() / 1000) - Number(timestamp));
-      if (!Number.isFinite(skew) || skew > SIGNATURE_WINDOW_SECONDS) {
-        throw new AppError(
-          'site_key_invalid',
-          'This request has expired. Check that your server clock is accurate, then try again.',
-        );
-      }
-
-      // Authenticate the key first: we need the plaintext to verify the HMAC,
-      // and the plaintext is exactly what the caller presented.
-      const context = authenticateSiteRequest({
-        presentedKey: key,
-        siteUrl,
-        ip: clientIp(req),
-        enforceDomain: options.enforceDomain !== false,
-      });
-
-      // originalUrl, not req.path: inside a mounted router req.path is relative
-      // to the mount point, while the plugin signs the full request path.
-      const fullPath = (req.originalUrl ?? req.url).split('?')[0] as string;
-      const expected = computeSignature(
-        key,
-        canonicalString(req.method, fullPath, timestamp, nonce, req.rawBody ?? Buffer.alloc(0)),
-      );
-      if (!constantTimeEqual(expected, signature)) {
-        throw new AppError('site_key_invalid', 'This request signature is not valid.');
-      }
-
-      if (!rememberNonce(nonce)) {
-        throw new AppError('site_key_invalid', 'This request has already been processed.');
-      }
-
-      req.site = context;
-      next();
-    } catch (err) {
-      next(err);
+    if (!key) {
+      throw new AppError('site_key_invalid', 'A Chat Pilot Site API Key is required.');
     }
-  };
+    if (!timestamp || !nonce || !signature) {
+      throw new AppError('site_key_invalid', 'This request is missing its Chat Pilot signature headers.');
+    }
+    if (nonce.length < 16 || nonce.length > 128) {
+      throw new AppError('site_key_invalid', 'This request signature is not valid.');
+    }
+
+    const skew = Math.abs(Math.floor(Date.now() / 1000) - Number(timestamp));
+    if (!Number.isFinite(skew) || skew > SIGNATURE_WINDOW_SECONDS) {
+      throw new AppError(
+        'site_key_invalid',
+        'This request has expired. Check that your server clock is accurate, then try again.',
+      );
+    }
+
+    // Authenticate the key first: we need the plaintext to verify the HMAC,
+    // and the plaintext is exactly what the caller presented.
+    const context = await authenticateSiteRequest({
+      presentedKey: key,
+      siteUrl,
+      ip: clientIp(req),
+      enforceDomain: options.enforceDomain !== false,
+    });
+
+    // originalUrl, not req.path: inside a mounted router req.path is relative
+    // to the mount point, while the plugin signs the full request path.
+    const fullPath = (req.originalUrl ?? req.url).split('?')[0] as string;
+    const expected = computeSignature(
+      key,
+      canonicalString(req.method, fullPath, timestamp, nonce, req.rawBody ?? Buffer.alloc(0)),
+    );
+    if (!constantTimeEqual(expected, signature)) {
+      throw new AppError('site_key_invalid', 'This request signature is not valid.');
+    }
+
+    if (!rememberNonce(nonce)) {
+      throw new AppError('site_key_invalid', 'This request has already been processed.');
+    }
+
+    req.site = context;
+    next();
+  });
 }

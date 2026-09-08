@@ -17,7 +17,7 @@
  */
 import { randomBytes } from 'node:crypto';
 import { createSuperAdmin, findUserByEmail, setFullName, setPassword } from '../src/services/accounts.ts';
-import { db, migrate } from '../src/db/index.ts';
+import { connectDb, closeDb } from '../src/db/mongo.ts';
 
 function arg(name: string): string {
   const flag = '--' + name;
@@ -53,20 +53,20 @@ if (!email) fail('An --email is required.');
 if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) fail('"' + email + '" is not a valid email address.');
 if (supplied && supplied.length < 12) fail('A master admin password must be at least 12 characters.');
 
-// The database may not have been migrated yet on a fresh install.
-migrate();
+// The database may not have been connected/indexed yet on a fresh install.
+await connectDb();
 
-const existing = findUserByEmail(email);
+const existing = await findUserByEmail(email);
 const password = supplied || (existing ? '' : generatePassword());
 
-const user = createSuperAdmin(email, password || generatePassword(), name);
+const user = await createSuperAdmin(email, password || generatePassword(), name);
 
 if (existing) {
   // createSuperAdmin() only changes the role for someone who already exists,
   // so a --name or --password given alongside it is applied here rather than
   // being silently ignored.
-  if (supplied) setPassword(user.id, supplied);
-  if (arg('name')) setFullName(user.id, name);
+  if (supplied) await setPassword(user.id, supplied);
+  if (arg('name')) await setFullName(user.id, name);
 }
 
 console.log('');
@@ -94,4 +94,4 @@ console.log('');
 console.log('  Sign in at /login. Master admins land on /admin instead of the client portal.');
 console.log('');
 
-db.close();
+await closeDb();

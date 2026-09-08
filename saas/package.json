@@ -13,13 +13,14 @@
     "migrate": "node --no-warnings src/db/migrate.ts",
     "seed": "node --no-warnings scripts/seed.ts",
     "admin:create": "node --no-warnings scripts/create-admin.ts",
-    "test": "node --no-warnings --test \"tests/*.test.ts\"",
+    "test": "node --no-warnings scripts/run-tests.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
     "ejs": "^3.1.10",
     "express": "^4.21.2",
+    "mongodb": "^7.6.0",
     "zod": "^3.24.1"
   },
   "overrides": {
@@ -28,6 +29,7 @@
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.5",
+    "mongodb-memory-server": "^11.2.0",
     "typescript": "^5.7.3"
   }
 }

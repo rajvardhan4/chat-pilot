@@ -8,7 +8,7 @@
  *      generate an email storm.
  */
 import { createHash } from 'node:crypto';
-import { db, nowIso } from '../db/index.ts';
+import { col, nowIso } from '../db/mongo.ts';
 import { env } from '../config/env.ts';
 import { newId } from '../core/crypto.ts';
 import { log, redact } from '../core/logger.ts';
@@ -36,35 +36,41 @@ export interface NotificationInput {
   allowSecretsInBody?: boolean;
 }
 
-function recentlySent(dedupeKey: string, windowMinutes: number): boolean {
+async function recentlySent(dedupeKey: string, windowMinutes: number): Promise<boolean> {
   if (!dedupeKey) return false;
   const cutoff = new Date(Date.now() - windowMinutes * 60_000).toISOString().slice(0, 19).replace('T', ' ');
-  return Boolean(
-    db.get('SELECT id FROM notifications WHERE dedupe_key = ? AND created_at > ? LIMIT 1', dedupeKey, cutoff),
+  const row = await col('notifications').findOne(
+    { dedupe_key: dedupeKey, created_at: { $gt: cutoff } },
+    { projection: { _id: 1 } },
   );
+  return Boolean(row);
 }
 
 /** Records the notification, then attempts delivery. Never throws. */
-export function enqueueNotification(input: NotificationInput): string | null {
+export async function enqueueNotification(input: NotificationInput): Promise<string | null> {
   try {
-    if (input.dedupeKey && recentlySent(input.dedupeKey, input.dedupeWindowMinutes ?? 60)) {
+    if (input.dedupeKey && (await recentlySent(input.dedupeKey, input.dedupeWindowMinutes ?? 60))) {
       return null;
     }
     const id = newId();
-    db.run(
-      `INSERT INTO notifications
-         (id, account_id, website_id, type, severity, recipient, subject, body, dedupe_key, delivered, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
-      id, input.accountId ?? null, input.websiteId ?? null, input.type,
-      input.severity ?? 'info', input.recipient,
-      redact(input.subject).slice(0, 250),
-      (input.allowSecretsInBody ? input.body : redact(input.body)).slice(0, 8000),
-      input.dedupeKey ?? '', nowIso(),
-    );
+    await col('notifications').insertOne({
+      _id: id,
+      account_id: input.accountId ?? null,
+      website_id: input.websiteId ?? null,
+      type: input.type,
+      severity: input.severity ?? 'info',
+      recipient: input.recipient,
+      subject: redact(input.subject).slice(0, 250),
+      body: (input.allowSecretsInBody ? input.body : redact(input.body)).slice(0, 8000),
+      dedupe_key: input.dedupeKey ?? '',
+      delivered: 0,
+      delivery_error: '',
+      created_at: nowIso(),
+    });
 
-    deliver(id, input);
+    await deliver(id, input);
     return id;
-  } catch (err) {
+  } catch {
     log.error('Failed to record a notification.', { type: input.type });
     return null;
   }
@@ -74,20 +80,20 @@ export function enqueueNotification(input: NotificationInput): string | null {
  * Delivery transport. `log` is the default and simply records the attempt;
  * an SMTP transport is the documented production configuration point.
  */
-function deliver(id: string, input: NotificationInput): void {
+async function deliver(id: string, input: NotificationInput): Promise<void> {
   try {
     if (env.MAIL_TRANSPORT === 'log') {
       log.info('Notification queued (transport=log).', {
         type: input.type, recipient: input.recipient, subject: input.subject,
       }, { accountId: input.accountId ?? null, websiteId: input.websiteId ?? null });
-      db.run('UPDATE notifications SET delivered = 1 WHERE id = ?', id);
+      await col('notifications').updateOne({ _id: id as never }, { $set: { delivered: 1 } });
       return;
     }
     // No SMTP transport is bundled. Mark undelivered with a clear reason so
     // the platform owner can see exactly what is missing.
-    db.run(
-      'UPDATE notifications SET delivered = 0, delivery_error = ? WHERE id = ?',
-      'No mail transport configured (MAIL_TRANSPORT=' + env.MAIL_TRANSPORT + ').', id,
+    await col('notifications').updateOne(
+      { _id: id as never },
+      { $set: { delivered: 0, delivery_error: 'No mail transport configured (MAIL_TRANSPORT=' + env.MAIL_TRANSPORT + ').' } },
     );
   } catch {
     /* delivery must never break the request */
@@ -96,12 +102,15 @@ function deliver(id: string, input: NotificationInput): void {
 
 /* ----------------------------------------------------------- triggers -- */
 
-function accountNotificationEmail(accountId: string): string {
-  const row = db.get<{ billing_email: string }>('SELECT billing_email FROM accounts WHERE id = ?', accountId);
+async function accountNotificationEmail(accountId: string): Promise<string> {
+  const row = await col<{ _id: string; billing_email: string }>('accounts').findOne(
+    { _id: accountId as never },
+    { projection: { billing_email: 1 } },
+  );
   return row?.billing_email ?? '';
 }
 
-export function notifyNewLead(submission: {
+export async function notifyNewLead(submission: {
   account_id: string;
   website_id: string;
   id: string;
@@ -109,10 +118,10 @@ export function notifyNewLead(submission: {
   email: string;
   phone: string;
   page_url: string;
-}): void {
-  const recipient = accountNotificationEmail(submission.account_id);
+}): Promise<void> {
+  const recipient = await accountNotificationEmail(submission.account_id);
   if (!recipient) return;
-  enqueueNotification({
+  await enqueueNotification({
     accountId: submission.account_id,
     websiteId: submission.website_id,
     type: 'lead.created',
@@ -129,10 +138,10 @@ export function notifyNewLead(submission: {
   });
 }
 
-export function notifyNewConversation(conversation: ConversationRow): void {
-  const recipient = accountNotificationEmail(conversation.account_id);
+export async function notifyNewConversation(conversation: ConversationRow): Promise<void> {
+  const recipient = await accountNotificationEmail(conversation.account_id);
   if (!recipient) return;
-  enqueueNotification({
+  await enqueueNotification({
     accountId: conversation.account_id,
     websiteId: conversation.website_id,
     type: 'conversation.started',
@@ -148,7 +157,7 @@ export function notifyNewConversation(conversation: ConversationRow): void {
   });
 }
 
-export function notifyProviderFailure(failure: {
+export async function notifyProviderFailure(failure: {
   accountId: string;
   websiteId: string;
   provider: string;
@@ -157,14 +166,14 @@ export function notifyProviderFailure(failure: {
   errorLabel: string;
   message: string;
   httpStatus: number;
-}): void {
-  const recipient = accountNotificationEmail(failure.accountId);
+}): Promise<void> {
+  const recipient = await accountNotificationEmail(failure.accountId);
   const dedupeKey = createHash('sha256')
     .update([failure.websiteId, failure.provider, failure.errorType].join('|'))
     .digest('hex')
     .slice(0, 32);
 
-  enqueueNotification({
+  await enqueueNotification({
     accountId: failure.accountId,
     websiteId: failure.websiteId,
     type: 'provider.failure',
@@ -186,9 +195,10 @@ export function notifyProviderFailure(failure: {
   });
 }
 
-export function listNotifications(accountId: string, limit = 50) {
-  return db.all<Record<string, unknown>>(
-    'SELECT * FROM notifications WHERE account_id = ? ORDER BY created_at DESC LIMIT ?',
-    accountId, Math.min(limit, 200),
-  );
+export async function listNotifications(accountId: string, limit = 50): Promise<Record<string, unknown>[]> {
+  return col('notifications')
+    .find({ account_id: accountId })
+    .sort({ created_at: -1 })
+    .limit(Math.min(limit, 200))
+    .toArray();
 }

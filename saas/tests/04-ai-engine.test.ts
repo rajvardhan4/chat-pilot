@@ -2,8 +2,8 @@ import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   SiteClient,
+  col,
   createTenant,
-  db,
   seedKnowledge,
   startServer,
   type Tenant,
@@ -185,16 +185,11 @@ describe('Greetings and small talk', () => {
   });
 
   it('does not spend a provider call on a greeting', async () => {
-    const before = db.get<{ c: number }>(
-      "SELECT COUNT(*) AS c FROM ai_requests WHERE website_id = ? AND status = 'success' AND total_tokens > 0",
-      tenant.websiteId,
-    );
+    const query = { website_id: tenant.websiteId, status: 'success', total_tokens: { $gt: 0 } };
+    const before = await col('ai_requests').countDocuments(query);
     await preview('greeting-2', 'Good morning');
-    const after = db.get<{ c: number }>(
-      "SELECT COUNT(*) AS c FROM ai_requests WHERE website_id = ? AND status = 'success' AND total_tokens > 0",
-      tenant.websiteId,
-    );
-    assert.equal(Number(after?.c), Number(before?.c));
+    const after = await col('ai_requests').countDocuments(query);
+    assert.equal(after, before);
   });
 });
 
@@ -254,17 +249,15 @@ describe('Provider failures are distinct from missing knowledge', () => {
   });
 
   it('records the failure for the administrator and throttles the alert', async () => {
-    const requests = db.all<{ status: string; error_label: string }>(
-      "SELECT status, error_label FROM ai_requests WHERE website_id = ? AND status = 'provider_error'",
-      tenant.websiteId,
-    );
+    const requests = await col<{ _id: string; status: string; error_label: string }>('ai_requests')
+      .find({ website_id: tenant.websiteId, status: 'provider_error' })
+      .toArray();
     assert.ok(requests.length >= 4);
     assert.ok(requests.some((r) => r.error_label === 'Quota Exceeded'));
 
-    const alerts = db.all<{ id: string }>(
-      "SELECT id FROM notifications WHERE type = 'provider.failure' AND website_id = ?",
-      tenant.websiteId,
-    );
+    const alerts = await col<{ _id: string }>('notifications')
+      .find({ type: 'provider.failure', website_id: tenant.websiteId })
+      .toArray();
     // Four distinct error categories were provoked, and quota happened twice.
     // De-duplication must collapse the repeat rather than send five alerts.
     assert.ok(alerts.length <= 4, 'provider alerts should be de-duplicated, got ' + alerts.length);
@@ -277,10 +270,10 @@ describe('Provider failures are distinct from missing knowledge', () => {
     assert.equal(result.status, 'success');
     assert.match(result.text, /1,200|2,400/);
 
-    const credential = db.get<{ status: string }>(
-      "SELECT status FROM ai_provider_credentials WHERE website_id = ? AND provider = 'mock'",
-      tenant.websiteId,
-    );
+    const credential = await col<{ _id: string; status: string }>('ai_provider_credentials').findOne({
+      website_id: tenant.websiteId,
+      provider: 'mock',
+    });
     assert.equal(credential?.status, 'connected');
   });
 });
@@ -300,15 +293,15 @@ describe('Preview and widget share one engine', () => {
     assert.match(fromWidget.body.data.text, /180/);
   });
 
-  it('labels the conversation source correctly on each surface', () => {
-    const previewRow = db.get<{ source: string }>(
-      'SELECT source FROM conversations WHERE website_id = ? AND session_key = ?',
-      tenant.websiteId, 'parity-preview',
-    );
-    const widgetRow = db.get<{ source: string }>(
-      'SELECT source FROM conversations WHERE website_id = ? AND session_key = ?',
-      tenant.websiteId, 'parity-widget',
-    );
+  it('labels the conversation source correctly on each surface', async () => {
+    const previewRow = await col<{ _id: string; source: string }>('conversations').findOne({
+      website_id: tenant.websiteId,
+      session_key: 'parity-preview',
+    });
+    const widgetRow = await col<{ _id: string; source: string }>('conversations').findOne({
+      website_id: tenant.websiteId,
+      session_key: 'parity-widget',
+    });
     assert.equal(previewRow?.source, 'preview');
     assert.equal(widgetRow?.source, 'widget');
   });

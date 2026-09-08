@@ -1,10 +1,10 @@
 import { createApp } from './app.ts';
 import { env } from './config/env.ts';
 import { log } from './core/logger.ts';
-import { db } from './db/index.ts';
+import { closeDb } from './db/mongo.ts';
 import { startMaintenanceSchedule } from './services/maintenance.ts';
 
-const app = createApp();
+const app = await createApp();
 
 // Conversation timeouts and retention are enforced by a periodic sweep.
 const stopMaintenance = startMaintenanceSchedule();
@@ -24,8 +24,9 @@ function shutdown(signal: string): void {
   log.info('Shutting down (' + signal + ').');
   stopMaintenance();
   server.close(() => {
-    db.close();
-    process.exit(0);
+    closeDb()
+      .catch((err) => log.error('Error closing MongoDB connection.', { error: String(err) }))
+      .finally(() => process.exit(0));
   });
   setTimeout(() => process.exit(1), 8000).unref();
 }

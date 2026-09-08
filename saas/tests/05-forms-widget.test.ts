@@ -2,8 +2,8 @@ import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   SiteClient,
+  col,
   createTenant,
-  db,
   seedKnowledge,
   startServer,
   type Tenant,
@@ -146,10 +146,9 @@ describe('Pre-chat forms', () => {
     assert.equal(res.status, 200);
     assert.ok(res.body.data.submission_id);
 
-    const row = db.get<{ name: string; email: string; website_id: string }>(
-      'SELECT name, email, website_id FROM form_submissions WHERE id = ?',
-      res.body.data.submission_id,
-    );
+    const row = await col<{ _id: string; name: string; email: string; website_id: string }>(
+      'form_submissions',
+    ).findOne({ _id: res.body.data.submission_id });
     assert.equal(row?.name, 'Jane Doe');
     assert.equal(row?.email, 'jane@example.com');
     assert.equal(row?.website_id, tenant.websiteId);
@@ -168,9 +167,9 @@ describe('Pre-chat forms', () => {
       },
     });
     assert.equal(res.status, 200);
-    const row = db.get<{ fields: string }>(
-      'SELECT fields FROM form_submissions WHERE id = ?', res.body.data.submission_id,
-    );
+    const row = await col<{ _id: string; fields: string }>('form_submissions').findOne({
+      _id: res.body.data.submission_id,
+    });
     const stored = JSON.parse(row!.fields);
     assert.deepEqual(Object.keys(stored).sort(), ['email', 'name', 'phone']);
   });
@@ -189,14 +188,14 @@ describe('Pre-chat forms', () => {
     assert.equal(chat.status, 200);
     const conversationId = chat.body.data.conversation_id;
 
-    const submission = db.get<{ conversation_id: string }>(
-      'SELECT conversation_id FROM form_submissions WHERE session_key = ?', session,
-    );
+    const submission = await col<{ _id: string; conversation_id: string }>('form_submissions').findOne({
+      session_key: session,
+    });
     assert.equal(submission?.conversation_id, conversationId);
 
-    const conversation = db.get<{ visitor_name: string; visitor_email: string }>(
-      'SELECT visitor_name, visitor_email FROM conversations WHERE id = ?', conversationId,
-    );
+    const conversation = await col<{ _id: string; visitor_name: string; visitor_email: string }>(
+      'conversations',
+    ).findOne({ _id: conversationId as never });
     assert.equal(conversation?.visitor_name, 'Linked Visitor');
     assert.equal(conversation?.visitor_email, 'linked@example.com');
   });
@@ -213,19 +212,19 @@ describe('Pre-chat forms', () => {
     await site.post('/api/v1/site/chat', { session_key: 'visitor-a-session', message: 'Question from A' });
     await site.post('/api/v1/site/chat', { session_key: 'visitor-b-session', message: 'Question from B' });
 
-    const a = db.get<{ visitor_name: string; id: string }>(
-      'SELECT id, visitor_name FROM conversations WHERE session_key = ?', 'visitor-a-session',
-    );
-    const b = db.get<{ visitor_name: string; id: string }>(
-      'SELECT id, visitor_name FROM conversations WHERE session_key = ?', 'visitor-b-session',
-    );
+    const a = await col<{ _id: string; visitor_name: string }>('conversations').findOne({
+      session_key: 'visitor-a-session',
+    });
+    const b = await col<{ _id: string; visitor_name: string }>('conversations').findOne({
+      session_key: 'visitor-b-session',
+    });
     assert.equal(a?.visitor_name, 'Visitor A');
     assert.equal(b?.visitor_name, 'Visitor B');
-    assert.notEqual(a?.id, b?.id);
+    assert.notEqual(a?._id, b?._id);
 
-    const aMessages = db.all<{ content: string }>(
-      "SELECT content FROM messages WHERE conversation_id = ? AND role = 'user'", a!.id,
-    );
+    const aMessages = await col<{ _id: string; content: string }>('messages')
+      .find({ conversation_id: a!._id, role: 'user' })
+      .toArray();
     assert.ok(aMessages.every((m) => !m.content.includes('from B')));
   });
 
@@ -297,23 +296,23 @@ describe('Pre-chat forms', () => {
     assert.equal(chat.body.data.status, 'success');
   });
 
-  it('records a lead notification without blocking the submission', () => {
-    const notifications = db.all<{ type: string }>(
-      "SELECT type FROM notifications WHERE type = 'lead.created' AND website_id = ?",
-      tenant.websiteId,
-    );
-    assert.ok(notifications.length >= 1);
+  it('records a lead notification without blocking the submission', async () => {
+    const count = await col('notifications').countDocuments({
+      type: 'lead.created',
+      website_id: tenant.websiteId,
+    });
+    assert.ok(count >= 1);
   });
 });
 
 describe('Conversations in the portal', () => {
   it('lists the conversation with the right visitor and transcript', async () => {
-    const conversation = db.get<{ id: string }>(
-      'SELECT id FROM conversations WHERE website_id = ? AND session_key = ?',
-      tenant.websiteId, 'form-linked-session',
-    );
+    const conversation = await col<{ _id: string }>('conversations').findOne({
+      website_id: tenant.websiteId,
+      session_key: 'form-linked-session',
+    });
     const page = await tenant.client.get(
-      '/app/websites/' + tenant.websiteId + '/conversations/' + conversation!.id,
+      '/app/websites/' + tenant.websiteId + '/conversations/' + conversation!._id,
     );
     assert.equal(page.status, 200);
     assert.match(page.text, /Linked Visitor/);
@@ -322,17 +321,19 @@ describe('Conversations in the portal', () => {
   });
 
   it('updates conversation status and read state', async () => {
-    const conversation = db.get<{ id: string }>(
-      'SELECT id FROM conversations WHERE website_id = ? AND session_key = ?',
-      tenant.websiteId, 'form-linked-session',
-    );
+    const conversation = await col<{ _id: string }>('conversations').findOne({
+      website_id: tenant.websiteId,
+      session_key: 'form-linked-session',
+    });
     await tenant.client.refreshCsrf('/app/websites/' + tenant.websiteId + '/conversations');
     const status = await tenant.client.postJson(
-      portal('/conversations/' + conversation!.id + '/status'), { status: 'completed' },
+      portal('/conversations/' + conversation!._id + '/status'), { status: 'completed' },
     );
     assert.equal(status.status, 200);
 
-    const row = db.get<{ status: string }>('SELECT status FROM conversations WHERE id = ?', conversation!.id);
+    const row = await col<{ _id: string; status: string }>('conversations').findOne({
+      _id: conversation!._id as never,
+    });
     assert.equal(row?.status, 'completed');
   });
 });

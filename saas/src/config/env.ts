@@ -73,6 +73,43 @@ function secret(key: string, bytes = 32): string {
   return generated;
 }
 
+/**
+ * MongoDB connection string.
+ *
+ * Required in production, exactly like the three crypto secrets above and
+ * for the same reason: a database is not something to silently fall back to
+ * a default for. Outside production, an unset value falls back to a local
+ * `mongod` on the default port, with a warning — convenient for a laptop
+ * that already has one running, useless anywhere else.
+ *
+ * In tests it is required with NO fallback: scripts/run-tests.mjs sets it,
+ * pointing at a throwaway replica set, before this module is ever imported.
+ * A test run started any other way (bypassing that wrapper) fails loudly
+ * here instead of quietly reaching for whatever `mongodb://127.0.0.1:27017`
+ * happens to resolve to on the machine it runs on.
+ */
+function mongoUri(): string {
+  const v = process.env.MONGODB_URI;
+  if (v) return v;
+  if (isProd) {
+    throw new Error(
+      'Missing required MONGODB_URI. Set it to your MongoDB Atlas (or self-hosted) connection string.',
+    );
+  }
+  if (isTest) {
+    throw new Error(
+      'MONGODB_URI is not set. Run tests via `npm test`, not `node --test` directly - ' +
+        'scripts/run-tests.mjs starts the in-memory replica set and sets this.',
+    );
+  }
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[chat-pilot] WARNING: MONGODB_URI is not set. Falling back to mongodb://127.0.0.1:27017 - ' +
+      'set it in .env to point at MongoDB Atlas or your own server.',
+  );
+  return 'mongodb://127.0.0.1:27017';
+}
+
 export const env = {
   NODE_ENV,
   isProd,
@@ -81,9 +118,12 @@ export const env = {
   PORT: num('PORT', 4000),
   APP_URL: str('APP_URL', `http://localhost:${num('PORT', 4000)}`),
 
-  DATABASE_FILE: isTest
-    ? ':memory:'
-    : path.resolve(ROOT, str('DATABASE_FILE', './data/chat-pilot.sqlite')),
+  MONGODB_URI: mongoUri(),
+  // Tests isolate by database name, not by server: every test FILE is its
+  // own OS process (Node's default test-runner isolation), so each picks a
+  // name unique to its own pid rather than sharing one database across
+  // files that otherwise know nothing about each other.
+  MONGODB_DB: str('MONGODB_DB', isTest ? `chatpilot_test_${process.pid}` : 'chatpilot'),
 
   ENCRYPTION_KEY: secret('ENCRYPTION_KEY'),
   SESSION_SECRET: secret('SESSION_SECRET'),

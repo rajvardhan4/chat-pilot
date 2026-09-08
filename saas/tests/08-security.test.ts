@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {
   PortalClient,
   SiteClient,
+  col,
   createTenant,
-  db,
   seedKnowledge,
   startServer,
   type Tenant,
@@ -26,11 +26,10 @@ after(async () => {
 });
 
 describe('Secret handling', () => {
-  it('encrypts the provider key at rest and never stores the plaintext', () => {
-    const row = db.get<{ api_key_enc: string; api_key_masked: string }>(
-      "SELECT api_key_enc, api_key_masked FROM ai_provider_credentials WHERE website_id = ?",
-      tenant.websiteId,
-    );
+  it('encrypts the provider key at rest and never stores the plaintext', async () => {
+    const row = await col<{ _id: string; api_key_enc: string; api_key_masked: string }>(
+      'ai_provider_credentials',
+    ).findOne({ website_id: tenant.websiteId });
     assert.ok(row);
     assert.match(row!.api_key_enc, /^v1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
     assert.ok(!row!.api_key_enc.includes('mock-ok'));
@@ -39,7 +38,7 @@ describe('Secret handling', () => {
 
   it('round-trips only through the server-side resolver', async () => {
     const { resolveCredentials } = await import('../src/services/providerService.ts');
-    const creds = resolveCredentials(tenant.accountId, tenant.websiteId, 'mock');
+    const creds = await resolveCredentials(tenant.accountId, tenant.websiteId, 'mock');
     assert.ok(creds?.apiKey.startsWith('mock-ok-'));
   });
 
@@ -57,9 +56,16 @@ describe('Secret handling', () => {
     const { log } = await import('../src/core/logger.ts');
     log.error('Test line with sk-abcdefghijklmnop and cp_live_1234567890abcdef_secretvalue and ?key=AIzaSyABCDEFG');
 
-    const row = db.get<{ message: string }>(
-      "SELECT message FROM system_logs WHERE message LIKE 'Test line%' ORDER BY created_at DESC LIMIT 1",
-    );
+    // The write is fire-and-forget (see logger.ts), so give it a moment to land.
+    let row: { _id: string; message: string } | null = null;
+    for (let attempt = 0; attempt < 20 && !row; attempt += 1) {
+      row = await col<{ _id: string; message: string }>('system_logs')
+        .find({ message: { $regex: '^Test line' } })
+        .sort({ created_at: -1 })
+        .limit(1)
+        .next();
+      if (!row) await new Promise((resolve) => setTimeout(resolve, 25));
+    }
     assert.ok(row);
     assert.doesNotMatch(row!.message, /sk-abcdefghijklmnop/);
     assert.doesNotMatch(row!.message, /cp_live_1234567890abcdef/);
@@ -67,12 +73,11 @@ describe('Secret handling', () => {
     assert.match(row!.message, /REDACTED/);
   });
 
-  it('keeps the site key out of audit metadata', () => {
-    const hits = db.get<{ c: number }>(
-      'SELECT COUNT(*) AS c FROM audit_logs WHERE metadata LIKE ?',
-      '%' + tenant.siteKey.slice(0, 24) + '%',
-    );
-    assert.equal(Number(hits?.c ?? 0), 0);
+  it('keeps the site key out of audit metadata', async () => {
+    const hits = await col('audit_logs').countDocuments({
+      metadata: { $regex: tenant.siteKey.slice(0, 24) },
+    });
+    assert.equal(hits, 0);
   });
 });
 
@@ -93,8 +98,8 @@ describe('Injection resistance', () => {
       assert.ok([200, 422].includes(res.status), 'unexpected status for ' + payload);
     }
     // The tables must still be there with their rows intact.
-    assert.ok((db.scalar<number>('SELECT COUNT(*) AS c FROM knowledge_documents') ?? 0) > 0);
-    assert.ok((db.scalar<number>('SELECT COUNT(*) AS c FROM websites') ?? 0) > 0);
+    assert.ok((await col('knowledge_documents').countDocuments({})) > 0);
+    assert.ok((await col('websites').countDocuments({})) > 0);
   });
 
   it('escapes user content in rendered pages', async () => {

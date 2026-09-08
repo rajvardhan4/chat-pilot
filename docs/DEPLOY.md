@@ -1,6 +1,6 @@
 # Deploying Chat Pilot Cloud
 
-Chat Pilot Cloud is a long-running Node.js process with a file-backed database.
+Chat Pilot Cloud is a long-running Node.js process backed by MongoDB Atlas.
 It needs a server you control — a VPS — not PHP shared hosting.
 
 The WordPress plugin is the opposite: it is ordinary PHP and belongs on whatever
@@ -18,8 +18,11 @@ npm run cloud:build
 ```
 
 Produces `dist/cloud/chat-pilot-cloud-<date>-<commit>.zip` — everything under
-`saas/` and `deploy/`, minus `node_modules`, `saas/data`, `saas/.env` and
-`saas/tests`. Unzip it as `/var/www/chat-pilot` on the server and every command
+`saas/` and `deploy/`, minus `node_modules`, `saas/.env` and `saas/tests`.
+`saas/data/uploads` (customer file uploads) is local disk storage and stays
+excluded from the ZIP the same way; the database itself is MongoDB Atlas and
+was never in that folder to begin with. Unzip it as `/var/www/chat-pilot` on
+the server and every command
 below is identical either way. This is the SIBLING of `npm run plugin:build`,
 not a replacement — one ships to your own VPS, the other to a customer's
 WordPress site. Two different destinations, kept in two different folders:
@@ -29,10 +32,10 @@ WordPress site. Two different destinations, kept in two different folders:
 
 | File | Purpose |
 | --- | --- |
-| `.env.production.example` | Production `.env` with every value already correct except four |
+| `.env.production.example` | Production `.env` with every value already correct except the ones marked CHANGE ME |
 | `chat-pilot.service` | systemd unit — runs as its own user, restarts on failure, starts on boot |
 | `nginx-chat-pilot.conf` | Reverse proxy with the upload size and timeouts the app needs |
-| `backup.sh` | Nightly `sqlite3 .backup` snapshot of the database, `.env` and uploads |
+| `backup.sh` | Nightly snapshot of `saas/.env` and the local uploads folder (the database itself is backed up by Atlas — see below) |
 
 ## Requirements
 
@@ -40,20 +43,41 @@ WordPress site. Two different destinations, kept in two different folders:
   TypeScript directly through Node's type stripping, which is unavailable in
   earlier versions. Ubuntu's packaged Node is too old; use NodeSource.
 * **nginx** in front, terminating TLS.
-* **No database server.** SQLite is built into Node. Nothing to install, no
-  credentials to manage.
+* **A MongoDB Atlas cluster.** No database software to install on the VPS
+  itself — the app is just a client connecting out to Atlas over
+  `MONGODB_URI`. Any Atlas tier works to start (the free M0 tier is enough
+  for testing); size up once real traffic arrives.
+
+## Set up the MongoDB Atlas cluster (once)
+
+1. Create a free account at [mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas)
+   and a new cluster (M0 is fine to start; upgrade later without downtime).
+2. **Database Access** → add a database user with a generated password —
+   this is what goes in `MONGODB_URI`, not your Atlas login.
+3. **Network Access** → add the VPS's IP address (or `0.0.0.0/0` only if you
+   understand the exposure — a scoped IP is strongly preferred).
+4. **Database → Connect → Drivers** → copy the connection string. It looks
+   like `mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority`.
+   That whole string is `MONGODB_URI`; `MONGODB_DB` is just a name Atlas
+   creates automatically on first write (`chatpilot` is fine).
+5. Atlas backs up the cluster itself (continuous backups on the paid tiers,
+   manual export on M0) — nothing on the VPS needs to `mongodump` the
+   database for this to be durable, though `mongodump`/`mongorestore` still
+   work if you want a local copy.
 
 ## The order
 
-1. VPS with Ubuntu 24.04, Node 24, nginx, certbot, sqlite3, ufw.
+1. VPS with Ubuntu 24.04, Node 24, nginx, certbot, ufw.
 2. A `chatpilot` system user; the code in `/var/www/chat-pilot`.
 3. `npm install --omit=dev` in `saas/`.
 4. `cp deploy/.env.production.example saas/.env`, generate the three secrets
-   **on the server**, set `APP_URL`, then `chmod 600 saas/.env`.
+   **on the server**, set `APP_URL` and `MONGODB_URI` (from the Atlas step
+   above), then `chmod 600 saas/.env`.
 5. Install the systemd unit, `systemctl enable --now chat-pilot`.
 6. Install the nginx site, then `certbot --nginx -d app.yourdomain.com`.
 7. `sudo -u chatpilot npm run seed`, then `npm run admin:create`.
-8. Install the backup script and its cron entry.
+8. Install the backup script and its cron entry (covers `.env` and uploads —
+   the database is already covered by Atlas, per above).
 
 ## Two things that catch people out
 
@@ -91,7 +115,9 @@ systemctl restart chat-pilot
 journalctl -u chat-pilot -n 30
 ```
 
-Migrations run at startup. Downtime is the few seconds of the restart.
+Indexes are (re-)ensured at startup — there is no separate migration step to
+run, MongoDB has no schema to migrate. Downtime is the few seconds of the
+restart.
 
 ## Automatic deploys (optional)
 
@@ -151,10 +177,11 @@ Plain SSH is what actually runs the three commands.
 Push a change under `saas/` and watch the **Actions** tab. From then on,
 `git push` is the entire deploy.
 
-## When the database outgrows SQLite
+## Scaling past one VPS
 
-It will not for a long time — chat traffic is small writes, and the AI call
-dominates every request. The point to move is when you need more than one server
-running Chat Pilot at once. Every query goes through the thin wrapper in
-`src/db/` specifically so that swap stays possible; doing it earlier is work
-without benefit.
+Because the database is already Atlas rather than a local file, running a
+second `chat-pilot` app server (behind the same nginx, or a load balancer) is
+just pointing another `MONGODB_URI` at the same cluster — there is no
+single-writer file to contend over. Scale the app servers when CPU/memory on
+one VPS is the bottleneck, and scale the Atlas cluster tier when the database
+itself is (Atlas's own metrics page shows which).

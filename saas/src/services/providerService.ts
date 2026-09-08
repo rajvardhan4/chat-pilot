@@ -8,7 +8,7 @@
  *  - No route, view, API response or log may ever contain the plaintext.
  *    Only `api_key_masked` leaves the server.
  */
-import { db, nowIso } from '../db/index.ts';
+import { col, nowIso, withTransaction } from '../db/mongo.ts';
 import { AppError, notFound, validationFailed } from '../core/errors.ts';
 import { decryptSecret, encryptSecret, maskSecret, newId } from '../core/crypto.ts';
 import { env } from '../config/env.ts';
@@ -87,70 +87,73 @@ export const STATUS_LABELS: Record<ProviderStatus, string> = {
   model_unavailable: 'Model Unavailable',
 };
 
-/* --------------------------------------------------------------- config -- */
+type ConfigDoc = Omit<ProviderConfigRow, 'id'> & { _id: string };
+type CredentialDoc = Omit<ProviderCredentialRow, 'id'> & { _id: string };
+type ModelDoc = { _id: string; account_id: string; website_id: string; provider: string; model_id: string; display_name: string; discovered_at: string };
 
-export function getConfig(accountId: string, websiteId: string): ProviderConfigRow {
-  const row = db.get<ProviderConfigRow>(
-    'SELECT * FROM ai_provider_configs WHERE website_id = ? AND account_id = ?',
-    websiteId, accountId,
-  );
-  if (row) return row;
-  const id = newId();
-  const now = nowIso();
-  db.run(
-    `INSERT INTO ai_provider_configs (id, account_id, website_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?)`,
-    id, accountId, websiteId, now, now,
-  );
-  return db.get<ProviderConfigRow>('SELECT * FROM ai_provider_configs WHERE id = ?', id)!;
+function toConfigRow(d: ConfigDoc): ProviderConfigRow {
+  const { _id, ...rest } = d;
+  return { id: _id, ...rest };
+}
+function toCredentialRow(d: CredentialDoc): ProviderCredentialRow {
+  const { _id, ...rest } = d;
+  return { id: _id, ...rest };
 }
 
-export function updateConfig(
+/* --------------------------------------------------------------- config -- */
+
+export async function getConfig(accountId: string, websiteId: string): Promise<ProviderConfigRow> {
+  const row = await col<ConfigDoc>('ai_provider_configs').findOne({ website_id: websiteId, account_id: accountId });
+  if (row) return toConfigRow(row);
+  const id = newId();
+  const now = nowIso();
+  const doc: ConfigDoc = {
+    _id: id, account_id: accountId, website_id: websiteId,
+    active_provider: '', active_model: '', temperature: 0.4, max_output_tokens: 800,
+    retrieval_threshold: 3.0, max_history_messages: 20, created_at: now, updated_at: now,
+  };
+  await col<ConfigDoc>('ai_provider_configs').insertOne(doc);
+  return toConfigRow(doc);
+}
+
+export async function updateConfig(
   accountId: string,
   websiteId: string,
   patch: Partial<Pick<ProviderConfigRow,
     'active_provider' | 'active_model' | 'temperature' | 'max_output_tokens' |
     'retrieval_threshold' | 'max_history_messages'>>,
-): ProviderConfigRow {
-  getConfig(accountId, websiteId);
-  const sets: string[] = [];
-  const params: unknown[] = [];
+): Promise<ProviderConfigRow> {
+  await getConfig(accountId, websiteId);
+  const set: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) continue;
-    sets.push(key + ' = ?');
-    params.push(value);
+    set[key] = value;
   }
-  if (!sets.length) return getConfig(accountId, websiteId);
-  sets.push('updated_at = ?');
-  params.push(nowIso(), websiteId, accountId);
-  db.run(
-    `UPDATE ai_provider_configs SET ${sets.join(', ')} WHERE website_id = ? AND account_id = ?`,
-    ...params,
-  );
+  if (!Object.keys(set).length) return getConfig(accountId, websiteId);
+  set.updated_at = nowIso();
+  await col('ai_provider_configs').updateOne({ website_id: websiteId, account_id: accountId }, { $set: set });
   return getConfig(accountId, websiteId);
 }
 
 /* ---------------------------------------------------------- credentials -- */
 
-export function getCredentialRow(
+export async function getCredentialRow(
   accountId: string,
   websiteId: string,
   provider: string,
-): ProviderCredentialRow | undefined {
-  return db.get<ProviderCredentialRow>(
-    'SELECT * FROM ai_provider_credentials WHERE website_id = ? AND account_id = ? AND provider = ?',
-    websiteId, accountId, provider,
-  );
+): Promise<ProviderCredentialRow | undefined> {
+  const doc = await col<CredentialDoc>('ai_provider_credentials').findOne({ website_id: websiteId, account_id: accountId, provider });
+  return doc ? toCredentialRow(doc) : undefined;
 }
 
-export function saveCredential(
+export async function saveCredential(
   accountId: string,
   websiteId: string,
   provider: string,
   input: { apiKey: string; baseUrl?: string; orgId?: string },
   actorId: string,
-): ProviderCredentialRow {
-  getWebsiteForAccount(accountId, websiteId);
+): Promise<ProviderCredentialRow> {
+  await getWebsiteForAccount(accountId, websiteId);
   const adapter = requireProvider(provider);
 
   const apiKey = (input.apiKey ?? '').trim();
@@ -161,60 +164,71 @@ export function saveCredential(
     });
   }
 
-  const existing = getCredentialRow(accountId, websiteId, provider);
+  const existing = await getCredentialRow(accountId, websiteId, provider);
   const now = nowIso();
 
   if (existing) {
-    db.run(
-      `UPDATE ai_provider_credentials
-          SET api_key_enc = ?, api_key_masked = ?, base_url = ?, org_id = ?,
-              status = 'not_configured', status_detail = 'Saved. Run a connection test.',
-              error_count = 0, updated_at = ?
-        WHERE id = ?`,
-      encryptSecret(apiKey), maskSecret(apiKey), (input.baseUrl ?? '').trim(),
-      (input.orgId ?? '').trim(), now, existing.id,
+    await col('ai_provider_credentials').updateOne(
+      { _id: existing.id as never },
+      {
+        $set: {
+          api_key_enc: encryptSecret(apiKey),
+          api_key_masked: maskSecret(apiKey),
+          base_url: (input.baseUrl ?? '').trim(),
+          org_id: (input.orgId ?? '').trim(),
+          status: 'not_configured',
+          status_detail: 'Saved. Run a connection test.',
+          error_count: 0,
+          updated_at: now,
+        },
+      },
     );
-    audit({
+    await audit({
       accountId, websiteId, actorType: 'user', actorId,
       action: 'provider.credential_rotated', targetType: 'ai_provider_credential',
       targetId: existing.id, metadata: { provider },
     });
-    return getCredentialRow(accountId, websiteId, provider)!;
+    return (await getCredentialRow(accountId, websiteId, provider))!;
   }
 
   const id = newId();
-  db.run(
-    `INSERT INTO ai_provider_credentials
-       (id, account_id, website_id, provider, api_key_enc, api_key_masked, base_url, org_id,
-        status, status_detail, error_count, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'not_configured', 'Saved. Run a connection test.', 0, ?, ?)`,
-    id, accountId, websiteId, provider, encryptSecret(apiKey), maskSecret(apiKey),
-    (input.baseUrl ?? '').trim(), (input.orgId ?? '').trim(), now, now,
-  );
-  audit({
+  await col<CredentialDoc>('ai_provider_credentials').insertOne({
+    _id: id, account_id: accountId, website_id: websiteId, provider,
+    api_key_enc: encryptSecret(apiKey), api_key_masked: maskSecret(apiKey),
+    base_url: (input.baseUrl ?? '').trim(), org_id: (input.orgId ?? '').trim(),
+    status: 'not_configured', status_detail: 'Saved. Run a connection test.',
+    last_tested_at: null, last_success_at: null, last_failure_at: null,
+    latency_ms: 0, error_count: 0, created_at: now, updated_at: now,
+  });
+  await audit({
     accountId, websiteId, actorType: 'user', actorId,
     action: 'provider.credential_added', targetType: 'ai_provider_credential',
     targetId: id, metadata: { provider },
   });
-  return getCredentialRow(accountId, websiteId, provider)!;
+  return (await getCredentialRow(accountId, websiteId, provider))!;
 }
 
-export function removeCredential(accountId: string, websiteId: string, provider: string, actorId: string): void {
-  const row = getCredentialRow(accountId, websiteId, provider);
+export async function removeCredential(
+  accountId: string,
+  websiteId: string,
+  provider: string,
+  actorId: string,
+): Promise<void> {
+  const row = await getCredentialRow(accountId, websiteId, provider);
   if (!row) throw notFound('No credentials are stored for that provider.');
-  db.tx(() => {
-    db.run('DELETE FROM ai_provider_credentials WHERE id = ?', row.id);
-    db.run('DELETE FROM ai_provider_models WHERE website_id = ? AND provider = ?', websiteId, provider);
-    const config = getConfig(accountId, websiteId);
-    if (config.active_provider === provider) {
-      db.run(
-        `UPDATE ai_provider_configs SET active_provider = '', active_model = '', updated_at = ?
-          WHERE website_id = ?`,
-        nowIso(), websiteId,
+  await withTransaction(async (session) => {
+    await col('ai_provider_credentials').deleteOne({ _id: row.id as never }, { session });
+    await col('ai_provider_models').deleteMany({ website_id: websiteId, provider }, { session });
+    const config = await col<ConfigDoc>('ai_provider_configs').findOne({ website_id: websiteId, account_id: accountId }, { session });
+    if (config?.active_provider === provider) {
+      await col('ai_provider_configs').updateOne(
+        { website_id: websiteId },
+        { $set: { active_provider: '', active_model: '', updated_at: nowIso() } },
+        { session },
       );
     }
   });
-  audit({
+  await audit({
     accountId, websiteId, actorType: 'user', actorId,
     action: 'provider.credential_removed', targetType: 'ai_provider_credential',
     targetId: row.id, metadata: { provider },
@@ -222,12 +236,12 @@ export function removeCredential(accountId: string, websiteId: string, provider:
 }
 
 /** Server-side only. The single point where a provider key is decrypted. */
-export function resolveCredentials(
+export async function resolveCredentials(
   accountId: string,
   websiteId: string,
   provider: string,
-): ProviderCredentials | null {
-  const row = getCredentialRow(accountId, websiteId, provider);
+): Promise<ProviderCredentials | null> {
+  const row = await getCredentialRow(accountId, websiteId, provider);
   if (!row) return null;
   try {
     return {
@@ -235,29 +249,26 @@ export function resolveCredentials(
       baseUrl: row.base_url || undefined,
       orgId: row.org_id || undefined,
     };
-  } catch (err) {
+  } catch {
     log.error('Failed to decrypt a stored provider credential.', { provider, websiteId }, { accountId, websiteId });
     return null;
   }
 }
 
-function applyTestResult(rowId: string, result: ProviderTestResult): void {
+async function applyTestResult(rowId: string, result: ProviderTestResult): Promise<void> {
   const now = nowIso();
   if (result.ok) {
-    db.run(
-      `UPDATE ai_provider_credentials
-          SET status = 'connected', status_detail = ?, last_tested_at = ?, last_success_at = ?,
-              latency_ms = ?, error_count = 0, updated_at = ?
-        WHERE id = ?`,
-      result.message, now, now, result.latencyMs, now, rowId,
+    await col('ai_provider_credentials').updateOne(
+      { _id: rowId as never },
+      { $set: { status: 'connected', status_detail: result.message, last_tested_at: now, last_success_at: now, latency_ms: result.latencyMs, error_count: 0, updated_at: now } },
     );
   } else {
-    db.run(
-      `UPDATE ai_provider_credentials
-          SET status = ?, status_detail = ?, last_tested_at = ?, last_failure_at = ?,
-              latency_ms = ?, error_count = error_count + 1, updated_at = ?
-        WHERE id = ?`,
-      result.status, result.message.slice(0, 500), now, now, result.latencyMs, now, rowId,
+    await col('ai_provider_credentials').updateOne(
+      { _id: rowId as never },
+      {
+        $set: { status: result.status, status_detail: result.message.slice(0, 500), last_tested_at: now, last_failure_at: now, latency_ms: result.latencyMs, updated_at: now },
+        $inc: { error_count: 1 },
+      } as never,
     );
   }
 }
@@ -278,20 +289,20 @@ export async function testAndDiscover(
   provider: string,
   actorId: string,
 ): Promise<TestAndDiscoverResult> {
-  getWebsiteForAccount(accountId, websiteId);
+  await getWebsiteForAccount(accountId, websiteId);
   const adapter = requireProvider(provider);
-  const row = getCredentialRow(accountId, websiteId, provider);
+  const row = await getCredentialRow(accountId, websiteId, provider);
   if (!row) throw notFound('Save your provider API key before testing the connection.');
 
-  const creds = resolveCredentials(accountId, websiteId, provider);
+  const creds = await resolveCredentials(accountId, websiteId, provider);
   if (!creds) {
     throw new AppError('internal_error', 'Stored credentials could not be read. Please re-enter your API key.');
   }
 
   const test = await adapter.testConnection(creds, env.PROVIDER_TIMEOUT_MS);
-  applyTestResult(row.id, test);
+  await applyTestResult(row.id, test);
 
-  audit({
+  await audit({
     accountId, websiteId, actorType: 'user', actorId,
     action: 'provider.connection_tested', targetType: 'ai_provider_credential', targetId: row.id,
     metadata: { provider, ok: test.ok, status: test.status },
@@ -300,42 +311,38 @@ export async function testAndDiscover(
   if (!test.ok) return { test, models: [], suggestedModel: '' };
 
   const models = await adapter.listModels(creds, env.PROVIDER_TIMEOUT_MS);
-  replaceDiscoveredModels(accountId, websiteId, provider, models);
+  await replaceDiscoveredModels(accountId, websiteId, provider, models);
   return { test, models, suggestedModel: chooseDefaultModel(provider, models.map((m) => m.id)) };
 }
 
-export function replaceDiscoveredModels(
+export async function replaceDiscoveredModels(
   accountId: string,
   websiteId: string,
   provider: string,
   models: Array<{ id: string; displayName: string }>,
-): void {
+): Promise<void> {
   const now = nowIso();
-  db.tx(() => {
-    db.run('DELETE FROM ai_provider_models WHERE website_id = ? AND provider = ?', websiteId, provider);
+  await withTransaction(async (session) => {
+    await col('ai_provider_models').deleteMany({ website_id: websiteId, provider }, { session });
     for (const m of models) {
-      db.run(
-        `INSERT INTO ai_provider_models (id, account_id, website_id, provider, model_id, display_name, discovered_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        newId(), accountId, websiteId, provider, m.id, m.displayName, now,
+      await col<ModelDoc>('ai_provider_models').insertOne(
+        { _id: newId(), account_id: accountId, website_id: websiteId, provider, model_id: m.id, display_name: m.displayName, discovered_at: now },
+        { session },
       );
     }
   });
 }
 
-export function listDiscoveredModels(
+export async function listDiscoveredModels(
   accountId: string,
   websiteId: string,
   provider: string,
-): Array<{ id: string; displayName: string }> {
-  return db
-    .all<{ model_id: string; display_name: string }>(
-      `SELECT model_id, display_name FROM ai_provider_models
-        WHERE website_id = ? AND account_id = ? AND provider = ?
-        ORDER BY model_id`,
-      websiteId, accountId, provider,
-    )
-    .map((r) => ({ id: r.model_id, displayName: r.display_name || r.model_id }));
+): Promise<Array<{ id: string; displayName: string }>> {
+  const docs = await col<ModelDoc>('ai_provider_models')
+    .find({ website_id: websiteId, account_id: accountId, provider })
+    .sort({ model_id: 1 })
+    .toArray();
+  return docs.map((r) => ({ id: r.model_id, displayName: r.display_name || r.model_id }));
 }
 
 export function chooseDefaultModel(provider: string, available: string[]): string {
@@ -353,17 +360,17 @@ export function chooseDefaultModel(provider: string, available: string[]): strin
  * Selects the active provider/model for a website.
  * Switching providers clears a model that the new provider cannot serve.
  */
-export function setActiveProviderAndModel(
+export async function setActiveProviderAndModel(
   accountId: string,
   websiteId: string,
   provider: string,
   model: string,
   actorId: string,
-): ProviderConfigRow {
-  getWebsiteForAccount(accountId, websiteId);
+): Promise<ProviderConfigRow> {
+  await getWebsiteForAccount(accountId, websiteId);
   requireProvider(provider);
 
-  const credential = getCredentialRow(accountId, websiteId, provider);
+  const credential = await getCredentialRow(accountId, websiteId, provider);
   if (!credential) {
     throw validationFailed('Add and test this provider before selecting it.', {
       provider: 'This provider has no saved API key.',
@@ -383,7 +390,7 @@ export function setActiveProviderAndModel(
     });
   }
 
-  const available = listDiscoveredModels(accountId, websiteId, provider).map((m) => m.id);
+  const available = (await listDiscoveredModels(accountId, websiteId, provider)).map((m) => m.id);
   let chosen = (model ?? '').trim();
 
   if (chosen && available.length && !available.includes(chosen)) {
@@ -403,8 +410,8 @@ export function setActiveProviderAndModel(
     );
   }
 
-  const config = updateConfig(accountId, websiteId, { active_provider: provider, active_model: chosen });
-  audit({
+  const config = await updateConfig(accountId, websiteId, { active_provider: provider, active_model: chosen });
+  await audit({
     accountId, websiteId, actorType: 'user', actorId,
     action: 'provider.model_selected', targetType: 'website', targetId: websiteId,
     metadata: { provider, model: chosen },
@@ -413,58 +420,63 @@ export function setActiveProviderAndModel(
 }
 
 /** Everything the AI Providers screen needs, with no secrets. */
-export function providerOverview(accountId: string, websiteId: string): ProviderCredentialView[] {
-  return listProviders().map((adapter) => {
-    const row = getCredentialRow(accountId, websiteId, adapter.slug);
-    return {
-      provider: adapter.slug,
-      name: adapter.name,
-      description: adapter.description,
-      consoleUrl: adapter.consoleUrl,
-      keyHint: adapter.keyHint,
-      requiresBaseUrl: adapter.requiresBaseUrl,
-      supportsOrgId: adapter.supportsOrgId,
-      configured: Boolean(row),
-      maskedKey: row?.api_key_masked ?? '',
-      baseUrl: row?.base_url ?? '',
-      orgId: row?.org_id ?? '',
-      status: (row?.status ?? 'not_configured') as ProviderStatus,
-      statusLabel: STATUS_LABELS[(row?.status ?? 'not_configured') as ProviderStatus],
-      statusDetail: row?.status_detail ?? '',
-      lastTestedAt: row?.last_tested_at ?? null,
-      latencyMs: row?.latency_ms ?? 0,
-      errorCount: row?.error_count ?? 0,
-      models: listDiscoveredModels(accountId, websiteId, adapter.slug),
-    };
-  });
+export async function providerOverview(accountId: string, websiteId: string): Promise<ProviderCredentialView[]> {
+  return Promise.all(
+    listProviders().map(async (adapter) => {
+      const row = await getCredentialRow(accountId, websiteId, adapter.slug);
+      return {
+        provider: adapter.slug,
+        name: adapter.name,
+        description: adapter.description,
+        consoleUrl: adapter.consoleUrl,
+        keyHint: adapter.keyHint,
+        requiresBaseUrl: adapter.requiresBaseUrl,
+        supportsOrgId: adapter.supportsOrgId,
+        configured: Boolean(row),
+        maskedKey: row?.api_key_masked ?? '',
+        baseUrl: row?.base_url ?? '',
+        orgId: row?.org_id ?? '',
+        status: (row?.status ?? 'not_configured') as ProviderStatus,
+        statusLabel: STATUS_LABELS[(row?.status ?? 'not_configured') as ProviderStatus],
+        statusDetail: row?.status_detail ?? '',
+        lastTestedAt: row?.last_tested_at ?? null,
+        latencyMs: row?.latency_ms ?? 0,
+        errorCount: row?.error_count ?? 0,
+        models: await listDiscoveredModels(accountId, websiteId, adapter.slug),
+      };
+    }),
+  );
 }
 
 /** Records a runtime provider failure observed during generation. */
-export function recordProviderFailure(
+export async function recordProviderFailure(
   accountId: string,
   websiteId: string,
   provider: string,
   status: ProviderStatus,
   detail: string,
-): void {
-  const row = getCredentialRow(accountId, websiteId, provider);
+): Promise<void> {
+  const row = await getCredentialRow(accountId, websiteId, provider);
   if (!row) return;
-  db.run(
-    `UPDATE ai_provider_credentials
-        SET status = ?, status_detail = ?, last_failure_at = ?, error_count = error_count + 1, updated_at = ?
-      WHERE id = ?`,
-    status, detail.slice(0, 500), nowIso(), nowIso(), row.id,
+  await col('ai_provider_credentials').updateOne(
+    { _id: row.id as never },
+    {
+      $set: { status, status_detail: detail.slice(0, 500), last_failure_at: nowIso(), updated_at: nowIso() },
+      $inc: { error_count: 1 },
+    } as never,
   );
 }
 
-export function recordProviderSuccess(accountId: string, websiteId: string, provider: string, latencyMs: number): void {
-  const row = getCredentialRow(accountId, websiteId, provider);
+export async function recordProviderSuccess(
+  accountId: string,
+  websiteId: string,
+  provider: string,
+  latencyMs: number,
+): Promise<void> {
+  const row = await getCredentialRow(accountId, websiteId, provider);
   if (!row) return;
-  db.run(
-    `UPDATE ai_provider_credentials
-        SET status = 'connected', status_detail = 'Operational', last_success_at = ?,
-            latency_ms = ?, error_count = 0, updated_at = ?
-      WHERE id = ?`,
-    nowIso(), latencyMs, nowIso(), row.id,
+  await col('ai_provider_credentials').updateOne(
+    { _id: row.id as never },
+    { $set: { status: 'connected', status_detail: 'Operational', last_success_at: nowIso(), latency_ms: latencyMs, error_count: 0, updated_at: nowIso() } },
   );
 }

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { createHmac, createHash, randomBytes } from 'node:crypto';
 import {
   SiteClient,
+  col,
   createTenant,
-  db,
   seedKnowledge,
   startServer,
   type Tenant,
@@ -28,13 +28,12 @@ after(async () => {
 });
 
 describe('Site API key format', () => {
-  it('issues a cp_live_ prefixed key and stores only its hash', () => {
+  it('issues a cp_live_ prefixed key and stores only its hash', async () => {
     assert.match(tenant.siteKey, /^cp_live_[0-9a-f]{16}_[A-Za-z0-9_-]{20,}$/);
 
-    const rows = db.all<{ key_hash: string; key_id: string }>(
-      'SELECT key_hash, key_id FROM site_api_credentials WHERE website_id = ?',
-      tenant.websiteId,
-    );
+    const rows = await col<{ _id: string; key_hash: string; key_id: string }>('site_api_credentials')
+      .find({ website_id: tenant.websiteId })
+      .toArray();
     assert.equal(rows.length, 1);
     // The plaintext must appear nowhere in the row.
     for (const row of rows) {
@@ -44,11 +43,12 @@ describe('Site API key format', () => {
     }
 
     // And nowhere else in the database either.
-    const leak = db.get<{ c: number }>(
-      'SELECT COUNT(*) AS c FROM audit_logs WHERE metadata LIKE ?',
-      '%' + tenant.siteKey + '%',
-    );
-    assert.equal(Number(leak?.c ?? 0), 0);
+    // Site keys are cp_live_<hex>_<base62-ish>: no regex metacharacters, so the
+    // raw value is safe to use as a substring pattern here.
+    const leakCount = await col('audit_logs').countDocuments({
+      metadata: { $regex: tenant.siteKey },
+    });
+    assert.equal(leakCount, 0);
   });
 });
 
@@ -167,12 +167,12 @@ describe('Domain binding', () => {
     assert.equal(denied.status, 403);
   });
 
-  it('records a domain mismatch in the audit log', () => {
-    const row = db.get<{ c: number }>(
-      "SELECT COUNT(*) AS c FROM audit_logs WHERE action = 'site_key.domain_mismatch' AND website_id = ?",
-      tenant.websiteId,
-    );
-    assert.ok(Number(row?.c ?? 0) >= 1);
+  it('records a domain mismatch in the audit log', async () => {
+    const count = await col('audit_logs').countDocuments({
+      action: 'site_key.domain_mismatch',
+      website_id: tenant.websiteId,
+    });
+    assert.ok(count >= 1);
   });
 
   it('does not let one tenant key address another tenant website', async () => {
@@ -206,31 +206,31 @@ describe('Key and account lifecycle', () => {
   });
 
   it('reports account suspended', async () => {
-    db.run("UPDATE accounts SET status = 'suspended' WHERE id = ?", tenant.accountId);
+    await col('accounts').updateOne({ _id: tenant.accountId as never }, { $set: { status: 'suspended' } });
     const res = await site.get('/api/v1/site/health');
     assert.equal(res.status, 403);
     assert.equal(res.body.error.code, 'account_suspended');
-    db.run("UPDATE accounts SET status = 'active' WHERE id = ?", tenant.accountId);
+    await col('accounts').updateOne({ _id: tenant.accountId as never }, { $set: { status: 'active' } });
   });
 
   it('reports subscription inactive', async () => {
-    db.run("UPDATE subscriptions SET status = 'canceled' WHERE account_id = ?", tenant.accountId);
+    await col('subscriptions').updateOne({ account_id: tenant.accountId }, { $set: { status: 'canceled' } });
     const res = await site.get('/api/v1/site/health');
     assert.equal(res.status, 402);
     assert.equal(res.body.error.code, 'subscription_inactive');
-    db.run("UPDATE subscriptions SET status = 'active' WHERE account_id = ?", tenant.accountId);
+    await col('subscriptions').updateOne({ account_id: tenant.accountId }, { $set: { status: 'active' } });
   });
 
   it('stops working the moment the key is revoked', async () => {
     assert.equal((await site.get('/api/v1/site/health')).status, 200);
 
-    const record = db.get<{ id: string }>(
-      "SELECT id FROM site_api_credentials WHERE website_id = ? AND status = 'active'",
-      tenant.websiteId,
-    );
+    const record = await col<{ _id: string }>('site_api_credentials').findOne({
+      website_id: tenant.websiteId,
+      status: 'active',
+    });
     await tenant.client.refreshCsrf('/app/websites/' + tenant.websiteId + '/connection');
     const revoked = await tenant.client.postJson(
-      '/api/v1/portal/websites/' + tenant.websiteId + '/keys/' + record!.id + '/revoke', {},
+      '/api/v1/portal/websites/' + tenant.websiteId + '/keys/' + record!._id + '/revoke', {},
     );
     assert.equal(revoked.status, 200);
 

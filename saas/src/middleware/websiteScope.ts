@@ -7,6 +7,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { unauthenticated } from '../core/errors.ts';
 import { getWebsiteForAccount, type WebsiteRow } from '../services/websites.ts';
+import { asyncRoute } from './errors.ts';
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -14,20 +15,16 @@ declare module 'express-serve-static-core' {
   }
 }
 
-export function resolveWebsite(req: Request, _res: Response, next: NextFunction): void {
+export const resolveWebsite = asyncRoute(async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   if (!req.account) return next(unauthenticated());
-  try {
-    const websiteId =
-      (req.params.websiteId as string | undefined) ??
-      (typeof req.body === 'object' && req.body && 'website_id' in req.body
-        ? String((req.body as Record<string, unknown>).website_id)
-        : undefined) ??
-      (typeof req.query.website === 'string' ? req.query.website : undefined);
+  const websiteId =
+    (req.params.websiteId as string | undefined) ??
+    (typeof req.body === 'object' && req.body && 'website_id' in req.body
+      ? String((req.body as Record<string, unknown>).website_id)
+      : undefined) ??
+    (typeof req.query.website === 'string' ? req.query.website : undefined);
 
-    if (!websiteId) return next(new Error('websiteId is required on this route.'));
-    req.website = getWebsiteForAccount(req.account.id, websiteId);
-    next();
-  } catch (err) {
-    next(err);
-  }
-}
+  if (!websiteId) return next(new Error('websiteId is required on this route.'));
+  req.website = await getWebsiteForAccount(req.account.id, websiteId);
+  next();
+});

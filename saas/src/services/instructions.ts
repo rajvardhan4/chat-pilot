@@ -1,4 +1,4 @@
-import { db, nowIso, toBool } from '../db/index.ts';
+import { col, nowIso, toBool } from '../db/mongo.ts';
 import { newId } from '../core/crypto.ts';
 import { audit } from './audit.ts';
 import { getWebsiteForAccount } from './websites.ts';
@@ -26,35 +26,41 @@ export interface InstructionsRow {
   updated_at: string;
 }
 
-function hydrate(row: Record<string, unknown>): InstructionsRow {
+type InstructionsDoc = Omit<InstructionsRow, 'id' | 'allow_small_talk' | 'strict_grounding'> & {
+  _id: string;
+  allow_small_talk: unknown;
+  strict_grounding: unknown;
+};
+
+function hydrate(doc: InstructionsDoc): InstructionsRow {
+  const { _id, ...rest } = doc;
   return {
-    ...(row as unknown as InstructionsRow),
-    system_prompt: String(row.system_prompt || DEFAULT_SYSTEM_PROMPT),
-    fallback_response: String(row.fallback_response || DEFAULT_FALLBACK),
-    greeting_response: String(row.greeting_response || DEFAULT_GREETING),
-    generation_error_response: String(row.generation_error_response || DEFAULT_GENERATION_ERROR),
-    allow_small_talk: toBool(row.allow_small_talk),
-    strict_grounding: toBool(row.strict_grounding),
+    id: _id,
+    ...rest,
+    system_prompt: String(rest.system_prompt || DEFAULT_SYSTEM_PROMPT),
+    fallback_response: String(rest.fallback_response || DEFAULT_FALLBACK),
+    greeting_response: String(rest.greeting_response || DEFAULT_GREETING),
+    generation_error_response: String(rest.generation_error_response || DEFAULT_GENERATION_ERROR),
+    allow_small_talk: toBool(doc.allow_small_talk),
+    strict_grounding: toBool(doc.strict_grounding),
   };
 }
 
-export function getInstructions(accountId: string, websiteId: string): InstructionsRow {
-  const row = db.get<Record<string, unknown>>(
-    'SELECT * FROM ai_instructions WHERE website_id = ? AND account_id = ?',
-    websiteId, accountId,
-  );
+export async function getInstructions(accountId: string, websiteId: string): Promise<InstructionsRow> {
+  const row = await col<InstructionsDoc>('ai_instructions').findOne({ website_id: websiteId, account_id: accountId });
   if (row) return hydrate(row);
 
   const id = newId();
   const now = nowIso();
-  db.run(
-    `INSERT INTO ai_instructions (id, account_id, website_id, system_prompt, fallback_response,
-                                  greeting_response, generation_error_response, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    id, accountId, websiteId, DEFAULT_SYSTEM_PROMPT, DEFAULT_FALLBACK,
-    DEFAULT_GREETING, DEFAULT_GENERATION_ERROR, now, now,
-  );
-  return hydrate(db.get<Record<string, unknown>>('SELECT * FROM ai_instructions WHERE id = ?', id)!);
+  const doc = {
+    _id: id, account_id: accountId, website_id: websiteId,
+    business_name: '', system_prompt: DEFAULT_SYSTEM_PROMPT, tone: 'professional', answer_length: 'concise',
+    fallback_response: DEFAULT_FALLBACK, greeting_response: DEFAULT_GREETING,
+    generation_error_response: DEFAULT_GENERATION_ERROR, allow_small_talk: 1, strict_grounding: 1,
+    created_at: now, updated_at: now,
+  } as InstructionsDoc;
+  await col<InstructionsDoc>('ai_instructions').insertOne(doc);
+  return hydrate(doc);
 }
 
 export interface InstructionsPatch {
@@ -69,30 +75,24 @@ export interface InstructionsPatch {
   strict_grounding?: boolean;
 }
 
-export function updateInstructions(
+export async function updateInstructions(
   accountId: string,
   websiteId: string,
   patch: InstructionsPatch,
   actorId: string,
-): InstructionsRow {
-  getWebsiteForAccount(accountId, websiteId);
-  getInstructions(accountId, websiteId);
+): Promise<InstructionsRow> {
+  await getWebsiteForAccount(accountId, websiteId);
+  await getInstructions(accountId, websiteId);
 
-  const sets: string[] = [];
-  const params: unknown[] = [];
+  const set: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) continue;
-    sets.push(key + ' = ?');
-    params.push(typeof value === 'boolean' ? (value ? 1 : 0) : value);
+    set[key] = typeof value === 'boolean' ? (value ? 1 : 0) : value;
   }
-  if (sets.length) {
-    sets.push('updated_at = ?');
-    params.push(nowIso(), websiteId, accountId);
-    db.run(
-      `UPDATE ai_instructions SET ${sets.join(', ')} WHERE website_id = ? AND account_id = ?`,
-      ...params,
-    );
-    audit({
+  if (Object.keys(set).length) {
+    set.updated_at = nowIso();
+    await col('ai_instructions').updateOne({ website_id: websiteId, account_id: accountId }, { $set: set });
+    await audit({
       accountId, websiteId, actorType: 'user', actorId,
       action: 'instructions.updated', targetType: 'website', targetId: websiteId,
       metadata: { fields: Object.keys(patch) },
@@ -101,7 +101,7 @@ export function updateInstructions(
   return getInstructions(accountId, websiteId);
 }
 
-export function resetInstructions(accountId: string, websiteId: string, actorId: string): InstructionsRow {
+export async function resetInstructions(accountId: string, websiteId: string, actorId: string): Promise<InstructionsRow> {
   return updateInstructions(
     accountId, websiteId,
     {

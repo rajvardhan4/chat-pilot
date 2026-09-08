@@ -26,7 +26,7 @@ import { submitForm } from '../services/forms.ts';
 import { assertMessageQuota } from '../services/usage.ts';
 import { getInstructions } from '../services/instructions.ts';
 import { normaliseHost, originOf } from '../core/domain.ts';
-import { db, nowIso } from '../db/index.ts';
+import { col, nowIso } from '../db/mongo.ts';
 
 export const siteApiRouter: Router = Router();
 
@@ -59,7 +59,7 @@ siteApiRouter.post(
     const body = parseOrThrow(connectSchema, req.body ?? {});
     const site = req.site!;
 
-    recordConnection(site.website.id, body.plugin_version);
+    await recordConnection(site.website.id, body.plugin_version);
 
     const verification = await attemptOwnershipVerification(
       site.website.id,
@@ -67,7 +67,7 @@ siteApiRouter.post(
       site.website.verification_token,
     );
 
-    audit({
+    await audit({
       accountId: site.account.id,
       websiteId: site.website.id,
       actorType: 'site_key',
@@ -92,7 +92,7 @@ siteApiRouter.post(
           ownership_check: verification,
         },
         account: { id: site.account.id, name: site.account.name },
-        widget: publicWidgetConfig(site.account.id, site.website.id),
+        widget: await publicWidgetConfig(site.account.id, site.website.id),
         dashboard_url: env.APP_URL + '/app/websites/' + site.website.id,
         api_version: 'v1',
         server_time: nowIso(),
@@ -122,9 +122,9 @@ async function attemptOwnershipVerification(
     if (!response.ok) return 'unreachable';
     const payload = (await response.json()) as { token?: string };
     if (typeof payload?.token === 'string' && payload.token === expectedToken) {
-      db.run(
-        'UPDATE websites SET verified_at = ?, updated_at = ? WHERE id = ?',
-        nowIso(), nowIso(), websiteId,
+      await col('websites').updateOne(
+        { _id: websiteId as never },
+        { $set: { verified_at: nowIso(), updated_at: nowIso() } },
       );
       return 'verified';
     }
@@ -144,7 +144,7 @@ siteApiRouter.get(
   siteAuth(),
   asyncRoute(async (req, res) => {
     const site = req.site!;
-    const instructions = getInstructions(site.account.id, site.website.id);
+    const instructions = await getInstructions(site.account.id, site.website.id);
     res.json({
       ok: true,
       data: {
@@ -154,7 +154,7 @@ siteApiRouter.get(
           domain: site.website.primary_domain,
           status: site.website.status,
         },
-        widget: publicWidgetConfig(site.account.id, site.website.id),
+        widget: await publicWidgetConfig(site.account.id, site.website.id),
         // Visitor-facing copy only. The system prompt never leaves the server.
         messages: {
           fallback: instructions.fallback_response,
@@ -204,16 +204,16 @@ siteApiRouter.post(
     const site = req.site!;
     const body = parseOrThrow(chatSchema, req.body ?? {});
 
-    const widget = publicWidgetConfig(site.account.id, site.website.id);
+    const widget = await publicWidgetConfig(site.account.id, site.website.id);
     if (!widget.enabled) {
       throw new AppError('website_disabled', 'The chat widget is currently turned off for this website.');
     }
 
     try {
-      assertMessageQuota(site.account.id);
+      await assertMessageQuota(site.account.id);
     } catch (err) {
       // Surface a friendly, visitor-safe sentence rather than a raw quota error.
-      const instructions = getInstructions(site.account.id, site.website.id);
+      const instructions = await getInstructions(site.account.id, site.website.id);
       log.warn('Message quota reached.', { websiteId: site.website.id }, {
         accountId: site.account.id, websiteId: site.website.id,
       });
@@ -228,7 +228,7 @@ siteApiRouter.post(
       return;
     }
 
-    const history = getHistoryBySession(site.account.id, site.website.id, body.session_key, 20);
+    const history = await getHistoryBySession(site.account.id, site.website.id, body.session_key, 20);
 
     const response = await generateChatResponse(site.website, {
       accountId: site.account.id,
@@ -287,7 +287,7 @@ siteApiRouter.post(
     const site = req.site!;
     const body = parseOrThrow(submitSchema, req.body ?? {});
 
-    const result = submitForm(site.account.id, site.website.id, {
+    const result = await submitForm(site.account.id, site.website.id, {
       formId: body.form_id,
       values: body.fields as Record<string, unknown>,
       sessionKey: body.session_key,
@@ -307,14 +307,14 @@ siteApiRouter.get(
   siteAuth(),
   asyncRoute(async (req, res) => {
     const site = req.site!;
-    const config = db.get<{ active_provider: string; active_model: string }>(
-      'SELECT active_provider, active_model FROM ai_provider_configs WHERE website_id = ?',
-      site.website.id,
+    const config = await col<{ _id: string; active_provider: string; active_model: string }>('ai_provider_configs').findOne(
+      { website_id: site.website.id },
+      { projection: { active_provider: 1, active_model: 1 } },
     );
-    const documents = db.scalar<number>(
-      "SELECT COUNT(*) AS c FROM knowledge_documents WHERE website_id = ? AND status = 'enabled'",
-      site.website.id,
-    ) ?? 0;
+    const documents = await col('knowledge_documents').countDocuments({
+      website_id: site.website.id, status: 'enabled',
+    });
+    const widget = await publicWidgetConfig(site.account.id, site.website.id);
 
     res.json({
       ok: true,
@@ -324,7 +324,7 @@ siteApiRouter.get(
         account_status: site.account.status,
         provider_configured: Boolean(config?.active_provider && config?.active_model),
         knowledge_documents: documents,
-        widget_enabled: publicWidgetConfig(site.account.id, site.website.id).enabled,
+        widget_enabled: widget.enabled,
         api_version: 'v1',
         server_time: nowIso(),
       },
@@ -339,7 +339,7 @@ siteApiRouter.post(
   siteAuth(),
   asyncRoute(async (req, res) => {
     const site = req.site!;
-    audit({
+    await audit({
       accountId: site.account.id,
       websiteId: site.website.id,
       actorType: 'site_key',

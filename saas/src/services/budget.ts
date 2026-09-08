@@ -14,7 +14,7 @@
  * Crossing the alert threshold notifies once per period per threshold, so a
  * busy month cannot produce an email storm.
  */
-import { db, nowIso } from '../db/index.ts';
+import { col, nowIso } from '../db/mongo.ts';
 import { accountUsage, currentPeriod } from './usage.ts';
 import { enqueueNotification } from './notifications.ts';
 import { audit } from './audit.ts';
@@ -32,15 +32,15 @@ export interface BudgetStatus {
   period: string;
 }
 
-export function getBudgetStatus(accountId: string, period = currentPeriod()): BudgetStatus {
-  const row = db.get<{ monthly_budget_cents: number; budget_alert_percent: number }>(
-    'SELECT monthly_budget_cents, budget_alert_percent FROM accounts WHERE id = ?',
-    accountId,
+export async function getBudgetStatus(accountId: string, period = currentPeriod()): Promise<BudgetStatus> {
+  const row = await col<{ _id: string; monthly_budget_cents: number; budget_alert_percent: number }>('accounts').findOne(
+    { _id: accountId as never },
+    { projection: { monthly_budget_cents: 1, budget_alert_percent: 1 } },
   );
 
   const budget = Number(row?.monthly_budget_cents ?? 0) / 100;
   const alertPercent = Number(row?.budget_alert_percent ?? 80);
-  const spent = Number(accountUsage(accountId, period).estimatedCost.toFixed(4));
+  const spent = Number((await accountUsage(accountId, period)).estimatedCost.toFixed(4));
 
   if (budget <= 0) {
     return {
@@ -63,21 +63,21 @@ export function getBudgetStatus(accountId: string, period = currentPeriod()): Bu
   };
 }
 
-export function setBudget(
+export async function setBudget(
   accountId: string,
   budgetDollars: number,
   alertPercent: number,
   actorId: string,
-): BudgetStatus {
+): Promise<BudgetStatus> {
   const cents = Math.max(0, Math.round(budgetDollars * 100));
   const percent = Math.min(100, Math.max(1, Math.round(alertPercent)));
 
-  db.run(
-    'UPDATE accounts SET monthly_budget_cents = ?, budget_alert_percent = ?, updated_at = ? WHERE id = ?',
-    cents, percent, nowIso(), accountId,
+  await col('accounts').updateOne(
+    { _id: accountId as never },
+    { $set: { monthly_budget_cents: cents, budget_alert_percent: percent, updated_at: nowIso() } },
   );
 
-  audit({
+  await audit({
     accountId, actorType: 'user', actorId, action: 'budget.updated',
     targetType: 'account', targetId: accountId,
     metadata: { budget: cents / 100, alertPercent: percent },
@@ -90,18 +90,18 @@ export function setBudget(
  * Called after usage is recorded. Emits at most one notification per account,
  * per period, per threshold crossed.
  */
-export function checkBudgetThreshold(accountId: string): void {
-  const status = getBudgetStatus(accountId);
+export async function checkBudgetThreshold(accountId: string): Promise<void> {
+  const status = await getBudgetStatus(accountId);
   if (!status.configured || !status.alerting) return;
 
   const stage = status.overBudget ? 'exceeded' : 'warning';
-  const recipient = db.get<{ billing_email: string; name: string }>(
-    'SELECT billing_email, name FROM accounts WHERE id = ?',
-    accountId,
+  const recipient = await col<{ _id: string; billing_email: string; name: string }>('accounts').findOne(
+    { _id: accountId as never },
+    { projection: { billing_email: 1, name: 1 } },
   );
   if (!recipient?.billing_email) return;
 
-  enqueueNotification({
+  await enqueueNotification({
     accountId,
     type: 'budget.' + stage,
     severity: status.overBudget ? 'error' : 'warning',

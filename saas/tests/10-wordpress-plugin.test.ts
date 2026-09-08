@@ -16,7 +16,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createTenant, db, seedKnowledge, startServer, type Tenant, type TestServer } from './helpers.ts';
+import { col, createTenant, seedKnowledge, startServer, type Tenant, type TestServer } from './helpers.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const HARNESS = path.join(HERE, 'wp-harness', 'run.php');
@@ -156,11 +156,10 @@ describe('WordPress plugin against a live Chat Pilot server', { skip: PHP ? fals
     assert.ok(!step.masked_key.includes(tenant.siteKey));
   });
 
-  it('records the handshake on the SaaS side', () => {
-    const row = db.get<{ last_connected_at: string; connected_plugin_ver: string }>(
-      'SELECT last_connected_at, connected_plugin_ver FROM websites WHERE id = ?',
-      tenant.websiteId,
-    );
+  it('records the handshake on the SaaS side', async () => {
+    const row = await col<{ _id: string; last_connected_at: string; connected_plugin_ver: string }>(
+      'websites',
+    ).findOne({ _id: tenant.websiteId as never });
     assert.ok(row?.last_connected_at);
     assert.equal(row?.connected_plugin_ver, PLUGIN_VERSION);
   });
@@ -196,15 +195,14 @@ describe('WordPress plugin against a live Chat Pilot server', { skip: PHP ? fals
     assert.match(JSON.stringify(step.payload.fields ?? step.payload.message), /email/i);
   });
 
-  it('accepts a valid pre-chat submission', () => {
+  it('accepts a valid pre-chat submission', async () => {
     const step = harness.prechat_valid;
     assert.equal(step.ajax_ok, true, JSON.stringify(step));
     assert.ok(step.payload.submission_id);
 
-    const row = db.get<{ name: string; email: string; website_id: string }>(
-      'SELECT name, email, website_id FROM form_submissions WHERE id = ?',
-      step.payload.submission_id,
-    );
+    const row = await col<{ _id: string; name: string; email: string; website_id: string }>(
+      'form_submissions',
+    ).findOne({ _id: step.payload.submission_id });
     assert.equal(row?.name, 'Harness Visitor');
     assert.equal(row?.email, 'harness@visitor.example');
     assert.equal(row?.website_id, tenant.websiteId);
@@ -272,14 +270,15 @@ describe('WordPress plugin against a live Chat Pilot server', { skip: PHP ? fals
     assert.equal(step.is_connected, false);
   });
 
-  it('stored the conversation against the right visitor and website', () => {
-    const conversation = db.get<{
-      website_id: string; account_id: string; source: string;
+  it('stored the conversation against the right visitor and website', async () => {
+    const conversation = await col<{
+      _id: string; website_id: string; account_id: string; source: string;
       visitor_name: string; visitor_email: string; message_count: number; page_url: string;
-    }>(
-      "SELECT * FROM conversations WHERE website_id = ? AND source = 'widget' ORDER BY created_at ASC LIMIT 1",
-      tenant.websiteId,
-    );
+    }>('conversations')
+      .find({ website_id: tenant.websiteId, source: 'widget' })
+      .sort({ created_at: 1 })
+      .limit(1)
+      .next();
     assert.ok(conversation, 'a widget conversation should exist');
     assert.equal(conversation!.account_id, tenant.accountId);
     assert.equal(conversation!.visitor_name, 'Harness Visitor');
@@ -288,19 +287,20 @@ describe('WordPress plugin against a live Chat Pilot server', { skip: PHP ? fals
     assert.ok(conversation!.message_count >= 4);
   });
 
-  it('recorded usage and analytics for the plugin traffic', () => {
-    const usage = db.get<{ messages: number; ai_requests: number; total_tokens: number }>(
-      'SELECT messages, ai_requests, total_tokens FROM usage_records WHERE website_id = ?',
-      tenant.websiteId,
-    );
+  it('recorded usage and analytics for the plugin traffic', async () => {
+    const usage = await col<{ _id: string; messages: number; ai_requests: number; total_tokens: number }>(
+      'usage_records',
+    ).findOne({ website_id: tenant.websiteId });
     assert.ok(Number(usage?.ai_requests) >= 3);
     assert.ok(Number(usage?.total_tokens) > 0);
 
-    const sources = db.all<{ source: string; c: number }>(
-      'SELECT source, COUNT(*) AS c FROM ai_requests WHERE website_id = ? GROUP BY source',
-      tenant.websiteId,
-    );
-    assert.ok(sources.some((s) => s.source === 'widget'));
+    const sources = await col('ai_requests')
+      .aggregate<{ _id: string; c: number }>([
+        { $match: { website_id: tenant.websiteId } },
+        { $group: { _id: '$source', c: { $sum: 1 } } },
+      ])
+      .toArray();
+    assert.ok(sources.some((s) => s._id === 'widget'));
   });
 });
 

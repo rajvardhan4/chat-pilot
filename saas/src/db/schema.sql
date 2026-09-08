@@ -1,6 +1,13 @@
 -- ===========================================================================
 --  CHAT PILOT SAAS - MULTI-TENANT RELATIONAL SCHEMA (v1)
 --
+--  HISTORICAL REFERENCE ONLY - NOT LOADED BY ANY CODE.
+--  The database is MongoDB (see src/db/mongo.ts, which carries every UNIQUE
+--  constraint and index below as an explicit index definition). This file is
+--  kept because it is still the clearest statement of the field semantics the
+--  collections inherited - in particular which columns were booleans stored
+--  as INTEGER 0/1, a convention the documents still follow.
+--
 --  Tenancy model
 --  -------------
 --    account            = the tenant (a customer company)

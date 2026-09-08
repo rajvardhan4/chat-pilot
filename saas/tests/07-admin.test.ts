@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {
   PortalClient,
   SiteClient,
+  col,
   createTenant,
-  db,
   seedKnowledge,
   startServer,
   type Tenant,
@@ -130,7 +130,7 @@ describe('Master Admin controls', () => {
     assert.equal(attempt.status, 302);
     assert.match(attempt.headers.get('location') ?? '', /error=/);
     assert.equal(
-      db.get<{ status: string }>('SELECT status FROM websites WHERE id = ?', tenant.websiteId)?.status,
+      (await col<{ _id: string; status: string }>('websites').findOne({ _id: tenant.websiteId as never }))?.status,
       'suspended',
     );
 
@@ -142,34 +142,36 @@ describe('Master Admin controls', () => {
   });
 
   it('revokes a site key from the platform side', async () => {
-    const key = db.get<{ id: string }>(
-      "SELECT id FROM site_api_credentials WHERE website_id = ? AND status = 'active'",
-      tenant.websiteId,
-    );
+    const key = await col<{ _id: string }>('site_api_credentials').findOne({
+      website_id: tenant.websiteId,
+      status: 'active',
+    });
     await admin.refreshCsrf('/admin/accounts/' + tenant.accountId);
-    const res = await admin.postForm('/admin/keys/' + key!.id + '/revoke', {});
+    const res = await admin.postForm('/admin/keys/' + key!._id + '/revoke', {});
     assert.equal(res.status, 302);
 
     const blocked = await site.get('/api/v1/site/health');
     assert.equal(blocked.status, 401);
     assert.equal(blocked.body.error.code, 'site_key_revoked');
 
-    const entry = db.get<{ actor_type: string }>(
-      "SELECT actor_type FROM audit_logs WHERE action = 'site_key.admin_revoked' ORDER BY created_at DESC LIMIT 1",
-    );
+    const entry = await col<{ _id: string; actor_type: string }>('audit_logs')
+      .find({ action: 'site_key.admin_revoked' })
+      .sort({ created_at: -1 })
+      .limit(1)
+      .next();
     assert.equal(entry?.actor_type, 'super_admin');
   });
 
   it('changes a plan and the new limit takes effect', async () => {
-    const growth = db.get<{ id: string }>("SELECT id FROM plans WHERE slug = 'growth'");
+    const growth = await col<{ _id: string }>('plans').findOne({ slug: 'growth' });
     await admin.refreshCsrf('/admin/accounts/' + tenant.accountId);
     const res = await admin.postForm('/admin/accounts/' + tenant.accountId + '/plan', {
-      plan_id: growth!.id,
+      plan_id: growth!._id,
     });
     assert.equal(res.status, 302);
 
     const { planLimitFor } = await import('../src/services/websites.ts');
-    assert.equal(planLimitFor(tenant.accountId, 'max_websites'), 5);
+    assert.equal(await planLimitFor(tenant.accountId, 'max_websites'), 5);
   });
 
   it('creates a plan and updates model pricing', async () => {
@@ -180,7 +182,7 @@ describe('Master Admin controls', () => {
       max_messages_month: '500000', max_storage_mb: '20000', is_active: 'true',
     });
     assert.equal(plan.status, 302);
-    assert.ok(db.get("SELECT id FROM plans WHERE slug = 'enterprise'"));
+    assert.ok(await col('plans').findOne({ slug: 'enterprise' }));
 
     const pricing = await admin.postForm('/admin/pricing', {
       rates: JSON.stringify({ 'mock-small': { input: 1.5, output: 4.5 } }),
@@ -188,7 +190,7 @@ describe('Master Admin controls', () => {
     assert.equal(pricing.status, 302);
 
     const { rateFor } = await import('../src/services/pricing.ts');
-    assert.deepEqual(rateFor('mock-small'), { input: 1.5, output: 4.5 });
+    assert.deepEqual(await rateFor('mock-small'), { input: 1.5, output: 4.5 });
   });
 
   it('rejects malformed pricing JSON without changing anything', async () => {
@@ -198,16 +200,15 @@ describe('Master Admin controls', () => {
     assert.match(res.headers.get('location') ?? '', /error=/);
 
     const { rateFor } = await import('../src/services/pricing.ts');
-    assert.deepEqual(rateFor('mock-small'), { input: 1.5, output: 4.5 });
+    assert.deepEqual(await rateFor('mock-small'), { input: 1.5, output: 4.5 });
   });
 
   it('suspends a user and kills their session', async () => {
-    const user = db.get<{ id: string }>(
-      'SELECT u.id FROM users u JOIN account_members m ON m.user_id = u.id WHERE m.account_id = ?',
-      tenant.accountId,
-    );
+    const membership = await col<{ _id: string; user_id: string }>('account_members').findOne({
+      account_id: tenant.accountId,
+    });
     await admin.refreshCsrf('/admin/accounts/' + tenant.accountId);
-    const res = await admin.postForm('/admin/users/' + user!.id + '/status', { status: 'suspended' });
+    const res = await admin.postForm('/admin/users/' + membership!.user_id + '/status', { status: 'suspended' });
     assert.equal(res.status, 302);
 
     const locked = await tenant.client.get('/app');
@@ -236,7 +237,7 @@ describe('Admin authorisation', () => {
     });
     assert.equal(res.status, 403);
     assert.equal(
-      db.get<{ status: string }>('SELECT status FROM accounts WHERE id = ?', tenant.accountId)?.status,
+      (await col<{ _id: string; status: string }>('accounts').findOne({ _id: tenant.accountId as never }))?.status,
       'active',
     );
   });

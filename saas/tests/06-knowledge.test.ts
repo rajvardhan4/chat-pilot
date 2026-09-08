@@ -1,7 +1,7 @@
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { deflateRawSync } from 'node:zlib';
-import { createTenant, db, startServer, type Tenant, type TestServer } from './helpers.ts';
+import { col, createTenant, startServer, type Tenant, type TestServer } from './helpers.ts';
 
 let server: TestServer;
 let tenant: Tenant;
@@ -30,10 +30,9 @@ describe('Manual knowledge and FAQs', () => {
     assert.equal(res.status, 200);
     assert.equal(res.body.data.stats.byType.manual.total, 1);
 
-    const doc = db.get<{ title: string; source_type: string; word_count: number; account_id: string }>(
-      'SELECT title, source_type, word_count, account_id FROM knowledge_documents WHERE website_id = ?',
-      tenant.websiteId,
-    );
+    const doc = await col<{ _id: string; title: string; source_type: string; word_count: number; account_id: string }>(
+      'knowledge_documents',
+    ).findOne({ website_id: tenant.websiteId });
     assert.equal(doc?.source_type, 'manual');
     assert.equal(doc?.account_id, tenant.accountId);
     assert.ok((doc?.word_count ?? 0) > 5);
@@ -51,40 +50,39 @@ describe('Manual knowledge and FAQs', () => {
     });
     assert.equal(res.status, 200);
 
-    const doc = db.get<{ content: string; source_type: string; category: string }>(
-      "SELECT content, source_type, category FROM knowledge_documents WHERE source_type = 'faq' AND website_id = ?",
-      tenant.websiteId,
-    );
+    const doc = await col<{ _id: string; content: string; source_type: string; category: string }>(
+      'knowledge_documents',
+    ).findOne({ source_type: 'faq', website_id: tenant.websiteId });
     assert.equal(doc?.source_type, 'faq');
     assert.equal(doc?.category, 'FAQ');
     assert.match(doc!.content, /^Question: Do you charge for quotes\?\nAnswer: No\./);
   });
 
   it('enables, disables and deletes a document', async () => {
-    const doc = db.get<{ id: string }>(
-      "SELECT id FROM knowledge_documents WHERE website_id = ? AND source_type = 'manual'",
-      tenant.websiteId,
-    );
+    const doc = await col<{ _id: string }>('knowledge_documents').findOne({
+      website_id: tenant.websiteId,
+      source_type: 'manual',
+    });
 
-    const disabled = await api('/knowledge/documents/' + doc!.id + '/status', { status: 'disabled' });
+    const disabled = await api('/knowledge/documents/' + doc!._id + '/status', { status: 'disabled' });
     assert.equal(disabled.status, 200);
-    assert.equal(
-      db.get<{ status: string }>('SELECT status FROM knowledge_documents WHERE id = ?', doc!.id)?.status,
-      'disabled',
-    );
+    const afterDisable = await col<{ _id: string; status: string }>('knowledge_documents').findOne({
+      _id: doc!._id as never,
+    });
+    assert.equal(afterDisable?.status, 'disabled');
 
     // A disabled document must not be retrievable.
     const search = await api('/knowledge/test-retrieval', { query: 'opening hours Monday Friday' });
     const titles = search.body.data.results.map((r: { title: string }) => r.title);
     assert.ok(!titles.includes('Opening hours'));
 
-    await api('/knowledge/documents/' + doc!.id + '/status', { status: 'enabled' });
+    await api('/knowledge/documents/' + doc!._id + '/status', { status: 'enabled' });
     const reSearch = await api('/knowledge/test-retrieval', { query: 'opening hours Monday Friday' });
     assert.ok(reSearch.body.data.results.some((r: { title: string }) => r.title === 'Opening hours'));
 
-    const deleted = await api('/knowledge/documents/' + doc!.id + '/delete', {});
+    const deleted = await api('/knowledge/documents/' + doc!._id + '/delete', {});
     assert.equal(deleted.status, 200);
-    assert.equal(db.get('SELECT id FROM knowledge_documents WHERE id = ?', doc!.id), undefined);
+    assert.equal(await col('knowledge_documents').findOne({ _id: doc!._id as never }), null);
   });
 });
 
@@ -148,9 +146,9 @@ describe('Document uploads', () => {
     );
     assert.equal(res.status, 200);
 
-    const doc = db.get<{ content: string }>(
-      "SELECT content FROM knowledge_documents WHERE title = 'handbook.docx'",
-    );
+    const doc = await col<{ _id: string; content: string }>('knowledge_documents').findOne({
+      title: 'handbook.docx',
+    });
     assert.match(doc!.content, /Emergency boiler repair is available within four hours/);
   });
 
@@ -162,13 +160,13 @@ describe('Document uploads', () => {
 
     // Nothing must be indexed: a "could not read this" note would otherwise be
     // retrievable and could be quoted back at a visitor.
-    assert.equal(db.get("SELECT id FROM knowledge_documents WHERE title = 'scanned.pdf'"), undefined);
+    assert.equal(await col('knowledge_documents').findOne({ title: 'scanned.pdf' }), null);
   });
 
-  it('stores uploads under an opaque per-tenant path', () => {
-    const file = db.get<{ stored_path: string; original_name: string }>(
-      "SELECT stored_path, original_name FROM uploaded_files WHERE original_name = 'services.txt'",
-    );
+  it('stores uploads under an opaque per-tenant path', async () => {
+    const file = await col<{ _id: string; stored_path: string; original_name: string }>('uploaded_files').findOne({
+      original_name: 'services.txt',
+    });
     assert.ok(file);
     assert.ok(file!.stored_path.includes(tenant.accountId));
     assert.ok(file!.stored_path.includes(tenant.websiteId));
@@ -187,7 +185,7 @@ describe('Website scanner', () => {
 
   it('imports pre-fetched pages through the same ingestion path', async () => {
     const { importPages } = await import('../src/services/knowledge.ts');
-    const summary = importPages(tenant.accountId, tenant.websiteId, 'kb.example.com', [
+    const summary = await importPages(tenant.accountId, tenant.websiteId, 'kb.example.com', [
       {
         url: 'https://kb.example.com/about',
         title: 'About our company',
@@ -201,9 +199,9 @@ describe('Website scanner', () => {
     ]);
     assert.equal(summary.pagesImported, 2);
 
-    const categories = db.all<{ title: string; category: string }>(
-      "SELECT title, category FROM knowledge_documents WHERE source_type = 'website'",
-    );
+    const categories = await col<{ _id: string; title: string; category: string }>('knowledge_documents')
+      .find({ source_type: 'website' })
+      .toArray();
     assert.equal(categories.find((c) => c.title === 'About our company')?.category, 'Company');
     assert.equal(categories.find((c) => c.title === 'Contact us')?.category, 'Contact');
   });

@@ -4,7 +4,7 @@
  * Validation runs server-side on the SaaS, so a tampered widget cannot bypass
  * required fields or inject extra columns.
  */
-import { db, nowIso, toBool } from '../db/index.ts';
+import { col, nowIso, toBool, withTransaction } from '../db/mongo.ts';
 import { conflict, notFound, validationFailed } from '../core/errors.ts';
 import { newId } from '../core/crypto.ts';
 import { stripControlChars } from '../core/validate.ts';
@@ -44,53 +44,58 @@ export interface FormWithFields extends FormRow {
   fields: FormFieldRow[];
 }
 
-export function listForms(accountId: string, websiteId: string): FormWithFields[] {
-  const forms = db.all<FormRow>(
-    'SELECT * FROM forms WHERE website_id = ? AND account_id = ? ORDER BY is_default DESC, created_at ASC',
-    websiteId, accountId,
-  );
-  return forms.map((f) => ({ ...f, fields: listFields(f.id) }));
+type FieldDoc = Omit<FormFieldRow, 'id'> & { _id: string; account_id: string; website_id: string };
+type FormDoc = Omit<FormRow, 'id'> & { _id: string };
+
+function toFieldRow(d: FieldDoc): FormFieldRow {
+  return {
+    id: d._id, form_id: d.form_id, field_key: d.field_key, type: d.type, label: d.label,
+    placeholder: d.placeholder, options: d.options, required: d.required, enabled: d.enabled, sort_order: d.sort_order,
+  };
+}
+function toFormRow(d: FormDoc): FormRow {
+  const { _id, ...rest } = d;
+  return { id: _id, ...rest };
 }
 
-export function listFields(formId: string): FormFieldRow[] {
-  return db.all<FormFieldRow>(
-    'SELECT * FROM form_fields WHERE form_id = ? ORDER BY sort_order ASC',
-    formId,
-  );
+export async function listForms(accountId: string, websiteId: string): Promise<FormWithFields[]> {
+  const forms = await col<FormDoc>('forms')
+    .find({ website_id: websiteId, account_id: accountId })
+    .sort({ is_default: -1, created_at: 1 })
+    .toArray();
+  const out: FormWithFields[] = [];
+  for (const f of forms) out.push({ ...toFormRow(f), fields: await listFields(f._id) });
+  return out;
 }
 
-export function getForm(accountId: string, websiteId: string, formId: string): FormWithFields {
-  const form = db.get<FormRow>(
-    'SELECT * FROM forms WHERE id = ? AND website_id = ? AND account_id = ?',
-    formId, websiteId, accountId,
-  );
+export async function listFields(formId: string): Promise<FormFieldRow[]> {
+  const docs = await col<FieldDoc>('form_fields').find({ form_id: formId }).sort({ sort_order: 1 }).toArray();
+  return docs.map(toFieldRow);
+}
+
+export async function getForm(accountId: string, websiteId: string, formId: string): Promise<FormWithFields> {
+  const form = await col<FormDoc>('forms').findOne({ _id: formId as never, website_id: websiteId, account_id: accountId });
   if (!form) throw notFound('Form not found.');
-  return { ...form, fields: listFields(form.id) };
+  return { ...toFormRow(form), fields: await listFields(form._id) };
 }
 
 /** The form the widget should render, honouring widget_settings.active_form_id. */
-export function getActiveForm(accountId: string, websiteId: string): FormWithFields | null {
-  const settings = db.get<{ active_form_id: string | null }>(
-    'SELECT active_form_id FROM widget_settings WHERE website_id = ? AND account_id = ?',
-    websiteId, accountId,
+export async function getActiveForm(accountId: string, websiteId: string): Promise<FormWithFields | null> {
+  const settings = await col<{ _id: string; active_form_id: string | null }>('widget_settings').findOne(
+    { website_id: websiteId, account_id: accountId },
+    { projection: { active_form_id: 1 } },
   );
-  let form: FormRow | undefined;
+  let form: FormDoc | null = null;
   if (settings?.active_form_id) {
-    form = db.get<FormRow>(
-      "SELECT * FROM forms WHERE id = ? AND website_id = ? AND status = 'active'",
-      settings.active_form_id, websiteId,
-    );
+    form = await col<FormDoc>('forms').findOne({ _id: settings.active_form_id as never, website_id: websiteId, status: 'active' });
   }
   if (!form) {
-    form = db.get<FormRow>(
-      "SELECT * FROM forms WHERE website_id = ? AND account_id = ? AND is_default = 1 AND status = 'active' LIMIT 1",
-      websiteId, accountId,
-    );
+    form = await col<FormDoc>('forms').findOne({ website_id: websiteId, account_id: accountId, is_default: 1, status: 'active' });
   }
   if (!form) return null;
-  const fields = listFields(form.id).filter((f) => toBool(f.enabled));
+  const fields = (await listFields(form._id)).filter((f) => toBool(f.enabled));
   if (!fields.length) return null;
-  return { ...form, fields };
+  return { ...toFormRow(form), fields };
 }
 
 export interface FieldInput {
@@ -112,13 +117,13 @@ function normaliseKey(input: string, index: number): string {
   return key || 'field_' + (index + 1);
 }
 
-export function saveForm(
+export async function saveForm(
   accountId: string,
   websiteId: string,
   input: { formId?: string; name: string; status?: 'active' | 'inactive'; fields: FieldInput[] },
   actorId: string,
-): FormWithFields {
-  getWebsiteForAccount(accountId, websiteId);
+): Promise<FormWithFields> {
+  await getWebsiteForAccount(accountId, websiteId);
   const name = input.name.trim();
   if (!name) throw validationFailed('Give this form a name.', { name: 'A form name is required.' });
   if (!input.fields.length) {
@@ -153,53 +158,57 @@ export function saveForm(
   const now = nowIso();
   const formId = input.formId ?? newId();
 
-  db.tx(() => {
+  await withTransaction(async (session) => {
     if (input.formId) {
-      const existing = db.get<FormRow>(
-        'SELECT * FROM forms WHERE id = ? AND website_id = ? AND account_id = ?',
-        input.formId, websiteId, accountId,
+      const existing = await col<FormDoc>('forms').findOne(
+        { _id: input.formId as never, website_id: websiteId, account_id: accountId },
+        { session },
       );
       if (!existing) throw notFound('Form not found.');
-      db.run(
-        'UPDATE forms SET name = ?, status = ?, updated_at = ? WHERE id = ?',
-        name, input.status ?? existing.status, now, formId,
+      await col('forms').updateOne(
+        { _id: formId as never },
+        { $set: { name, status: input.status ?? existing.status, updated_at: now } },
+        { session },
       );
-      db.run('DELETE FROM form_fields WHERE form_id = ?', formId);
+      await col('form_fields').deleteMany({ form_id: formId }, { session });
     } else {
-      db.run(
-        `INSERT INTO forms (id, account_id, website_id, name, is_default, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 0, ?, ?, ?)`,
-        formId, accountId, websiteId, name, input.status ?? 'active', now, now,
+      await col<FormDoc>('forms').insertOne(
+        {
+          _id: formId, account_id: accountId, website_id: websiteId, name,
+          is_default: 0, status: input.status ?? 'active', created_at: now, updated_at: now,
+        },
+        { session },
       );
     }
 
     for (const f of fields) {
-      db.run(
-        `INSERT INTO form_fields
-           (id, account_id, website_id, form_id, field_key, type, label, placeholder, options, required, enabled, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        newId(), accountId, websiteId, formId, f.key, f.type, f.label,
-        f.placeholder, f.options, f.required, f.enabled, f.order,
+      await col<FieldDoc>('form_fields').insertOne(
+        {
+          _id: newId(), account_id: accountId, website_id: websiteId, form_id: formId,
+          field_key: f.key, type: f.type, label: f.label, placeholder: f.placeholder,
+          options: f.options, required: f.required, enabled: f.enabled, sort_order: f.order,
+        },
+        { session },
       );
     }
   });
 
-  audit({
+  await audit({
     accountId, websiteId, actorType: 'user', actorId,
     action: input.formId ? 'form.updated' : 'form.created', targetType: 'form', targetId: formId,
   });
   return getForm(accountId, websiteId, formId);
 }
 
-export function setDefaultForm(accountId: string, websiteId: string, formId: string): void {
-  getForm(accountId, websiteId, formId);
-  db.tx(() => {
-    db.run('UPDATE forms SET is_default = 0 WHERE website_id = ? AND account_id = ?', websiteId, accountId);
-    db.run('UPDATE forms SET is_default = 1 WHERE id = ?', formId);
-    db.run(
-      `UPDATE widget_settings SET active_form_id = ?, prechat_enabled = 1, updated_at = ?
-        WHERE website_id = ? AND account_id = ?`,
-      formId, nowIso(), websiteId, accountId,
+export async function setDefaultForm(accountId: string, websiteId: string, formId: string): Promise<void> {
+  await getForm(accountId, websiteId, formId);
+  await withTransaction(async (session) => {
+    await col('forms').updateMany({ website_id: websiteId, account_id: accountId }, { $set: { is_default: 0 } }, { session });
+    await col('forms').updateOne({ _id: formId as never }, { $set: { is_default: 1 } }, { session });
+    await col('widget_settings').updateOne(
+      { website_id: websiteId, account_id: accountId },
+      { $set: { active_form_id: formId, prechat_enabled: 1, updated_at: nowIso() } },
+      { session },
     );
   });
 }
@@ -209,17 +218,21 @@ export function setDefaultForm(accountId: string, websiteId: string, formId: str
  * form" instruction, not "fall back to the default" - the two states are
  * different and visitors must see the difference.
  */
-export function setActiveForm(accountId: string, websiteId: string, formId: string | null): void {
-  if (formId) getForm(accountId, websiteId, formId);
-  db.run(
-    `UPDATE widget_settings SET active_form_id = ?, prechat_enabled = ?, updated_at = ?
-      WHERE website_id = ? AND account_id = ?`,
-    formId, formId ? 1 : 0, nowIso(), websiteId, accountId,
+export async function setActiveForm(accountId: string, websiteId: string, formId: string | null): Promise<void> {
+  if (formId) await getForm(accountId, websiteId, formId);
+  await col('widget_settings').updateOne(
+    { website_id: websiteId, account_id: accountId },
+    { $set: { active_form_id: formId, prechat_enabled: formId ? 1 : 0, updated_at: nowIso() } },
   );
 }
 
-export function duplicateForm(accountId: string, websiteId: string, formId: string, actorId: string): FormWithFields {
-  const source = getForm(accountId, websiteId, formId);
+export async function duplicateForm(
+  accountId: string,
+  websiteId: string,
+  formId: string,
+  actorId: string,
+): Promise<FormWithFields> {
+  const source = await getForm(accountId, websiteId, formId);
   return saveForm(
     accountId, websiteId,
     {
@@ -239,24 +252,31 @@ export function duplicateForm(accountId: string, websiteId: string, formId: stri
   );
 }
 
-export function deleteForm(accountId: string, websiteId: string, formId: string): void {
-  const form = getForm(accountId, websiteId, formId);
-  const count = db.scalar<number>(
-    'SELECT COUNT(*) AS c FROM forms WHERE website_id = ? AND account_id = ?', websiteId, accountId,
-  ) ?? 0;
+export async function deleteForm(accountId: string, websiteId: string, formId: string): Promise<void> {
+  const form = await getForm(accountId, websiteId, formId);
+  const count = await col('forms').countDocuments({ website_id: websiteId, account_id: accountId });
   if (count <= 1) throw conflict('You cannot delete the only form for this website.');
 
-  db.tx(() => {
-    db.run('DELETE FROM forms WHERE id = ? AND website_id = ? AND account_id = ?', formId, websiteId, accountId);
+  await withTransaction(async (session) => {
+    await col('form_fields').deleteMany({ form_id: formId }, { session });
+    await col('form_submissions').deleteMany({ form_id: formId }, { session });
+    await col('forms').deleteOne({ _id: formId as never, website_id: websiteId, account_id: accountId }, { session });
     if (form.is_default) {
-      const next = db.get<{ id: string }>(
-        'SELECT id FROM forms WHERE website_id = ? AND account_id = ? LIMIT 1', websiteId, accountId,
-      );
-      if (next) setDefaultForm(accountId, websiteId, next.id);
+      const next = await col<FormDoc>('forms').findOne({ website_id: websiteId, account_id: accountId }, { session });
+      if (next) {
+        await col('forms').updateMany({ website_id: websiteId, account_id: accountId }, { $set: { is_default: 0 } }, { session });
+        await col('forms').updateOne({ _id: next._id as never }, { $set: { is_default: 1 } }, { session });
+        await col('widget_settings').updateOne(
+          { website_id: websiteId, account_id: accountId },
+          { $set: { active_form_id: next._id, prechat_enabled: 1, updated_at: nowIso() } },
+          { session },
+        );
+      }
     }
-    db.run(
-      'UPDATE widget_settings SET active_form_id = NULL WHERE website_id = ? AND active_form_id = ?',
-      websiteId, formId,
+    await col('widget_settings').updateOne(
+      { website_id: websiteId, active_form_id: formId },
+      { $set: { active_form_id: null } },
+      { session },
     );
   });
 }
@@ -276,7 +296,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
  * Validates a visitor submission against the form definition on the server.
  * Unknown keys are dropped; required and format rules are enforced here.
  */
-export function submitForm(
+export async function submitForm(
   accountId: string,
   websiteId: string,
   input: {
@@ -286,8 +306,8 @@ export function submitForm(
     pageUrl?: string;
     visitorKey?: string;
   },
-): SubmissionResult {
-  const form = getForm(accountId, websiteId, input.formId);
+): Promise<SubmissionResult> {
+  const form = await getForm(accountId, websiteId, input.formId);
   if (form.status !== 'active') throw notFound('This form is no longer available.');
 
   const errors: Record<string, string> = {};
@@ -333,36 +353,37 @@ export function submitForm(
   const email = clean.email ?? '';
   const phone = clean.phone ?? '';
 
-  const conversation = db.get<{ id: string }>(
-    'SELECT id FROM conversations WHERE website_id = ? AND session_key = ?',
-    websiteId, input.sessionKey,
+  const conversation = await col<{ _id: string }>('conversations').findOne(
+    { website_id: websiteId, session_key: input.sessionKey },
+    { projection: { _id: 1 } },
   );
   const visitor = input.visitorKey
-    ? db.get<{ id: string }>('SELECT id FROM visitors WHERE website_id = ? AND visitor_key = ?', websiteId, input.visitorKey)
+    ? await col<{ _id: string }>('visitors').findOne({ website_id: websiteId, visitor_key: input.visitorKey }, { projection: { _id: 1 } })
     : undefined;
 
-  db.run(
-    `INSERT INTO form_submissions
-       (id, account_id, website_id, form_id, conversation_id, visitor_id, session_key,
-        name, email, phone, fields, page_url, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    id, accountId, websiteId, form.id, conversation?.id ?? null, visitor?.id ?? null,
-    input.sessionKey, name, email, phone, JSON.stringify(clean),
-    (input.pageUrl ?? '').slice(0, 2000), nowIso(),
-  );
+  await col('form_submissions').insertOne({
+    _id: id,
+    account_id: accountId,
+    website_id: websiteId,
+    form_id: form.id,
+    conversation_id: conversation?._id ?? null,
+    visitor_id: visitor?._id ?? null,
+    session_key: input.sessionKey,
+    name, email, phone,
+    fields: JSON.stringify(clean),
+    page_url: (input.pageUrl ?? '').slice(0, 2000),
+    created_at: nowIso(),
+  });
 
   if (conversation) {
-    db.run(
-      `UPDATE conversations SET form_id = ?,
-              visitor_name  = CASE WHEN ? <> '' THEN ? ELSE visitor_name END,
-              visitor_email = CASE WHEN ? <> '' THEN ? ELSE visitor_email END,
-              visitor_phone = CASE WHEN ? <> '' THEN ? ELSE visitor_phone END
-        WHERE id = ? AND website_id = ?`,
-      form.id, name, name, email, email, phone, phone, conversation.id, websiteId,
-    );
+    const set: Record<string, unknown> = { form_id: form.id };
+    if (name) set.visitor_name = name;
+    if (email) set.visitor_email = email;
+    if (phone) set.visitor_phone = phone;
+    await col('conversations').updateOne({ _id: conversation._id as never, website_id: websiteId }, { $set: set });
   }
 
-  notifyNewLead({
+  await notifyNewLead({
     account_id: accountId, website_id: websiteId, id,
     name, email, phone, page_url: input.pageUrl ?? '',
   });
@@ -385,43 +406,44 @@ export interface SubmissionRow {
   created_at: string;
 }
 
-export function listSubmissions(
+type SubmissionDoc = Omit<SubmissionRow, 'id'> & { _id: string };
+
+function toSubmissionRow(d: SubmissionDoc): SubmissionRow {
+  const { _id, ...rest } = d;
+  return { id: _id, ...rest };
+}
+
+export async function listSubmissions(
   accountId: string,
   websiteId: string,
   filter: { formId?: string; search?: string; limit?: number; offset?: number } = {},
-): SubmissionRow[] {
-  const where = ['website_id = ?', 'account_id = ?'];
-  const params: unknown[] = [websiteId, accountId];
-  if (filter.formId) {
-    where.push('form_id = ?');
-    params.push(filter.formId);
-  }
+): Promise<SubmissionRow[]> {
+  const query: Record<string, unknown> = { website_id: websiteId, account_id: accountId };
+  if (filter.formId) query.form_id = filter.formId;
   if (filter.search) {
-    where.push('(name LIKE ? OR email LIKE ? OR phone LIKE ?)');
-    const like = '%' + filter.search.replace(/[%_]/g, '') + '%';
-    params.push(like, like, like);
+    const pattern = filter.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    query.$or = [
+      { name: { $regex: pattern, $options: 'i' } },
+      { email: { $regex: pattern, $options: 'i' } },
+      { phone: { $regex: pattern, $options: 'i' } },
+    ];
   }
-  params.push(Math.min(filter.limit ?? 50, 200), filter.offset ?? 0);
-  return db.all<SubmissionRow>(
-    `SELECT * FROM form_submissions WHERE ${where.join(' AND ')}
-      ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-    ...params,
-  );
+  const docs = await col<SubmissionDoc>('form_submissions')
+    .find(query)
+    .sort({ created_at: -1 })
+    .skip(filter.offset ?? 0)
+    .limit(Math.min(filter.limit ?? 50, 200))
+    .toArray();
+  return docs.map(toSubmissionRow);
 }
 
-export function getSubmission(accountId: string, websiteId: string, id: string): SubmissionRow {
-  const row = db.get<SubmissionRow>(
-    'SELECT * FROM form_submissions WHERE id = ? AND website_id = ? AND account_id = ?',
-    id, websiteId, accountId,
-  );
+export async function getSubmission(accountId: string, websiteId: string, id: string): Promise<SubmissionRow> {
+  const row = await col<SubmissionDoc>('form_submissions').findOne({ _id: id as never, website_id: websiteId, account_id: accountId });
   if (!row) throw notFound('Submission not found.');
-  return row;
+  return toSubmissionRow(row);
 }
 
-export function deleteSubmission(accountId: string, websiteId: string, id: string): void {
-  getSubmission(accountId, websiteId, id);
-  db.run(
-    'DELETE FROM form_submissions WHERE id = ? AND website_id = ? AND account_id = ?',
-    id, websiteId, accountId,
-  );
+export async function deleteSubmission(accountId: string, websiteId: string, id: string): Promise<void> {
+  await getSubmission(accountId, websiteId, id);
+  await col('form_submissions').deleteOne({ _id: id as never, website_id: websiteId, account_id: accountId });
 }

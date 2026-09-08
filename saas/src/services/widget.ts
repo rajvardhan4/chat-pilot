@@ -5,7 +5,7 @@
  * hands to the browser. It is an explicit allow-list: nothing is spread in
  * from a database row, so a new column can never leak to visitors by accident.
  */
-import { db, nowIso, toBool } from '../db/index.ts';
+import { col, nowIso, toBool } from '../db/mongo.ts';
 import { newId } from '../core/crypto.ts';
 import { audit } from './audit.ts';
 import { getWebsiteForAccount } from './websites.ts';
@@ -34,19 +34,27 @@ export interface WidgetSettingsRow {
   updated_at: string;
 }
 
-export function getWidgetSettings(accountId: string, websiteId: string): WidgetSettingsRow {
-  const row = db.get<WidgetSettingsRow>(
-    'SELECT * FROM widget_settings WHERE website_id = ? AND account_id = ?',
-    websiteId, accountId,
-  );
-  if (row) return row;
+type WidgetDoc = Omit<WidgetSettingsRow, 'id'> & { _id: string };
+
+function toWidgetRow(d: WidgetDoc): WidgetSettingsRow {
+  const { _id, ...rest } = d;
+  return { id: _id, ...rest };
+}
+
+export async function getWidgetSettings(accountId: string, websiteId: string): Promise<WidgetSettingsRow> {
+  const row = await col<WidgetDoc>('widget_settings').findOne({ website_id: websiteId, account_id: accountId });
+  if (row) return toWidgetRow(row);
   const id = newId();
   const now = nowIso();
-  db.run(
-    'INSERT INTO widget_settings (id, account_id, website_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-    id, accountId, websiteId, now, now,
-  );
-  return db.get<WidgetSettingsRow>('SELECT * FROM widget_settings WHERE id = ?', id)!;
+  const doc: WidgetDoc = {
+    _id: id, account_id: accountId, website_id: websiteId,
+    enabled: 1, display_name: 'Chat Pilot', position: 'bottom-right', primary_color: '#0678f9',
+    logo_url: '', welcome_message: 'Hi there! How can I help you today?', placeholder_text: 'Ask a question...',
+    suggested_questions: '', enable_typing: 1, enable_streaming: 1, auto_open_chat: 0, auto_open_delay: 5,
+    open_once_per_visitor: 1, prechat_enabled: 1, active_form_id: null, created_at: now, updated_at: now,
+  };
+  await col<WidgetDoc>('widget_settings').insertOne(doc);
+  return toWidgetRow(doc);
 }
 
 export interface WidgetPatch {
@@ -67,27 +75,24 @@ export interface WidgetPatch {
   active_form_id?: string | null;
 }
 
-export function updateWidgetSettings(
+export async function updateWidgetSettings(
   accountId: string,
   websiteId: string,
   patch: WidgetPatch,
   actorId: string,
-): WidgetSettingsRow {
-  getWebsiteForAccount(accountId, websiteId);
-  getWidgetSettings(accountId, websiteId);
+): Promise<WidgetSettingsRow> {
+  await getWebsiteForAccount(accountId, websiteId);
+  await getWidgetSettings(accountId, websiteId);
 
-  const sets: string[] = [];
-  const params: unknown[] = [];
+  const set: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) continue;
-    sets.push(key + ' = ?');
-    params.push(typeof value === 'boolean' ? (value ? 1 : 0) : value);
+    set[key] = typeof value === 'boolean' ? (value ? 1 : 0) : value;
   }
-  if (sets.length) {
-    sets.push('updated_at = ?');
-    params.push(nowIso(), websiteId, accountId);
-    db.run(`UPDATE widget_settings SET ${sets.join(', ')} WHERE website_id = ? AND account_id = ?`, ...params);
-    audit({
+  if (Object.keys(set).length) {
+    set.updated_at = nowIso();
+    await col('widget_settings').updateOne({ website_id: websiteId, account_id: accountId }, { $set: set });
+    await audit({
       accountId, websiteId, actorType: 'user', actorId,
       action: 'widget.updated', targetType: 'website', targetId: websiteId,
       metadata: { fields: Object.keys(patch) },
@@ -127,11 +132,11 @@ export interface PublicWidgetConfig {
   configVersion: string;
 }
 
-export function publicWidgetConfig(accountId: string, websiteId: string): PublicWidgetConfig {
-  const s = getWidgetSettings(accountId, websiteId);
+export async function publicWidgetConfig(accountId: string, websiteId: string): Promise<PublicWidgetConfig> {
+  const s = await getWidgetSettings(accountId, websiteId);
   // An explicit off switch beats any configured form: when the customer turns
   // pre-chat collection off, the widget must show no form at all.
-  const form = toBool(s.prechat_enabled) ? getActiveForm(accountId, websiteId) : null;
+  const form = toBool(s.prechat_enabled) ? await getActiveForm(accountId, websiteId) : null;
 
   return {
     enabled: toBool(s.enabled),

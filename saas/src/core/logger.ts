@@ -5,7 +5,7 @@
  * token or a `key=` query parameter is masked before it can reach stdout or
  * the system_logs table.
  */
-import { db, nowIso } from '../db/index.ts';
+import { col, nowIso } from '../db/mongo.ts';
 import { newId } from './crypto.ts';
 import { env } from '../config/env.ts';
 
@@ -69,21 +69,25 @@ function write(level: LogLevel, message: string, context: unknown, scope: LogSco
     else console.log(line, safeContext);
   }
 
-  try {
-    db.run(
-      `INSERT INTO system_logs (id, account_id, website_id, level, message, context, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      newId(),
-      scope.accountId ?? null,
-      scope.websiteId ?? null,
+  // Fire-and-forget, deliberately: log.*() is called from hundreds of sites
+  // across the codebase, many of them synchronous catch blocks, and a log
+  // call has never been allowed to make the request that triggered it wait
+  // on it - the SQLite version wrote inline only because that driver was
+  // synchronous, not because anything here depends on the write completing.
+  // The .catch() is what "logging must never break a request" now means for
+  // a driver that returns a promise: the DB write can fail silently, but it
+  // can never surface as this call throwing.
+  col('system_logs')
+    .insertOne({
+      _id: newId(),
+      account_id: scope.accountId ?? null,
+      website_id: scope.websiteId ?? null,
       level,
-      safeMessage.slice(0, 2000),
-      JSON.stringify(safeContext).slice(0, 8000),
-      nowIso(),
-    );
-  } catch {
-    /* logging must never break a request */
-  }
+      message: safeMessage.slice(0, 2000),
+      context: JSON.stringify(safeContext).slice(0, 8000),
+      created_at: nowIso(),
+    })
+    .catch(() => { /* logging must never break a request */ });
 }
 
 export const log = {

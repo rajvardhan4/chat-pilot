@@ -67,7 +67,7 @@ authRouter.post(
     }
 
     try {
-      const result = login(parsed.email, parsed.password, {
+      const result = await login(parsed.email, parsed.password, {
         ip: clientIp(req),
         userAgent: req.get('user-agent') ?? '',
       });
@@ -108,14 +108,14 @@ authRouter.post(
     const raw = (req.body ?? {}) as Record<string, unknown>;
     try {
       const parsed = parseOrThrow(signupSchema, raw);
-      const result = signup({
+      const result = await signup({
         email: parsed.email,
         password: parsed.password,
         fullName: parsed.full_name,
         companyName: parsed.company_name,
         ip: clientIp(req),
       });
-      const session = login(parsed.email, parsed.password, {
+      const session = await login(parsed.email, parsed.password, {
         ip: clientIp(req),
         userAgent: req.get('user-agent') ?? '',
       });
@@ -140,11 +140,11 @@ authRouter.post(
 
 /* -------------------------------------------------------------- logout -- */
 
-authRouter.post('/logout', requireAuth, requireCsrf, (req, res) => {
-  if (req.session) revokeSession(req.session.id);
+authRouter.post('/logout', requireAuth, requireCsrf, asyncRoute(async (req, res) => {
+  if (req.session) await revokeSession(req.session.id);
   clearSessionCookie(res);
   res.redirect('/login?notice=' + encodeURIComponent('You have been signed out.'));
-});
+}));
 
 /* ------------------------------------------------------ password reset -- */
 
@@ -161,10 +161,10 @@ authRouter.post(
   authLimiter,
   asyncRoute(async (req, res) => {
     const email = String((req.body as Record<string, unknown>)?.email ?? '').trim();
-    const result = email ? createPasswordReset(email) : null;
+    const result = email ? await createPasswordReset(email) : null;
 
     if (result) {
-      enqueueNotification({
+      await enqueueNotification({
         type: 'auth.password_reset',
         recipient: result.user.email,
         subject: 'Reset your Chat Pilot password',
@@ -204,7 +204,7 @@ authRouter.post(
     const raw = (req.body ?? {}) as Record<string, unknown>;
     try {
       const parsed = parseOrThrow(resetSchema, raw);
-      const ok = consumePasswordReset(parsed.token, parsed.password);
+      const ok = await consumePasswordReset(parsed.token, parsed.password);
       if (!ok) {
         res.status(400).render('auth/reset-password', {
           title: 'Choose a new password',
@@ -237,7 +237,7 @@ authRouter.post(
         z.object({ current_password: z.string().min(1), new_password: passwordSchema }),
         raw,
       );
-      changePassword(req.user!.id, parsed.current_password, parsed.new_password);
+      await changePassword(req.user!.id, parsed.current_password, parsed.new_password);
       res.redirect('/app/account?notice=' + encodeURIComponent('Your password has been updated.'));
     } catch (err) {
       const message = err instanceof AppError ? err.publicMessage : 'Could not update your password.';

@@ -100,10 +100,12 @@ describe('Authentication', () => {
     const client = new PortalClient(server.base);
     await client.postForm('/forgot-password', { email: 'ada@example.com' });
 
-    const { db } = await import('../src/db/index.ts');
-    const notification = db.get<{ body: string }>(
-      "SELECT body FROM notifications WHERE type = 'auth.password_reset' ORDER BY created_at DESC LIMIT 1",
-    );
+    const { col } = await import('../src/db/mongo.ts');
+    const notification = await col<{ _id: string; body: string }>('notifications')
+      .find({ type: 'auth.password_reset' })
+      .sort({ created_at: -1 })
+      .limit(1)
+      .next();
     assert.ok(notification, 'a reset notification should have been recorded');
     const token = (/token=([A-Za-z0-9_-]+)/.exec(notification.body) ?? [])[1];
     assert.ok(token, 'the notification should carry a reset token');

@@ -79,10 +79,14 @@ portalApiRouter.get(
   '/websites/:websiteId/providers',
   resolveWebsite,
   asyncRoute(async (req, res) => {
+    const [providers, config] = await Promise.all([
+      providerOverview(req.account!.id, req.website!.id),
+      getConfig(req.account!.id, req.website!.id),
+    ]);
     res.json(
       ok({
-        providers: providerOverview(req.account!.id, req.website!.id),
-        config: getConfig(req.account!.id, req.website!.id),
+        providers,
+        config,
         catalogue: listProviders().map((p) => ({
           slug: p.slug, name: p.name, description: p.description,
           consoleUrl: p.consoleUrl, requiresBaseUrl: p.requiresBaseUrl, supportsOrgId: p.supportsOrgId,
@@ -105,13 +109,13 @@ portalApiRouter.post(
   asyncRoute(async (req, res) => {
     const body = parseOrThrow(credentialSchema, req.body ?? {});
     if (!isKnownProvider(body.provider)) throw badRequest('Unknown AI provider.');
-    saveCredential(
+    await saveCredential(
       req.account!.id, req.website!.id, body.provider,
       { apiKey: body.api_key, baseUrl: body.base_url, orgId: body.org_id },
       req.user!.id,
     );
     // The response deliberately re-reads the safe overview: no plaintext key.
-    res.json(ok({ providers: providerOverview(req.account!.id, req.website!.id) }));
+    res.json(ok({ providers: await providerOverview(req.account!.id, req.website!.id) }));
   }),
 );
 
@@ -132,7 +136,7 @@ portalApiRouter.post(
         latencyMs: result.test.latencyMs,
         models: result.models,
         suggestedModel: result.suggestedModel,
-        providers: providerOverview(req.account!.id, req.website!.id),
+        providers: await providerOverview(req.account!.id, req.website!.id),
       }),
     );
   }),
@@ -149,10 +153,10 @@ portalApiRouter.post(
       }),
       req.body ?? {},
     );
-    const config = setActiveProviderAndModel(
+    const config = await setActiveProviderAndModel(
       req.account!.id, req.website!.id, body.provider, body.model, req.user!.id,
     );
-    res.json(ok({ config, providers: providerOverview(req.account!.id, req.website!.id) }));
+    res.json(ok({ config, providers: await providerOverview(req.account!.id, req.website!.id) }));
   }),
 );
 
@@ -161,8 +165,8 @@ portalApiRouter.post(
   resolveWebsite,
   asyncRoute(async (req, res) => {
     const provider = String((req.body as any)?.provider ?? '');
-    removeCredential(req.account!.id, req.website!.id, provider, req.user!.id);
-    res.json(ok({ providers: providerOverview(req.account!.id, req.website!.id) }));
+    await removeCredential(req.account!.id, req.website!.id, provider, req.user!.id);
+    res.json(ok({ providers: await providerOverview(req.account!.id, req.website!.id) }));
   }),
 );
 
@@ -179,7 +183,7 @@ portalApiRouter.post(
       }),
       req.body ?? {},
     );
-    const config = updateConfig(req.account!.id, req.website!.id, body);
+    const config = await updateConfig(req.account!.id, req.website!.id, body);
     res.json(ok({ config }));
   }),
 );
@@ -189,7 +193,7 @@ portalApiRouter.get(
   resolveWebsite,
   asyncRoute(async (req, res) => {
     res.json(
-      ok({ models: listDiscoveredModels(req.account!.id, req.website!.id, req.params.provider as string) }),
+      ok({ models: await listDiscoveredModels(req.account!.id, req.website!.id, req.params.provider as string) }),
     );
   }),
 );
@@ -200,13 +204,12 @@ portalApiRouter.get(
   '/websites/:websiteId/knowledge',
   resolveWebsite,
   asyncRoute(async (req, res) => {
-    res.json(
-      ok({
-        stats: knowledgeStats(req.account!.id, req.website!.id),
-        sources: listSources(req.account!.id, req.website!.id),
-        documents: listDocuments(req.account!.id, req.website!.id, { limit: 100 }),
-      }),
-    );
+    const [stats, sources, documents] = await Promise.all([
+      knowledgeStats(req.account!.id, req.website!.id),
+      listSources(req.account!.id, req.website!.id),
+      listDocuments(req.account!.id, req.website!.id, { limit: 100 }),
+    ]);
+    res.json(ok({ stats, sources, documents }));
   }),
 );
 
@@ -223,12 +226,12 @@ portalApiRouter.post(
       }),
       req.body ?? {},
     );
-    const source = saveManualKnowledge(
+    const source = await saveManualKnowledge(
       req.account!.id, req.website!.id,
       { sourceId: body.source_id || undefined, title: body.title, content: body.content, category: body.category },
       req.user!.id,
     );
-    res.json(ok({ source, stats: knowledgeStats(req.account!.id, req.website!.id) }));
+    res.json(ok({ source, stats: await knowledgeStats(req.account!.id, req.website!.id) }));
   }),
 );
 
@@ -245,12 +248,12 @@ portalApiRouter.post(
       }),
       req.body ?? {},
     );
-    const source = saveFaq(
+    const source = await saveFaq(
       req.account!.id, req.website!.id,
       { sourceId: body.source_id || undefined, question: body.question, answer: body.answer, category: body.category },
       req.user!.id,
     );
-    res.json(ok({ source, stats: knowledgeStats(req.account!.id, req.website!.id) }));
+    res.json(ok({ source, stats: await knowledgeStats(req.account!.id, req.website!.id) }));
   }),
 );
 
@@ -272,7 +275,7 @@ portalApiRouter.post(
       { startUrl: body.start_url || undefined, maxPages: body.max_pages, sourceId: body.source_id || undefined },
       req.user!.id,
     );
-    res.json(ok({ summary, stats: knowledgeStats(req.account!.id, req.website!.id) }));
+    res.json(ok({ summary, stats: await knowledgeStats(req.account!.id, req.website!.id) }));
   }),
 );
 
@@ -341,7 +344,7 @@ portalApiRouter.post(
       );
     }
 
-    const source = saveUploadedDocument(
+    const source = await saveUploadedDocument(
       req.account!.id, req.website!.id,
       {
         originalName: safeName,
@@ -352,7 +355,7 @@ portalApiRouter.post(
       },
       req.user!.id,
     );
-    res.json(ok({ source, stats: knowledgeStats(req.account!.id, req.website!.id) }));
+    res.json(ok({ source, stats: await knowledgeStats(req.account!.id, req.website!.id) }));
   }),
 );
 
@@ -360,8 +363,8 @@ portalApiRouter.post(
   '/websites/:websiteId/knowledge/sources/:sourceId/delete',
   resolveWebsite,
   asyncRoute(async (req, res) => {
-    deleteSource(req.account!.id, req.website!.id, req.params.sourceId as string, req.user!.id);
-    res.json(ok({ stats: knowledgeStats(req.account!.id, req.website!.id) }));
+    await deleteSource(req.account!.id, req.website!.id, req.params.sourceId as string, req.user!.id);
+    res.json(ok({ stats: await knowledgeStats(req.account!.id, req.website!.id) }));
   }),
 );
 
@@ -370,7 +373,7 @@ portalApiRouter.post(
   resolveWebsite,
   asyncRoute(async (req, res) => {
     const status = (req.body as any)?.status === 'disabled' ? 'disabled' : 'enabled';
-    setDocumentStatus(req.account!.id, req.website!.id, req.params.documentId as string, status);
+    await setDocumentStatus(req.account!.id, req.website!.id, req.params.documentId as string, status);
     res.json(ok({ status }));
   }),
 );
@@ -379,8 +382,8 @@ portalApiRouter.post(
   '/websites/:websiteId/knowledge/documents/:documentId/delete',
   resolveWebsite,
   asyncRoute(async (req, res) => {
-    deleteDocument(req.account!.id, req.website!.id, req.params.documentId as string);
-    res.json(ok({ stats: knowledgeStats(req.account!.id, req.website!.id) }));
+    await deleteDocument(req.account!.id, req.website!.id, req.params.documentId as string);
+    res.json(ok({ stats: await knowledgeStats(req.account!.id, req.website!.id) }));
   }),
 );
 
@@ -388,7 +391,7 @@ portalApiRouter.get(
   '/websites/:websiteId/knowledge/documents/:documentId',
   resolveWebsite,
   asyncRoute(async (req, res) => {
-    const doc = getDocument(req.account!.id, req.website!.id, req.params.documentId as string);
+    const doc = await getDocument(req.account!.id, req.website!.id, req.params.documentId as string);
     res.json(ok({ document: { ...doc, content: doc.content.slice(0, 20_000) } }));
   }),
 );
@@ -400,8 +403,8 @@ portalApiRouter.post(
   asyncRoute(async (req, res) => {
     const query = stripControlChars(String((req.body as any)?.query ?? '')).trim();
     if (!query) throw validationFailed('Enter a question to test.', { query: 'Enter a question.' });
-    const config = getConfig(req.account!.id, req.website!.id);
-    const results = searchKnowledge(req.account!.id, req.website!.id, query, {
+    const config = await getConfig(req.account!.id, req.website!.id);
+    const results = await searchKnowledge(req.account!.id, req.website!.id, query, {
       limit: 8, threshold: config.retrieval_threshold, bypassThreshold: true,
     });
     res.json(
@@ -437,7 +440,7 @@ portalApiRouter.post(
       }),
       req.body ?? {},
     );
-    const instructions = updateInstructions(req.account!.id, req.website!.id, body, req.user!.id);
+    const instructions = await updateInstructions(req.account!.id, req.website!.id, body, req.user!.id);
     res.json(ok({ instructions }));
   }),
 );
@@ -446,7 +449,7 @@ portalApiRouter.post(
   '/websites/:websiteId/instructions/reset',
   resolveWebsite,
   asyncRoute(async (req, res) => {
-    res.json(ok({ instructions: resetInstructions(req.account!.id, req.website!.id, req.user!.id) }));
+    res.json(ok({ instructions: await resetInstructions(req.account!.id, req.website!.id, req.user!.id) }));
   }),
 );
 
@@ -468,7 +471,7 @@ portalApiRouter.post(
 
     const history = body.reset
       ? []
-      : getHistoryBySession(req.account!.id, req.website!.id, body.session_key, 20);
+      : await getHistoryBySession(req.account!.id, req.website!.id, body.session_key, 20);
 
     // Same engine as the widget. Only `includeDiagnostics` differs, and it is
     // gated on this route being session-authenticated for this tenant.
@@ -526,8 +529,8 @@ portalApiRouter.post(
       patch.prechat_enabled = Boolean(body.active_form_id);
     }
 
-    const settings = updateWidgetSettings(req.account!.id, req.website!.id, patch, req.user!.id);
-    res.json(ok({ settings, preview: publicWidgetConfig(req.account!.id, req.website!.id) }));
+    const settings = await updateWidgetSettings(req.account!.id, req.website!.id, patch, req.user!.id);
+    res.json(ok({ settings, preview: await publicWidgetConfig(req.account!.id, req.website!.id) }));
   }),
 );
 
@@ -535,7 +538,11 @@ portalApiRouter.get(
   '/websites/:websiteId/widget/preview',
   resolveWebsite,
   asyncRoute(async (req, res) => {
-    res.json(ok({ preview: publicWidgetConfig(req.account!.id, req.website!.id), settings: getWidgetSettings(req.account!.id, req.website!.id) }));
+    const [preview, settings] = await Promise.all([
+      publicWidgetConfig(req.account!.id, req.website!.id),
+      getWidgetSettings(req.account!.id, req.website!.id),
+    ]);
+    res.json(ok({ preview, settings }));
   }),
 );
 
@@ -571,7 +578,7 @@ portalApiRouter.post(
       }
     }
 
-    const form = saveForm(
+    const form = await saveForm(
       req.account!.id, req.website!.id,
       {
         formId: body.form_id || undefined,
@@ -589,7 +596,7 @@ portalApiRouter.post(
       },
       req.user!.id,
     );
-    res.json(ok({ form, forms: listForms(req.account!.id, req.website!.id) }));
+    res.json(ok({ form, forms: await listForms(req.account!.id, req.website!.id) }));
   }),
 );
 
@@ -597,8 +604,8 @@ portalApiRouter.post(
   '/websites/:websiteId/forms/:formId/default',
   resolveWebsite,
   asyncRoute(async (req, res) => {
-    setDefaultForm(req.account!.id, req.website!.id, req.params.formId as string);
-    res.json(ok({ forms: listForms(req.account!.id, req.website!.id) }));
+    await setDefaultForm(req.account!.id, req.website!.id, req.params.formId as string);
+    res.json(ok({ forms: await listForms(req.account!.id, req.website!.id) }));
   }),
 );
 
@@ -607,8 +614,8 @@ portalApiRouter.post(
   resolveWebsite,
   asyncRoute(async (req, res) => {
     const formId = String((req.body as any)?.form_id ?? '');
-    setActiveForm(req.account!.id, req.website!.id, formId || null);
-    res.json(ok({ preview: publicWidgetConfig(req.account!.id, req.website!.id) }));
+    await setActiveForm(req.account!.id, req.website!.id, formId || null);
+    res.json(ok({ preview: await publicWidgetConfig(req.account!.id, req.website!.id) }));
   }),
 );
 
@@ -616,8 +623,8 @@ portalApiRouter.post(
   '/websites/:websiteId/forms/:formId/duplicate',
   resolveWebsite,
   asyncRoute(async (req, res) => {
-    duplicateForm(req.account!.id, req.website!.id, req.params.formId as string, req.user!.id);
-    res.json(ok({ forms: listForms(req.account!.id, req.website!.id) }));
+    await duplicateForm(req.account!.id, req.website!.id, req.params.formId as string, req.user!.id);
+    res.json(ok({ forms: await listForms(req.account!.id, req.website!.id) }));
   }),
 );
 
@@ -625,8 +632,8 @@ portalApiRouter.post(
   '/websites/:websiteId/forms/:formId/delete',
   resolveWebsite,
   asyncRoute(async (req, res) => {
-    deleteForm(req.account!.id, req.website!.id, req.params.formId as string);
-    res.json(ok({ forms: listForms(req.account!.id, req.website!.id) }));
+    await deleteForm(req.account!.id, req.website!.id, req.params.formId as string);
+    res.json(ok({ forms: await listForms(req.account!.id, req.website!.id) }));
   }),
 );
 
@@ -634,7 +641,7 @@ portalApiRouter.post(
   '/websites/:websiteId/submissions/:submissionId/delete',
   resolveWebsite,
   asyncRoute(async (req, res) => {
-    deleteSubmission(req.account!.id, req.website!.id, req.params.submissionId as string);
+    await deleteSubmission(req.account!.id, req.website!.id, req.params.submissionId as string);
     res.json(ok({ deleted: true }));
   }),
 );
@@ -647,7 +654,7 @@ portalApiRouter.get(
   asyncRoute(async (req, res) => {
     res.json(
       ok({
-        transcript: getTranscript(req.account!.id, req.website!.id, req.params.conversationId as string),
+        transcript: await getTranscript(req.account!.id, req.website!.id, req.params.conversationId as string),
       }),
     );
   }),
@@ -659,7 +666,7 @@ portalApiRouter.post(
   asyncRoute(async (req, res) => {
     const status = String((req.body as any)?.status ?? 'active');
     if (!['active', 'completed', 'archived'].includes(status)) throw badRequest('Unknown status.');
-    setConversationStatus(
+    await setConversationStatus(
       req.account!.id, req.website!.id, req.params.conversationId as string,
       status as 'active' | 'completed' | 'archived',
     );
@@ -671,7 +678,7 @@ portalApiRouter.post(
   '/websites/:websiteId/conversations/:conversationId/read',
   resolveWebsite,
   asyncRoute(async (req, res) => {
-    markRead(req.account!.id, req.website!.id, req.params.conversationId as string, 1);
+    await markRead(req.account!.id, req.website!.id, req.params.conversationId as string, 1);
     res.json(ok({ read: true }));
   }),
 );
@@ -680,7 +687,7 @@ portalApiRouter.post(
   '/websites/:websiteId/conversations/:conversationId/delete',
   resolveWebsite,
   asyncRoute(async (req, res) => {
-    deleteConversation(req.account!.id, req.website!.id, req.params.conversationId as string);
+    await deleteConversation(req.account!.id, req.website!.id, req.params.conversationId as string);
     res.json(ok({ deleted: true }));
   }),
 );
@@ -693,7 +700,7 @@ portalApiRouter.post(
   rateLimit({ limit: 10, windowMs: 60_000, scope: 'site-key-issue' }),
   asyncRoute(async (req, res) => {
     const label = String((req.body as any)?.label ?? 'Primary').slice(0, 60);
-    const issued = issueSiteKey(req.account!.id, req.website!.id, label, req.user!.id);
+    const issued = await issueSiteKey(req.account!.id, req.website!.id, label, req.user!.id);
     // The plaintext is returned exactly once, right here.
     res.json(ok({ key: issued.plaintext, record: issued.record }));
   }),
@@ -703,7 +710,7 @@ portalApiRouter.post(
   '/websites/:websiteId/keys/:keyId/revoke',
   resolveWebsite,
   asyncRoute(async (req, res) => {
-    revokeSiteKey(req.account!.id, req.website!.id, req.params.keyId as string, req.user!.id);
+    await revokeSiteKey(req.account!.id, req.website!.id, req.params.keyId as string, req.user!.id);
     res.json(ok({ revoked: true }));
   }),
 );
@@ -719,6 +726,6 @@ portalApiRouter.get(
       typeof req.query.from === 'string' ? req.query.from : undefined,
       typeof req.query.to === 'string' ? req.query.to : undefined,
     );
-    res.json(ok({ analytics: websiteAnalytics(req.account!.id, req.website!.id, range) }));
+    res.json(ok({ analytics: await websiteAnalytics(req.account!.id, req.website!.id, range) }));
   }),
 );

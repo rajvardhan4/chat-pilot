@@ -12,7 +12,7 @@
  */
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { PortalClient, SiteClient, db, startServer, type TestServer } from './helpers.ts';
+import { PortalClient, SiteClient, col, startServer, type TestServer } from './helpers.ts';
 
 let server: TestServer;
 
@@ -59,9 +59,9 @@ describe('Chat Pilot end-to-end journey', () => {
     customer.websiteId = (/\/app\/websites\/([^/?]+)/.exec(res.headers.get('location') ?? '') ?? [])[1] as string;
     assert.ok(customer.websiteId);
 
-    const row = db.get<{ account_id: string; primary_domain: string; status: string }>(
-      'SELECT account_id, primary_domain, status FROM websites WHERE id = ?', customer.websiteId,
-    );
+    const row = await col<{ _id: string; account_id: string; primary_domain: string; status: string }>(
+      'websites',
+    ).findOne({ _id: customer.websiteId as never });
     customer.accountId = row!.account_id;
     assert.equal(row?.primary_domain, DOMAIN);
     assert.equal(row?.status, 'active');
@@ -76,9 +76,9 @@ describe('Chat Pilot end-to-end journey', () => {
     assert.equal(res.status, 200);
     assert.ok(!res.text.includes('mock-ok-journey-key'));
 
-    const stored = db.get<{ api_key_enc: string; status: string }>(
-      "SELECT api_key_enc, status FROM ai_provider_credentials WHERE website_id = ?", customer.websiteId,
-    );
+    const stored = await col<{ _id: string; api_key_enc: string; status: string }>(
+      'ai_provider_credentials',
+    ).findOne({ website_id: customer.websiteId });
     assert.ok(!stored!.api_key_enc.includes('mock-ok-journey-key'));
     assert.equal(stored?.status, 'not_configured');
   });
@@ -94,9 +94,9 @@ describe('Chat Pilot end-to-end journey', () => {
     assert.ok(res.body.data.models.length >= 2);
     assert.ok(res.body.data.suggestedModel);
 
-    const stored = db.get<{ status: string }>(
-      "SELECT status FROM ai_provider_credentials WHERE website_id = ?", customer.websiteId,
-    );
+    const stored = await col<{ _id: string; status: string }>('ai_provider_credentials').findOne({
+      website_id: customer.websiteId,
+    });
     assert.equal(stored?.status, 'connected');
   });
 
@@ -190,9 +190,9 @@ describe('Chat Pilot end-to-end journey', () => {
     assert.equal(res.body.data.account.name, 'Riverton Plumbing');
     assert.ok(res.body.data.widget);
 
-    const row = db.get<{ last_connected_at: string; connected_plugin_ver: string }>(
-      'SELECT last_connected_at, connected_plugin_ver FROM websites WHERE id = ?', customer.websiteId,
-    );
+    const row = await col<{ _id: string; last_connected_at: string; connected_plugin_ver: string }>(
+      'websites',
+    ).findOne({ _id: customer.websiteId as never });
     assert.ok(row?.last_connected_at);
     assert.equal(row?.connected_plugin_ver, '2.0.0');
   });
@@ -248,11 +248,11 @@ describe('Chat Pilot end-to-end journey', () => {
     assert.match(res.body.data.text, /two weeks/i);
   });
 
-  it('15. the conversation is stored against the right visitor and website', () => {
-    const conversation = db.get<{
-      id: string; website_id: string; account_id: string; source: string;
+  it('15. the conversation is stored against the right visitor and website', async () => {
+    const conversation = await col<{
+      _id: string; website_id: string; account_id: string; source: string;
       visitor_name: string; visitor_email: string; message_count: number; page_url: string;
-    }>('SELECT * FROM conversations WHERE session_key = ?', 'journey-visitor-session');
+    }>('conversations').findOne({ session_key: 'journey-visitor-session' });
 
     assert.equal(conversation?.website_id, customer.websiteId);
     assert.equal(conversation?.account_id, customer.accountId);
@@ -262,34 +262,35 @@ describe('Chat Pilot end-to-end journey', () => {
     assert.equal(conversation?.message_count, 4);
     assert.equal(conversation?.page_url, SITE_URL + '/bathrooms');
 
-    const submission = db.get<{ conversation_id: string }>(
-      'SELECT conversation_id FROM form_submissions WHERE session_key = ?', 'journey-visitor-session',
-    );
-    assert.equal(submission?.conversation_id, conversation?.id);
+    const submission = await col<{ _id: string; conversation_id: string }>('form_submissions').findOne({
+      session_key: 'journey-visitor-session',
+    });
+    assert.equal(submission?.conversation_id, conversation?._id);
 
-    const transcript = db.all<{ role: string; content: string }>(
-      'SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY seq', conversation!.id,
-    );
+    const transcript = await col<{ _id: string; role: string; content: string }>('messages')
+      .find({ conversation_id: conversation!._id })
+      .sort({ seq: 1 })
+      .toArray();
     assert.equal(transcript.length, 4);
     assert.equal(transcript[0]!.role, 'user');
     assert.match(transcript[0]!.content, /bathroom refit cost/i);
     assert.equal(transcript[1]!.role, 'assistant');
   });
 
-  it('16. usage and analytics are recorded for this tenant', () => {
-    const usage = db.get<{ messages: number; ai_requests: number; total_tokens: number; estimated_cost: number }>(
-      'SELECT messages, ai_requests, total_tokens, estimated_cost FROM usage_records WHERE website_id = ?',
-      customer.websiteId,
-    );
+  it('16. usage and analytics are recorded for this tenant', async () => {
+    const usage = await col<{
+      _id: string; messages: number; ai_requests: number; total_tokens: number; estimated_cost: number;
+    }>('usage_records').findOne({ website_id: customer.websiteId });
     assert.ok(usage);
     assert.ok(Number(usage!.messages) >= 4);
     assert.ok(Number(usage!.ai_requests) >= 2);
     assert.ok(Number(usage!.total_tokens) > 0);
 
-    const requests = db.all<{ provider: string; model: string; status: string; input_tokens: number }>(
-      'SELECT provider, model, status, input_tokens FROM ai_requests WHERE website_id = ?',
-      customer.websiteId,
-    );
+    const requests = await col<{ _id: string; provider: string; model: string; status: string; input_tokens: number }>(
+      'ai_requests',
+    )
+      .find({ website_id: customer.websiteId })
+      .toArray();
     assert.ok(requests.length >= 3);
     const widgetRequests = requests.filter((r) => r.status === 'success' && r.input_tokens > 0);
     assert.ok(widgetRequests.every((r) => r.provider === 'mock'));

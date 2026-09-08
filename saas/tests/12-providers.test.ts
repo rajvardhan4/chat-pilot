@@ -10,7 +10,7 @@
  */
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createTenant, db, startServer, type Tenant, type TestServer } from './helpers.ts';
+import { col, createTenant, startServer, type Tenant, type TestServer } from './helpers.ts';
 
 let server: TestServer;
 let tenant: Tenant;
@@ -95,10 +95,9 @@ describe('Credential validation', () => {
     const res = await save('anthropic', { api_key: 'sk-ant-api03-' + 'x'.repeat(40) });
     assert.equal(res.status, 200);
 
-    const row = db.get<{ api_key_enc: string; api_key_masked: string }>(
-      "SELECT api_key_enc, api_key_masked FROM ai_provider_credentials WHERE website_id = ? AND provider = 'anthropic'",
-      tenant.websiteId,
-    );
+    const row = await col<{ _id: string; api_key_enc: string; api_key_masked: string }>(
+      'ai_provider_credentials',
+    ).findOne({ website_id: tenant.websiteId, provider: 'anthropic' });
     // Encrypted at rest, and the plaintext appears nowhere.
     assert.match(row!.api_key_enc, /^v1\./);
     assert.ok(!row!.api_key_enc.includes('sk-ant-api03'));
@@ -150,10 +149,9 @@ describe('A provider cannot go live until it has connected', () => {
     assert.match(res.body.error.message, /Test the connection/i);
 
     // The website must still be pointing at whatever was working before.
-    const config = db.get<{ active_provider: string }>(
-      'SELECT active_provider FROM ai_provider_configs WHERE website_id = ?',
-      tenant.websiteId,
-    );
+    const config = await col<{ _id: string; active_provider: string }>('ai_provider_configs').findOne({
+      website_id: tenant.websiteId,
+    });
     assert.notEqual(config?.active_provider, 'anthropic');
   });
 
@@ -201,10 +199,10 @@ describe('Provider secrets stay on the server', () => {
 
   it('decrypts only through the server-side resolver', async () => {
     const { resolveCredentials } = await import('../src/services/providerService.ts');
-    const creds = resolveCredentials(tenant.accountId, tenant.websiteId, 'anthropic');
+    const creds = await resolveCredentials(tenant.accountId, tenant.websiteId, 'anthropic');
     assert.ok(creds?.apiKey.startsWith('sk-ant-api03-'));
 
-    const custom = resolveCredentials(tenant.accountId, tenant.websiteId, 'custom');
+    const custom = await resolveCredentials(tenant.accountId, tenant.websiteId, 'custom');
     assert.equal(custom?.baseUrl, 'https://my-gateway.example.com/v1');
   });
 });
@@ -264,24 +262,24 @@ describe('Anthropic error taxonomy', () => {
 describe('Cost estimates cover the catalogue', () => {
   it('prices Claude models from the published rates', async () => {
     const { rateFor, estimateCost } = await import('../src/services/pricing.ts');
-    assert.deepEqual(rateFor('claude-opus-5'), { input: 5, output: 25 });
-    assert.deepEqual(rateFor('claude-sonnet-5'), { input: 2, output: 10 });
-    assert.deepEqual(rateFor('claude-haiku-4-5'), { input: 1, output: 5 });
+    assert.deepEqual(await rateFor('claude-opus-5'), { input: 5, output: 25 });
+    assert.deepEqual(await rateFor('claude-sonnet-5'), { input: 2, output: 10 });
+    assert.deepEqual(await rateFor('claude-haiku-4-5'), { input: 1, output: 5 });
 
     // 1M in + 1M out on Opus 5 is $5 + $25.
-    assert.equal(estimateCost('anthropic', 'claude-opus-5', 1_000_000, 1_000_000), 30);
+    assert.equal(await estimateCost('anthropic', 'claude-opus-5', 1_000_000, 1_000_000), 30);
   });
 
   it('falls back to a sane default for an unknown model', async () => {
     const { rateFor } = await import('../src/services/pricing.ts');
-    const rate = rateFor('some-model-nobody-has-heard-of');
+    const rate = await rateFor('some-model-nobody-has-heard-of');
     assert.ok(rate.input > 0 && rate.output > 0);
   });
 
   it('has a rate for every preferred model the catalogue suggests', async () => {
     const { listProviders } = await import('../src/providers/registry.ts');
     const { rateFor, allRates } = await import('../src/services/pricing.ts');
-    const fallback = allRates().default;
+    const fallback = (await allRates()).default;
 
     for (const provider of listProviders()) {
       if (provider.slug === 'mock' || provider.slug === 'custom') continue;
@@ -291,7 +289,7 @@ describe('Cost estimates cover the catalogue', () => {
       // Ask the real pricing function, rather than re-implementing its
       // matching here. A suggested model that resolves to the generic default
       // would silently mis-state the customer's estimated cost.
-      const rate = rateFor(first);
+      const rate = await rateFor(first);
       assert.notDeepEqual(
         rate,
         fallback,

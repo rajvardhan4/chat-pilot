@@ -4,7 +4,7 @@
  * Tenancy rule enforced here: a user only ever reaches data through an
  * `account_members` row. `requireAccountAccess` is the single choke point.
  */
-import { db, nowIso, toBool } from '../db/index.ts';
+import { col, nowIso, toBool, withTransaction } from '../db/mongo.ts';
 import { AppError, conflict, forbidden, notFound } from '../core/errors.ts';
 import { hashPassword, newId, randomToken, verifyPassword, sign } from '../core/crypto.ts';
 import { audit, hashIp } from './audit.ts';
@@ -56,18 +56,52 @@ export interface SessionRow {
   revoked_at: string | null;
 }
 
+/** Mongo document shapes. Same fields as the row types above, keyed by _id. */
+type UserDoc = Omit<UserRow, 'id'> & { _id: string };
+type AccountDoc = Omit<AccountRow, 'id'> & { _id: string };
+type MembershipDoc = Omit<MembershipRow, 'id'> & { _id: string };
+type SessionDoc = Omit<SessionRow, 'id'> & { _id: string; ip_hash: string; user_agent: string; created_at: string; last_seen_at: string };
+interface PasswordResetDoc {
+  _id: string;
+  user_id: string;
+  token_hash: string;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
+}
+interface PlanDoc { _id: string; is_active: number; price_cents: number; [k: string]: unknown }
+interface SubscriptionDoc { _id: string; [k: string]: unknown }
+
+function toUserRow(d: UserDoc): UserRow {
+  const { _id, ...rest } = d;
+  return { id: _id, ...rest };
+}
+function toAccountRow(d: AccountDoc): AccountRow {
+  const { _id, ...rest } = d;
+  return { id: _id, ...rest };
+}
+function toMembershipRow(d: MembershipDoc): MembershipRow {
+  const { _id, ...rest } = d;
+  return { id: _id, ...rest };
+}
+function toSessionRow(d: SessionDoc): SessionRow {
+  return { id: d._id, user_id: d.user_id, csrf_token: d.csrf_token, expires_at: d.expires_at, revoked_at: d.revoked_at };
+}
+
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12; // 12 hours
 const MAX_FAILED_LOGINS = 8;
 const LOCKOUT_MS = 1000 * 60 * 15;
 
 /* --------------------------------------------------------------- users -- */
 
-export function findUserByEmail(email: string): UserRow | undefined {
-  return db.get<UserRow>('SELECT * FROM users WHERE email_normalized = ?', email.trim().toLowerCase());
+export async function findUserByEmail(email: string): Promise<UserRow | undefined> {
+  const doc = await col<UserDoc>('users').findOne({ email_normalized: email.trim().toLowerCase() });
+  return doc ? toUserRow(doc) : undefined;
 }
 
-export function findUserById(id: string): UserRow | undefined {
-  return db.get<UserRow>('SELECT * FROM users WHERE id = ?', id);
+export async function findUserById(id: string): Promise<UserRow | undefined> {
+  const doc = await col<UserDoc>('users').findOne({ _id: id as never });
+  return doc ? toUserRow(doc) : undefined;
 }
 
 export function slugify(input: string): string {
@@ -79,11 +113,11 @@ export function slugify(input: string): string {
   return base || 'account';
 }
 
-function uniqueSlug(desired: string): string {
+async function uniqueSlug(desired: string): Promise<string> {
   const base = slugify(desired);
   let candidate = base;
   let n = 1;
-  while (db.get('SELECT id FROM accounts WHERE slug = ?', candidate)) {
+  while (await col('accounts').findOne({ _id: candidate as never }, { projection: { _id: 1 } })) {
     n += 1;
     candidate = `${base}-${n}`;
   }
@@ -104,8 +138,8 @@ export interface SignupResult {
 }
 
 /** Creates a user, their tenant account and the owner membership atomically. */
-export function signup(input: SignupInput): SignupResult {
-  const existing = findUserByEmail(input.email);
+export async function signup(input: SignupInput): Promise<SignupResult> {
+  const existing = await findUserByEmail(input.email);
   if (existing) {
     throw conflict('An account already exists for that email address.');
   }
@@ -114,60 +148,80 @@ export function signup(input: SignupInput): SignupResult {
   const userId = newId();
   const accountId = newId();
 
-  const freePlan = db.get<{ id: string }>(
-    "SELECT id FROM plans WHERE is_active = 1 ORDER BY price_cents ASC LIMIT 1",
-  );
+  // is_active is stored as 0/1 (mirroring the old SQLite boolean-as-integer
+  // convention — see plans.ts), not a BSON boolean, so the filter must match
+  // that literal type.
+  const freePlan = await col<PlanDoc>('plans')
+    .find({ is_active: 1 })
+    .sort({ price_cents: 1 })
+    .limit(1)
+    .next();
 
-  db.tx(() => {
-    db.run(
-      `INSERT INTO users (id, email, email_normalized, password_hash, full_name, platform_role,
-                          status, email_verified_at, failed_logins, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'user', 'active', ?, 0, ?, ?)`,
-      userId,
-      input.email.trim(),
-      input.email.trim().toLowerCase(),
-      hashPassword(input.password),
-      input.fullName.trim(),
-      now, // self-serve signups are considered verified on creation in this build
-      now,
-      now,
+  // uniqueSlug() reads the accounts collection, so it runs before the
+  // transaction opens rather than inside it — a session only wraps writes
+  // here, matching how the original synchronous transaction never issued a
+  // SELECT of its own either.
+  const slug = await uniqueSlug(input.companyName);
+
+  await withTransaction(async (session) => {
+    await col<UserDoc>('users').insertOne(
+      {
+        _id: userId as never,
+        email: input.email.trim(),
+        email_normalized: input.email.trim().toLowerCase(),
+        password_hash: hashPassword(input.password),
+        full_name: input.fullName.trim(),
+        platform_role: 'user',
+        status: 'active',
+        // Self-serve signups are considered verified on creation in this build.
+        email_verified_at: now,
+        last_login_at: null,
+        failed_logins: 0,
+        locked_until: null,
+        created_at: now,
+        updated_at: now,
+      },
+      { session },
     );
-    db.run(
-      `INSERT INTO accounts (id, name, slug, status, plan_id, billing_email, created_at, updated_at)
-       VALUES (?, ?, ?, 'active', ?, ?, ?, ?)`,
-      accountId,
-      input.companyName.trim(),
-      uniqueSlug(input.companyName),
-      freePlan?.id ?? null,
-      input.email.trim().toLowerCase(),
-      now,
-      now,
+    await col<AccountDoc>('accounts').insertOne(
+      {
+        _id: accountId as never,
+        name: input.companyName.trim(),
+        slug,
+        status: 'active',
+        plan_id: freePlan?._id ?? null,
+        billing_email: input.email.trim().toLowerCase(),
+        suspended_at: null,
+        suspend_reason: '',
+        created_at: now,
+        updated_at: now,
+      },
+      { session },
     );
-    db.run(
-      `INSERT INTO account_members (id, account_id, user_id, role, created_at)
-       VALUES (?, ?, ?, 'owner', ?)`,
-      newId(),
-      accountId,
-      userId,
-      now,
+    await col<MembershipDoc>('account_members').insertOne(
+      { _id: newId() as never, account_id: accountId, user_id: userId, role: 'owner', created_at: now },
+      { session },
     );
     if (freePlan) {
       const periodEnd = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().slice(0, 19).replace('T', ' ');
-      db.run(
-        `INSERT INTO subscriptions (id, account_id, plan_id, status, current_period_start, current_period_end, created_at, updated_at)
-         VALUES (?, ?, ?, 'active', ?, ?, ?, ?)`,
-        newId(),
-        accountId,
-        freePlan.id,
-        now,
-        periodEnd,
-        now,
-        now,
+      await col<SubscriptionDoc>('subscriptions').insertOne(
+        {
+          _id: newId() as never,
+          account_id: accountId,
+          plan_id: freePlan._id,
+          status: 'active',
+          current_period_start: now,
+          current_period_end: periodEnd,
+          external_ref: '',
+          created_at: now,
+          updated_at: now,
+        },
+        { session },
       );
     }
   });
 
-  audit({
+  await audit({
     accountId,
     actorType: 'user',
     actorId: userId,
@@ -177,7 +231,7 @@ export function signup(input: SignupInput): SignupResult {
     ip: input.ip,
   });
 
-  return { user: findUserById(userId)!, account: getAccount(accountId)! };
+  return { user: (await findUserById(userId))!, account: (await getAccount(accountId))! };
 }
 
 export interface LoginResult {
@@ -185,14 +239,18 @@ export interface LoginResult {
   session: SessionRow;
 }
 
-export function login(email: string, password: string, meta: { ip?: string; userAgent?: string }): LoginResult {
+export async function login(
+  email: string,
+  password: string,
+  meta: { ip?: string; userAgent?: string },
+): Promise<LoginResult> {
   const genericFailure = new AppError('invalid_credentials', 'Email or password is incorrect.');
-  const user = findUserByEmail(email);
+  const user = await findUserByEmail(email);
 
   if (!user) {
     // Equalise timing against the hash comparison on the success path.
     verifyPassword(password, hashPassword('decoy-password-value'));
-    audit({ actorType: 'system', action: 'auth.login_failed', metadata: { reason: 'no_user' }, ip: meta.ip });
+    await audit({ actorType: 'system', action: 'auth.login_failed', metadata: { reason: 'no_user' }, ip: meta.ip });
     throw genericFailure;
   }
 
@@ -209,9 +267,11 @@ export function login(email: string, password: string, meta: { ip?: string; user
       failures >= MAX_FAILED_LOGINS
         ? new Date(Date.now() + LOCKOUT_MS).toISOString().slice(0, 19).replace('T', ' ')
         : null;
-    db.run('UPDATE users SET failed_logins = ?, locked_until = ?, updated_at = ? WHERE id = ?',
-      failures, lockedUntil, nowIso(), user.id);
-    audit({
+    await col<UserDoc>('users').updateOne(
+      { _id: user.id as never },
+      { $set: { failed_logins: failures, locked_until: lockedUntil, updated_at: nowIso() } },
+    );
+    await audit({
       actorType: 'user',
       actorId: user.id,
       action: 'auth.login_failed',
@@ -225,119 +285,139 @@ export function login(email: string, password: string, meta: { ip?: string; user
     throw new AppError('account_suspended', 'This account has been suspended. Please contact support.');
   }
 
-  const session = createSession(user.id, meta);
-  db.run('UPDATE users SET failed_logins = 0, locked_until = NULL, last_login_at = ?, updated_at = ? WHERE id = ?',
-    nowIso(), nowIso(), user.id);
-  audit({ actorType: user.platform_role === 'super_admin' ? 'super_admin' : 'user', actorId: user.id, action: 'auth.login', ip: meta.ip });
-  return { user: findUserById(user.id)!, session };
+  const session = await createSession(user.id, meta);
+  await col<UserDoc>('users').updateOne(
+    { _id: user.id as never },
+    { $set: { failed_logins: 0, locked_until: null, last_login_at: nowIso(), updated_at: nowIso() } },
+  );
+  await audit({
+    actorType: user.platform_role === 'super_admin' ? 'super_admin' : 'user',
+    actorId: user.id,
+    action: 'auth.login',
+    ip: meta.ip,
+  });
+  return { user: (await findUserById(user.id))!, session };
 }
 
 /* ------------------------------------------------------------ sessions -- */
 
-export function createSession(userId: string, meta: { ip?: string; userAgent?: string }): SessionRow {
+export async function createSession(
+  userId: string,
+  meta: { ip?: string; userAgent?: string },
+): Promise<SessionRow> {
   const id = newId();
   const now = nowIso();
   const expires = new Date(Date.now() + SESSION_TTL_MS).toISOString().slice(0, 19).replace('T', ' ');
   const csrf = randomToken(24);
-  db.run(
-    `INSERT INTO sessions (id, user_id, ip_hash, user_agent, csrf_token, created_at, last_seen_at, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    id,
-    userId,
-    hashIp(meta.ip),
-    (meta.userAgent ?? '').slice(0, 250),
-    csrf,
-    now,
-    now,
-    expires,
-  );
-  return db.get<SessionRow>('SELECT * FROM sessions WHERE id = ?', id)!;
+  const doc: SessionDoc = {
+    _id: id,
+    user_id: userId,
+    ip_hash: hashIp(meta.ip),
+    user_agent: (meta.userAgent ?? '').slice(0, 250),
+    csrf_token: csrf,
+    created_at: now,
+    last_seen_at: now,
+    expires_at: expires,
+    revoked_at: null,
+  };
+  await col<SessionDoc>('sessions').insertOne(doc);
+  return toSessionRow(doc);
 }
 
-export function getValidSession(sessionId: string): SessionRow | undefined {
-  const row = db.get<SessionRow>('SELECT * FROM sessions WHERE id = ?', sessionId);
+export async function getValidSession(sessionId: string): Promise<SessionRow | undefined> {
+  const row = await col<SessionDoc>('sessions').findOne({ _id: sessionId as never });
   if (!row) return undefined;
   if (row.revoked_at) return undefined;
   if (row.expires_at <= nowIso()) return undefined;
-  db.run('UPDATE sessions SET last_seen_at = ? WHERE id = ?', nowIso(), sessionId);
-  return row;
+  await col<SessionDoc>('sessions').updateOne({ _id: sessionId as never }, { $set: { last_seen_at: nowIso() } });
+  return toSessionRow(row);
 }
 
-export function revokeSession(sessionId: string): void {
-  db.run('UPDATE sessions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL', nowIso(), sessionId);
+export async function revokeSession(sessionId: string): Promise<void> {
+  await col<SessionDoc>('sessions').updateOne(
+    { _id: sessionId as never, revoked_at: null },
+    { $set: { revoked_at: nowIso() } },
+  );
 }
 
-export function revokeAllSessions(userId: string): void {
-  db.run('UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL', nowIso(), userId);
+export async function revokeAllSessions(userId: string): Promise<void> {
+  await col<SessionDoc>('sessions').updateMany(
+    { user_id: userId, revoked_at: null },
+    { $set: { revoked_at: nowIso() } },
+  );
 }
 
 /* ----------------------------------------------------- password resets -- */
 
-export function createPasswordReset(email: string): { token: string; user: UserRow } | null {
-  const user = findUserByEmail(email);
+export async function createPasswordReset(email: string): Promise<{ token: string; user: UserRow } | null> {
+  const user = await findUserByEmail(email);
   if (!user) return null;
   const token = randomToken(32);
-  db.run(
-    `INSERT INTO password_resets (id, user_id, token_hash, expires_at, created_at)
-     VALUES (?, ?, ?, ?, ?)`,
-    newId(),
-    user.id,
-    sign(token),
-    new Date(Date.now() + 3600_000).toISOString().slice(0, 19).replace('T', ' '),
-    nowIso(),
-  );
+  await col<PasswordResetDoc>('password_resets').insertOne({
+    _id: newId(),
+    user_id: user.id,
+    token_hash: sign(token),
+    expires_at: new Date(Date.now() + 3600_000).toISOString().slice(0, 19).replace('T', ' '),
+    used_at: null,
+    created_at: nowIso(),
+  });
   return { token, user };
 }
 
-export function consumePasswordReset(token: string, newPassword: string): boolean {
-  const row = db.get<{ id: string; user_id: string; expires_at: string; used_at: string | null }>(
-    'SELECT * FROM password_resets WHERE token_hash = ?',
-    sign(token),
-  );
+export async function consumePasswordReset(token: string, newPassword: string): Promise<boolean> {
+  const row = await col<PasswordResetDoc>('password_resets').findOne({ token_hash: sign(token) });
   if (!row || row.used_at || row.expires_at <= nowIso()) return false;
-  db.tx(() => {
-    db.run('UPDATE password_resets SET used_at = ? WHERE id = ?', nowIso(), row.id);
-    db.run('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?',
-      hashPassword(newPassword), nowIso(), row.user_id);
+  await withTransaction(async (session) => {
+    await col<PasswordResetDoc>('password_resets').updateOne(
+      { _id: row._id as never },
+      { $set: { used_at: nowIso() } },
+      { session },
+    );
+    await col<UserDoc>('users').updateOne(
+      { _id: row.user_id as never },
+      { $set: { password_hash: hashPassword(newPassword), updated_at: nowIso() } },
+      { session },
+    );
   });
-  revokeAllSessions(row.user_id);
-  audit({ actorType: 'user', actorId: row.user_id, action: 'auth.password_reset' });
+  await revokeAllSessions(row.user_id);
+  await audit({ actorType: 'user', actorId: row.user_id, action: 'auth.password_reset' });
   return true;
 }
 
-export function changePassword(userId: string, currentPassword: string, newPassword: string): void {
-  const user = findUserById(userId);
+export async function changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+  const user = await findUserById(userId);
   if (!user) throw notFound('User not found.');
   if (!verifyPassword(currentPassword, user.password_hash)) {
     throw new AppError('invalid_credentials', 'Your current password is incorrect.');
   }
-  db.run('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?',
-    hashPassword(newPassword), nowIso(), userId);
-  audit({ actorType: 'user', actorId: userId, action: 'auth.password_changed' });
+  await col<UserDoc>('users').updateOne(
+    { _id: userId as never },
+    { $set: { password_hash: hashPassword(newPassword), updated_at: nowIso() } },
+  );
+  await audit({ actorType: 'user', actorId: userId, action: 'auth.password_changed' });
 }
 
 /* ------------------------------------------------------------ accounts -- */
 
-export function getAccount(accountId: string): AccountRow | undefined {
-  return db.get<AccountRow>('SELECT * FROM accounts WHERE id = ?', accountId);
+export async function getAccount(accountId: string): Promise<AccountRow | undefined> {
+  const doc = await col<AccountDoc>('accounts').findOne({ _id: accountId as never });
+  return doc ? toAccountRow(doc) : undefined;
 }
 
-export function listAccountsForUser(userId: string): AccountRow[] {
-  return db.all<AccountRow>(
-    `SELECT a.* FROM accounts a
-       JOIN account_members m ON m.account_id = a.id
-      WHERE m.user_id = ?
-      ORDER BY a.created_at ASC`,
-    userId,
-  );
+export async function listAccountsForUser(userId: string): Promise<AccountRow[]> {
+  const memberships = await col<MembershipDoc>('account_members').find({ user_id: userId }).toArray();
+  if (!memberships.length) return [];
+  const accountIds = memberships.map((m) => m.account_id);
+  const docs = await col<AccountDoc>('accounts')
+    .find({ _id: { $in: accountIds as never[] } })
+    .sort({ created_at: 1 })
+    .toArray();
+  return docs.map(toAccountRow);
 }
 
-export function getMembership(userId: string, accountId: string): MembershipRow | undefined {
-  return db.get<MembershipRow>(
-    'SELECT * FROM account_members WHERE user_id = ? AND account_id = ?',
-    userId,
-    accountId,
-  );
+export async function getMembership(userId: string, accountId: string): Promise<MembershipRow | undefined> {
+  const doc = await col<MembershipDoc>('account_members').findOne({ user_id: userId, account_id: accountId });
+  return doc ? toMembershipRow(doc) : undefined;
 }
 
 /**
@@ -345,16 +425,16 @@ export function getMembership(userId: string, accountId: string): MembershipRow 
  * the account is usable. Super admins bypass membership but never silently:
  * every such access is audited by the caller.
  */
-export function requireAccountAccess(
+export async function requireAccountAccess(
   user: UserRow,
   accountId: string,
   opts: { allowSuspended?: boolean } = {},
-): AccountRow {
-  const account = getAccount(accountId);
+): Promise<AccountRow> {
+  const account = await getAccount(accountId);
   if (!account) throw notFound('Account not found.');
 
   if (user.platform_role !== 'super_admin') {
-    const membership = getMembership(user.id, accountId);
+    const membership = await getMembership(user.id, accountId);
     // Deliberately a 404, not a 403: do not confirm that another tenant's id exists.
     if (!membership) throw notFound('Account not found.');
   }
@@ -365,38 +445,36 @@ export function requireAccountAccess(
   return account;
 }
 
-export function updateAccount(accountId: string, patch: { name?: string; billingEmail?: string }): void {
-  const sets: string[] = [];
-  const params: unknown[] = [];
-  if (patch.name !== undefined) {
-    sets.push('name = ?');
-    params.push(patch.name.trim());
-  }
-  if (patch.billingEmail !== undefined) {
-    sets.push('billing_email = ?');
-    params.push(patch.billingEmail.trim().toLowerCase());
-  }
-  if (!sets.length) return;
-  sets.push('updated_at = ?');
-  params.push(nowIso(), accountId);
-  db.run(`UPDATE accounts SET ${sets.join(', ')} WHERE id = ?`, ...params);
+export async function updateAccount(
+  accountId: string,
+  patch: { name?: string; billingEmail?: string },
+): Promise<void> {
+  const set: Record<string, unknown> = {};
+  if (patch.name !== undefined) set.name = patch.name.trim();
+  if (patch.billingEmail !== undefined) set.billing_email = patch.billingEmail.trim().toLowerCase();
+  if (!Object.keys(set).length) return;
+  set.updated_at = nowIso();
+  await col<AccountDoc>('accounts').updateOne({ _id: accountId as never }, { $set: set });
 }
 
-export function setAccountStatus(
+export async function setAccountStatus(
   accountId: string,
   status: 'active' | 'suspended' | 'closed',
   reason: string,
   actorId: string,
-): void {
-  db.run(
-    'UPDATE accounts SET status = ?, suspend_reason = ?, suspended_at = ?, updated_at = ? WHERE id = ?',
-    status,
-    reason,
-    status === 'active' ? null : nowIso(),
-    nowIso(),
-    accountId,
+): Promise<void> {
+  await col<AccountDoc>('accounts').updateOne(
+    { _id: accountId as never },
+    {
+      $set: {
+        status,
+        suspend_reason: reason,
+        suspended_at: status === 'active' ? null : nowIso(),
+        updated_at: nowIso(),
+      },
+    },
   );
-  audit({
+  await audit({
     accountId,
     actorType: 'super_admin',
     actorId,
@@ -407,10 +485,10 @@ export function setAccountStatus(
   });
 }
 
-export function setUserStatus(userId: string, status: 'active' | 'suspended', actorId: string): void {
-  db.run('UPDATE users SET status = ?, updated_at = ? WHERE id = ?', status, nowIso(), userId);
-  if (status === 'suspended') revokeAllSessions(userId);
-  audit({
+export async function setUserStatus(userId: string, status: 'active' | 'suspended', actorId: string): Promise<void> {
+  await col<UserDoc>('users').updateOne({ _id: userId as never }, { $set: { status, updated_at: nowIso() } });
+  if (status === 'suspended') await revokeAllSessions(userId);
+  await audit({
     actorType: 'super_admin',
     actorId,
     action: 'user.status_changed',
@@ -421,32 +499,37 @@ export function setUserStatus(userId: string, status: 'active' | 'suspended', ac
 }
 
 /** Convenience: the account a user lands on by default. */
-export function primaryAccountFor(user: UserRow): AccountRow | undefined {
-  return listAccountsForUser(user.id)[0];
+export async function primaryAccountFor(user: UserRow): Promise<AccountRow | undefined> {
+  return (await listAccountsForUser(user.id))[0];
 }
 
-export function createSuperAdmin(email: string, password: string, fullName: string): UserRow {
-  const existing = findUserByEmail(email);
+export async function createSuperAdmin(email: string, password: string, fullName: string): Promise<UserRow> {
+  const existing = await findUserByEmail(email);
   if (existing) {
-    db.run("UPDATE users SET platform_role = 'super_admin', updated_at = ? WHERE id = ?", nowIso(), existing.id);
-    return findUserById(existing.id)!;
+    await col<UserDoc>('users').updateOne(
+      { _id: existing.id as never },
+      { $set: { platform_role: 'super_admin', updated_at: nowIso() } },
+    );
+    return (await findUserById(existing.id))!;
   }
   const id = newId();
   const now = nowIso();
-  db.run(
-    `INSERT INTO users (id, email, email_normalized, password_hash, full_name, platform_role,
-                        status, email_verified_at, failed_logins, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'super_admin', 'active', ?, 0, ?, ?)`,
-    id,
-    email.trim(),
-    email.trim().toLowerCase(),
-    hashPassword(password),
-    fullName,
-    now,
-    now,
-    now,
-  );
-  return findUserById(id)!;
+  await col<UserDoc>('users').insertOne({
+    _id: id,
+    email: email.trim(),
+    email_normalized: email.trim().toLowerCase(),
+    password_hash: hashPassword(password),
+    full_name: fullName,
+    platform_role: 'super_admin',
+    status: 'active',
+    email_verified_at: now,
+    last_login_at: null,
+    failed_logins: 0,
+    locked_until: null,
+    created_at: now,
+    updated_at: now,
+  });
+  return (await findUserById(id))!;
 }
 
 /**
@@ -456,22 +539,18 @@ export function createSuperAdmin(email: string, password: string, fullName: stri
  * operator already has database access, not for anything reachable over HTTP.
  * The in-app change flow is changePassword(), which does verify.
  */
-export function setPassword(userId: string, newPassword: string): void {
-  db.run(
-    'UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?',
-    hashPassword(newPassword),
-    nowIso(),
-    userId,
+export async function setPassword(userId: string, newPassword: string): Promise<void> {
+  await col<UserDoc>('users').updateOne(
+    { _id: userId as never },
+    { $set: { password_hash: hashPassword(newPassword), updated_at: nowIso() } },
   );
 }
 
 /** Replaces a user's display name. Server-side admin tooling only. */
-export function setFullName(userId: string, fullName: string): void {
-  db.run(
-    'UPDATE users SET full_name = ?, updated_at = ? WHERE id = ?',
-    fullName.trim(),
-    nowIso(),
-    userId,
+export async function setFullName(userId: string, fullName: string): Promise<void> {
+  await col<UserDoc>('users').updateOne(
+    { _id: userId as never },
+    { $set: { full_name: fullName.trim(), updated_at: nowIso() } },
   );
 }
 

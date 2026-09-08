@@ -5,7 +5,7 @@
  * function in this module that can reach a document without both.
  */
 import { createHash } from 'node:crypto';
-import { db, nowIso } from '../db/index.ts';
+import { cascadeDeleteKnowledgeSource, col, nowIso, withTransaction } from '../db/mongo.ts';
 import { AppError, notFound, validationFailed } from '../core/errors.ts';
 import { newId } from '../core/crypto.ts';
 import { audit } from './audit.ts';
@@ -48,6 +48,23 @@ export interface KnowledgeDocumentRow {
   updated_at: string;
 }
 
+type SourceDoc = Omit<KnowledgeSourceRow, 'id'> & { _id: string };
+type DocumentDoc = Omit<KnowledgeDocumentRow, 'id'> & { _id: string };
+
+function toSourceRow(d: SourceDoc): KnowledgeSourceRow {
+  const { _id, ...rest } = d;
+  return { id: _id, ...rest };
+}
+function toDocumentRow(d: DocumentDoc): KnowledgeDocumentRow {
+  const { _id, ...rest } = d;
+  return { id: _id, ...rest };
+}
+
+/** Escapes a string for safe use inside a MongoDB $regex. */
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /* ------------------------------------------------------------ retrieval -- */
 
 /**
@@ -85,50 +102,59 @@ function checksum(text: string): string {
 
 /* -------------------------------------------------------------- sources -- */
 
-export function listSources(accountId: string, websiteId: string, type?: SourceType): KnowledgeSourceRow[] {
-  const params: unknown[] = [websiteId, accountId];
-  let sql = 'SELECT * FROM knowledge_sources WHERE website_id = ? AND account_id = ?';
-  if (type) {
-    sql += ' AND type = ?';
-    params.push(type);
-  }
-  sql += ' ORDER BY created_at DESC';
-  return db.all<KnowledgeSourceRow>(sql, ...params);
+export async function listSources(
+  accountId: string,
+  websiteId: string,
+  type?: SourceType,
+): Promise<KnowledgeSourceRow[]> {
+  const filter: Record<string, unknown> = { website_id: websiteId, account_id: accountId };
+  if (type) filter.type = type;
+  const docs = await col<SourceDoc>('knowledge_sources').find(filter).sort({ created_at: -1 }).toArray();
+  return docs.map(toSourceRow);
 }
 
-export function getSource(accountId: string, websiteId: string, sourceId: string): KnowledgeSourceRow {
-  const row = db.get<KnowledgeSourceRow>(
-    'SELECT * FROM knowledge_sources WHERE id = ? AND website_id = ? AND account_id = ?',
-    sourceId, websiteId, accountId,
-  );
+export async function getSource(accountId: string, websiteId: string, sourceId: string): Promise<KnowledgeSourceRow> {
+  const row = await col<SourceDoc>('knowledge_sources').findOne({
+    _id: sourceId as never, website_id: websiteId, account_id: accountId,
+  });
   if (!row) throw notFound('Knowledge source not found.');
-  return row;
+  return toSourceRow(row);
 }
 
-function createSource(
+async function createSource(
   accountId: string,
   websiteId: string,
   type: SourceType,
   name: string,
   config: unknown,
-): string {
+): Promise<string> {
   const id = newId();
   const now = nowIso();
-  db.run(
-    `INSERT INTO knowledge_sources (id, account_id, website_id, type, name, config, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
-    id, accountId, websiteId, type, name.trim().slice(0, 200), JSON.stringify(config ?? {}), now, now,
-  );
+  await col<SourceDoc>('knowledge_sources').insertOne({
+    _id: id,
+    account_id: accountId,
+    website_id: websiteId,
+    type,
+    name: name.trim().slice(0, 200),
+    config: JSON.stringify(config ?? {}),
+    status: 'pending',
+    error_message: '',
+    last_sync_at: null,
+    created_at: now,
+    updated_at: now,
+  });
   return id;
 }
 
-export function deleteSource(accountId: string, websiteId: string, sourceId: string, actorId: string): void {
-  getSource(accountId, websiteId, sourceId);
-  db.run(
-    'DELETE FROM knowledge_sources WHERE id = ? AND website_id = ? AND account_id = ?',
-    sourceId, websiteId, accountId,
-  );
-  audit({
+export async function deleteSource(
+  accountId: string,
+  websiteId: string,
+  sourceId: string,
+  actorId: string,
+): Promise<void> {
+  await getSource(accountId, websiteId, sourceId);
+  await cascadeDeleteKnowledgeSource(sourceId, websiteId, accountId);
+  await audit({
     accountId, websiteId, actorType: 'user', actorId,
     action: 'knowledge.source_deleted', targetType: 'knowledge_source', targetId: sourceId,
   });
@@ -145,82 +171,65 @@ export interface DocumentFilter {
   offset?: number;
 }
 
-export function listDocuments(
+export async function listDocuments(
   accountId: string,
   websiteId: string,
   filter: DocumentFilter = {},
-): KnowledgeDocumentRow[] {
-  const where = ['d.website_id = ?', 'd.account_id = ?'];
-  const params: unknown[] = [websiteId, accountId];
-  if (filter.sourceId) {
-    where.push('d.source_id = ?');
-    params.push(filter.sourceId);
-  }
-  if (filter.sourceType) {
-    where.push('d.source_type = ?');
-    params.push(filter.sourceType);
-  }
-  if (filter.status) {
-    where.push('d.status = ?');
-    params.push(filter.status);
-  }
+): Promise<KnowledgeDocumentRow[]> {
+  const query: Record<string, unknown> = { website_id: websiteId, account_id: accountId };
+  if (filter.sourceId) query.source_id = filter.sourceId;
+  if (filter.sourceType) query.source_type = filter.sourceType;
+  if (filter.status) query.status = filter.status;
   if (filter.search) {
-    where.push('(d.title LIKE ? OR d.content LIKE ?)');
-    const like = '%' + filter.search.replace(/[%_]/g, '') + '%';
-    params.push(like, like);
+    const pattern = escapeRegex(filter.search);
+    query.$or = [
+      { title: { $regex: pattern, $options: 'i' } },
+      { content: { $regex: pattern, $options: 'i' } },
+    ];
   }
-  params.push(Math.min(filter.limit ?? 100, 500), filter.offset ?? 0);
-  return db.all<KnowledgeDocumentRow>(
-    `SELECT d.* FROM knowledge_documents d
-      WHERE ${where.join(' AND ')}
-      ORDER BY d.created_at DESC LIMIT ? OFFSET ?`,
-    ...params,
-  );
+  const docs = await col<DocumentDoc>('knowledge_documents')
+    .find(query)
+    .sort({ created_at: -1 })
+    .skip(filter.offset ?? 0)
+    .limit(Math.min(filter.limit ?? 100, 500))
+    .toArray();
+  return docs.map(toDocumentRow);
 }
 
-export function getDocument(accountId: string, websiteId: string, docId: string): KnowledgeDocumentRow {
-  const row = db.get<KnowledgeDocumentRow>(
-    'SELECT * FROM knowledge_documents WHERE id = ? AND website_id = ? AND account_id = ?',
-    docId, websiteId, accountId,
-  );
+export async function getDocument(accountId: string, websiteId: string, docId: string): Promise<KnowledgeDocumentRow> {
+  const row = await col<DocumentDoc>('knowledge_documents').findOne({
+    _id: docId as never, website_id: websiteId, account_id: accountId,
+  });
   if (!row) throw notFound('Document not found.');
-  return row;
+  return toDocumentRow(row);
 }
 
-export function setDocumentStatus(
+export async function setDocumentStatus(
   accountId: string,
   websiteId: string,
   docId: string,
   status: 'enabled' | 'disabled',
-): void {
-  getDocument(accountId, websiteId, docId);
-  db.run(
-    'UPDATE knowledge_documents SET status = ?, updated_at = ? WHERE id = ? AND website_id = ? AND account_id = ?',
-    status, nowIso(), docId, websiteId, accountId,
+): Promise<void> {
+  await getDocument(accountId, websiteId, docId);
+  await col('knowledge_documents').updateOne(
+    { _id: docId as never, website_id: websiteId, account_id: accountId },
+    { $set: { status, updated_at: nowIso() } },
   );
 }
 
-export function deleteDocument(accountId: string, websiteId: string, docId: string): void {
-  getDocument(accountId, websiteId, docId);
-  db.run(
-    'DELETE FROM knowledge_documents WHERE id = ? AND website_id = ? AND account_id = ?',
-    docId, websiteId, accountId,
-  );
+export async function deleteDocument(accountId: string, websiteId: string, docId: string): Promise<void> {
+  await getDocument(accountId, websiteId, docId);
+  await col('knowledge_documents').deleteOne({ _id: docId as never, website_id: websiteId, account_id: accountId });
 }
 
-export function countDocuments(accountId: string, websiteId: string): number {
-  return (
-    db.scalar<number>(
-      'SELECT COUNT(*) AS c FROM knowledge_documents WHERE website_id = ? AND account_id = ?',
-      websiteId, accountId,
-    ) ?? 0
-  );
+export async function countDocuments(accountId: string, websiteId: string): Promise<number> {
+  return col('knowledge_documents').countDocuments({ website_id: websiteId, account_id: accountId });
 }
 
-function enforceDocumentQuota(accountId: string, websiteId: string, adding: number): void {
-  const limit = planLimitFor(accountId, 'max_documents');
+async function enforceDocumentQuota(accountId: string, websiteId: string, adding: number): Promise<void> {
+  const limit = await planLimitFor(accountId, 'max_documents');
   if (limit <= 0) return;
-  if (countDocuments(accountId, websiteId) + adding > limit) {
+  if ((await countDocuments(accountId, websiteId)) + adding > limit) {
     throw new AppError(
       'usage_limit_reached',
       'Your plan allows ' + limit + ' knowledge documents per website. Remove some, or upgrade your plan.',
@@ -236,32 +245,42 @@ interface DocumentInput {
   metadata?: Record<string, unknown>;
 }
 
-function replaceDocuments(
+async function replaceDocuments(
   accountId: string,
   websiteId: string,
   sourceId: string,
   sourceType: SourceType,
   docs: DocumentInput[],
-): number {
+): Promise<number> {
   const now = nowIso();
-  return db.tx(() => {
-    db.run(
-      'DELETE FROM knowledge_documents WHERE source_id = ? AND website_id = ? AND account_id = ?',
-      sourceId, websiteId, accountId,
+  return withTransaction(async (session) => {
+    await col('knowledge_documents').deleteMany(
+      { source_id: sourceId, website_id: websiteId, account_id: accountId },
+      { session },
     );
     let inserted = 0;
     for (const doc of docs) {
       const content = cleanText(doc.content);
       if (!content) continue;
-      db.run(
-        `INSERT INTO knowledge_documents
-           (id, account_id, website_id, source_id, source_type, title, content, source_url,
-            category, metadata, status, word_count, checksum, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'enabled', ?, ?, ?, ?)`,
-        newId(), accountId, websiteId, sourceId, sourceType,
-        (doc.title || 'Untitled').slice(0, 250), content, doc.sourceUrl ?? '',
-        doc.category || classifyDocument(doc.title, content, doc.sourceUrl ?? ''),
-        JSON.stringify(doc.metadata ?? {}), countWords(content), checksum(content), now, now,
+      await col<DocumentDoc>('knowledge_documents').insertOne(
+        {
+          _id: newId(),
+          account_id: accountId,
+          website_id: websiteId,
+          source_id: sourceId,
+          source_type: sourceType,
+          title: (doc.title || 'Untitled').slice(0, 250),
+          content,
+          source_url: doc.sourceUrl ?? '',
+          category: doc.category || classifyDocument(doc.title, content, doc.sourceUrl ?? ''),
+          metadata: JSON.stringify(doc.metadata ?? {}),
+          status: 'enabled',
+          word_count: countWords(content),
+          checksum: checksum(content),
+          created_at: now,
+          updated_at: now,
+        },
+        { session },
       );
       inserted += 1;
     }
@@ -269,22 +288,22 @@ function replaceDocuments(
   });
 }
 
-function finishSource(sourceId: string, ok: boolean, error = ''): void {
-  db.run(
-    `UPDATE knowledge_sources SET status = ?, error_message = ?, last_sync_at = ?, updated_at = ? WHERE id = ?`,
-    ok ? 'completed' : 'failed', error.slice(0, 500), nowIso(), nowIso(), sourceId,
+async function finishSource(sourceId: string, ok: boolean, error = ''): Promise<void> {
+  await col('knowledge_sources').updateOne(
+    { _id: sourceId as never },
+    { $set: { status: ok ? 'completed' : 'failed', error_message: error.slice(0, 500), last_sync_at: nowIso(), updated_at: nowIso() } },
   );
 }
 
 /* ------------------------------------------------------ manual knowledge -- */
 
-export function saveManualKnowledge(
+export async function saveManualKnowledge(
   accountId: string,
   websiteId: string,
   input: { sourceId?: string; title: string; content: string; category?: string },
   actorId: string,
-): KnowledgeSourceRow {
-  getWebsiteForAccount(accountId, websiteId);
+): Promise<KnowledgeSourceRow> {
+  await getWebsiteForAccount(accountId, websiteId);
   const title = input.title.trim();
   const content = cleanText(input.content);
   if (!title) throw validationFailed('Give this knowledge entry a title.', { title: 'A title is required.' });
@@ -292,22 +311,22 @@ export function saveManualKnowledge(
 
   let sourceId = input.sourceId;
   if (sourceId) {
-    getSource(accountId, websiteId, sourceId);
-    db.run(
-      'UPDATE knowledge_sources SET name = ?, config = ?, updated_at = ? WHERE id = ?',
-      title, JSON.stringify({ category: input.category ?? '' }), nowIso(), sourceId,
+    await getSource(accountId, websiteId, sourceId);
+    await col('knowledge_sources').updateOne(
+      { _id: sourceId as never },
+      { $set: { name: title, config: JSON.stringify({ category: input.category ?? '' }), updated_at: nowIso() } },
     );
   } else {
-    enforceDocumentQuota(accountId, websiteId, 1);
-    sourceId = createSource(accountId, websiteId, 'manual', title, { category: input.category ?? '' });
+    await enforceDocumentQuota(accountId, websiteId, 1);
+    sourceId = await createSource(accountId, websiteId, 'manual', title, { category: input.category ?? '' });
   }
 
-  replaceDocuments(accountId, websiteId, sourceId, 'manual', [
+  await replaceDocuments(accountId, websiteId, sourceId, 'manual', [
     { title, content, sourceUrl: 'manual://' + sourceId, category: input.category },
   ]);
-  finishSource(sourceId, true);
+  await finishSource(sourceId, true);
 
-  audit({
+  await audit({
     accountId, websiteId, actorType: 'user', actorId,
     action: 'knowledge.manual_saved', targetType: 'knowledge_source', targetId: sourceId,
   });
@@ -316,13 +335,13 @@ export function saveManualKnowledge(
 
 /* ------------------------------------------------------------------ faq -- */
 
-export function saveFaq(
+export async function saveFaq(
   accountId: string,
   websiteId: string,
   input: { sourceId?: string; question: string; answer: string; category?: string },
   actorId: string,
-): KnowledgeSourceRow {
-  getWebsiteForAccount(accountId, websiteId);
+): Promise<KnowledgeSourceRow> {
+  await getWebsiteForAccount(accountId, websiteId);
   const question = input.question.trim();
   const answer = cleanText(input.answer);
   if (!question) throw validationFailed('Enter the question.', { question: 'A question is required.' });
@@ -330,21 +349,26 @@ export function saveFaq(
 
   let sourceId = input.sourceId;
   if (sourceId) {
-    getSource(accountId, websiteId, sourceId);
-    db.run(
-      'UPDATE knowledge_sources SET name = ?, config = ?, updated_at = ? WHERE id = ?',
-      question.slice(0, 200), JSON.stringify({ question, answer, category: input.category ?? '' }),
-      nowIso(), sourceId,
+    await getSource(accountId, websiteId, sourceId);
+    await col('knowledge_sources').updateOne(
+      { _id: sourceId as never },
+      {
+        $set: {
+          name: question.slice(0, 200),
+          config: JSON.stringify({ question, answer, category: input.category ?? '' }),
+          updated_at: nowIso(),
+        },
+      },
     );
   } else {
-    enforceDocumentQuota(accountId, websiteId, 1);
-    sourceId = createSource(accountId, websiteId, 'faq', question.slice(0, 200), {
+    await enforceDocumentQuota(accountId, websiteId, 1);
+    sourceId = await createSource(accountId, websiteId, 'faq', question.slice(0, 200), {
       question, answer, category: input.category ?? '',
     });
   }
 
   // FAQ documents keep the Q/A shape so retrieval can match the question text.
-  replaceDocuments(accountId, websiteId, sourceId, 'faq', [
+  await replaceDocuments(accountId, websiteId, sourceId, 'faq', [
     {
       title: question.slice(0, 250),
       content: 'Question: ' + question + '\nAnswer: ' + answer,
@@ -353,9 +377,9 @@ export function saveFaq(
       metadata: { question, answer },
     },
   ]);
-  finishSource(sourceId, true);
+  await finishSource(sourceId, true);
 
-  audit({
+  await audit({
     accountId, websiteId, actorType: 'user', actorId,
     action: 'knowledge.faq_saved', targetType: 'knowledge_source', targetId: sourceId,
   });
@@ -364,7 +388,7 @@ export function saveFaq(
 
 /* -------------------------------------------------------------- uploads -- */
 
-export function saveUploadedDocument(
+export async function saveUploadedDocument(
   accountId: string,
   websiteId: string,
   input: {
@@ -375,31 +399,36 @@ export function saveUploadedDocument(
     documents: Array<{ title: string; content: string; wordCount: number }>;
   },
   actorId: string,
-): KnowledgeSourceRow {
-  getWebsiteForAccount(accountId, websiteId);
-  enforceDocumentQuota(accountId, websiteId, input.documents.length);
+): Promise<KnowledgeSourceRow> {
+  await getWebsiteForAccount(accountId, websiteId);
+  await enforceDocumentQuota(accountId, websiteId, input.documents.length);
 
-  const sourceId = createSource(accountId, websiteId, 'file', input.originalName, {
+  const sourceId = await createSource(accountId, websiteId, 'file', input.originalName, {
     original_name: input.originalName,
     mime_type: input.mimeType,
     size_bytes: input.sizeBytes,
   });
 
-  db.run(
-    `INSERT INTO uploaded_files
-       (id, account_id, website_id, source_id, original_name, stored_path, mime_type, size_bytes, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    newId(), accountId, websiteId, sourceId, input.originalName, input.storedPath,
-    input.mimeType, input.sizeBytes, nowIso(),
-  );
+  await col('uploaded_files').insertOne({
+    _id: newId(),
+    account_id: accountId,
+    website_id: websiteId,
+    source_id: sourceId,
+    original_name: input.originalName,
+    stored_path: input.storedPath,
+    mime_type: input.mimeType,
+    size_bytes: input.sizeBytes,
+    checksum: '',
+    created_at: nowIso(),
+  });
 
-  const inserted = replaceDocuments(
+  const inserted = await replaceDocuments(
     accountId, websiteId, sourceId, 'file',
     input.documents.map((d) => ({ title: d.title, content: d.content, sourceUrl: 'file://' + input.originalName })),
   );
-  finishSource(sourceId, inserted > 0, inserted > 0 ? '' : 'No readable text was found in this file.');
+  await finishSource(sourceId, inserted > 0, inserted > 0 ? '' : 'No readable text was found in this file.');
 
-  audit({
+  await audit({
     accountId, websiteId, actorType: 'user', actorId,
     action: 'knowledge.file_uploaded', targetType: 'knowledge_source', targetId: sourceId,
     metadata: { name: input.originalName, bytes: input.sizeBytes, documents: inserted },
@@ -423,20 +452,20 @@ export async function scanWebsite(
   input: { startUrl?: string; maxPages?: number; sourceId?: string },
   actorId: string,
 ): Promise<ScanSummary> {
-  const site = getWebsiteForAccount(accountId, websiteId);
+  const site = await getWebsiteForAccount(accountId, websiteId);
   const startUrl = (input.startUrl || site.url || 'https://' + site.primary_domain).trim();
   const maxPages = Math.min(Math.max(input.maxPages ?? 15, 1), 100);
 
   let sourceId = input.sourceId;
   if (sourceId) {
-    getSource(accountId, websiteId, sourceId);
+    await getSource(accountId, websiteId, sourceId);
   } else {
-    sourceId = createSource(accountId, websiteId, 'website', site.primary_domain, {
+    sourceId = await createSource(accountId, websiteId, 'website', site.primary_domain, {
       start_url: startUrl,
       max_pages: maxPages,
     });
   }
-  db.run("UPDATE knowledge_sources SET status = 'processing', updated_at = ? WHERE id = ?", nowIso(), sourceId);
+  await col('knowledge_sources').updateOne({ _id: sourceId as never }, { $set: { status: 'processing', updated_at: nowIso() } });
 
   try {
     const result = await crawlSite({
@@ -447,15 +476,15 @@ export async function scanWebsite(
     });
 
     if (!result.pages.length) {
-      finishSource(sourceId, false, 'No readable pages could be imported from this website.');
+      await finishSource(sourceId, false, 'No readable pages could be imported from this website.');
       return {
         sourceId, pagesImported: 0, pagesVisited: result.visited,
         skipped: result.skipped, errors: result.errors,
       };
     }
 
-    enforceDocumentQuota(accountId, websiteId, result.pages.length);
-    const inserted = replaceDocuments(
+    await enforceDocumentQuota(accountId, websiteId, result.pages.length);
+    const inserted = await replaceDocuments(
       accountId, websiteId, sourceId, 'website',
       result.pages.map((p) => ({
         title: p.title,
@@ -464,9 +493,9 @@ export async function scanWebsite(
         metadata: { word_count: p.wordCount },
       })),
     );
-    finishSource(sourceId, true);
+    await finishSource(sourceId, true);
 
-    audit({
+    await audit({
       accountId, websiteId, actorType: 'user', actorId,
       action: 'knowledge.website_scanned', targetType: 'knowledge_source', targetId: sourceId,
       metadata: { pages: inserted, startUrl },
@@ -478,40 +507,44 @@ export async function scanWebsite(
     };
   } catch (err) {
     const message = err instanceof AppError ? err.publicMessage : 'The website scan failed.';
-    finishSource(sourceId, false, message);
+    await finishSource(sourceId, false, message);
     throw err;
   }
 }
 
 /** Ingests pre-fetched pages. Used by tests and by any future async worker. */
-export function importPages(
+export async function importPages(
   accountId: string,
   websiteId: string,
   sourceName: string,
   pages: Array<{ url: string; title: string; content: string }>,
-): ScanSummary {
-  getWebsiteForAccount(accountId, websiteId);
-  enforceDocumentQuota(accountId, websiteId, pages.length);
-  const sourceId = createSource(accountId, websiteId, 'website', sourceName, { imported: true });
-  const inserted = replaceDocuments(
+): Promise<ScanSummary> {
+  await getWebsiteForAccount(accountId, websiteId);
+  await enforceDocumentQuota(accountId, websiteId, pages.length);
+  const sourceId = await createSource(accountId, websiteId, 'website', sourceName, { imported: true });
+  const inserted = await replaceDocuments(
     accountId, websiteId, sourceId, 'website',
     pages.map((p) => ({ title: p.title, content: p.content, sourceUrl: p.url })),
   );
-  finishSource(sourceId, inserted > 0);
+  await finishSource(sourceId, inserted > 0);
   return { sourceId, pagesImported: inserted, pagesVisited: pages.length, skipped: 0, errors: [] };
 }
 
 /** Counts by source type, for the Knowledge Base dashboard cards. */
-export function knowledgeStats(accountId: string, websiteId: string) {
-  const rows = db.all<{ source_type: string; c: number; enabled: number }>(
-    `SELECT source_type,
-            COUNT(*) AS c,
-            SUM(CASE WHEN status = 'enabled' THEN 1 ELSE 0 END) AS enabled
-       FROM knowledge_documents
-      WHERE website_id = ? AND account_id = ?
-      GROUP BY source_type`,
-    websiteId, accountId,
-  );
+export async function knowledgeStats(accountId: string, websiteId: string) {
+  const rows = await col('knowledge_documents')
+    .aggregate<{ _id: string; c: number; enabled: number }>([
+      { $match: { website_id: websiteId, account_id: accountId } },
+      {
+        $group: {
+          _id: '$source_type',
+          c: { $sum: 1 },
+          enabled: { $sum: { $cond: [{ $eq: ['$status', 'enabled'] }, 1, 0] } },
+        },
+      },
+    ])
+    .toArray();
+
   const base = {
     faq: { total: 0, enabled: 0 },
     manual: { total: 0, enabled: 0 },
@@ -519,11 +552,16 @@ export function knowledgeStats(accountId: string, websiteId: string) {
     website: { total: 0, enabled: 0 },
   } as Record<string, { total: number; enabled: number }>;
   for (const r of rows) {
-    base[r.source_type] = { total: Number(r.c), enabled: Number(r.enabled ?? 0) };
+    base[r._id] = { total: Number(r.c), enabled: Number(r.enabled ?? 0) };
   }
-  const totalWords = db.scalar<number>(
-    'SELECT COALESCE(SUM(word_count), 0) AS w FROM knowledge_documents WHERE website_id = ? AND account_id = ?',
-    websiteId, accountId,
-  ) ?? 0;
-  return { byType: base, totalDocuments: countDocuments(accountId, websiteId), totalWords };
+
+  const totalWordsAgg = await col('knowledge_documents')
+    .aggregate<{ w: number }>([
+      { $match: { website_id: websiteId, account_id: accountId } },
+      { $group: { _id: null, w: { $sum: '$word_count' } } },
+    ])
+    .toArray();
+  const totalWords = totalWordsAgg[0]?.w ?? 0;
+
+  return { byType: base, totalDocuments: await countDocuments(accountId, websiteId), totalWords };
 }

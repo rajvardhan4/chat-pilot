@@ -8,7 +8,7 @@
  *
  * All rates are USD per 1,000,000 tokens.
  */
-import { db, nowIso } from '../db/index.ts';
+import { col, nowIso } from '../db/mongo.ts';
 
 export interface ModelRate {
   input: number;
@@ -67,8 +67,8 @@ const BUILTIN_RATES: Record<string, ModelRate> = {
 
 const SETTINGS_KEY = 'pricing.model_rates';
 
-function overrides(): Record<string, ModelRate> {
-  const row = db.get<{ value: string }>('SELECT value FROM platform_settings WHERE key = ?', SETTINGS_KEY);
+async function overrides(): Promise<Record<string, ModelRate>> {
+  const row = await col<{ _id: string; value: string }>('platform_settings').findOne({ _id: SETTINGS_KEY as never });
   if (!row) return {};
   try {
     return JSON.parse(row.value) as Record<string, ModelRate>;
@@ -77,15 +77,15 @@ function overrides(): Record<string, ModelRate> {
   }
 }
 
-export function allRates(): Record<string, ModelRate> {
-  return { ...BUILTIN_RATES, ...overrides() };
+export async function allRates(): Promise<Record<string, ModelRate>> {
+  return { ...BUILTIN_RATES, ...(await overrides()) };
 }
 
-export function setRateOverrides(rates: Record<string, ModelRate>): void {
-  db.run(
-    `INSERT INTO platform_settings (key, value, updated_at) VALUES (?, ?, ?)
-       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
-    SETTINGS_KEY, JSON.stringify(rates), nowIso(),
+export async function setRateOverrides(rates: Record<string, ModelRate>): Promise<void> {
+  await col('platform_settings').updateOne(
+    { _id: SETTINGS_KEY as never },
+    { $set: { value: JSON.stringify(rates), updated_at: nowIso() } },
+    { upsert: true },
   );
 }
 
@@ -112,8 +112,8 @@ export function normaliseModelId(model: string): string[] {
   return [...candidates].filter(Boolean);
 }
 
-export function rateFor(model: string): ModelRate {
-  const rates = allRates();
+export async function rateFor(model: string): Promise<ModelRate> {
+  const rates = await allRates();
   const candidates = normaliseModelId(model);
 
   for (const candidate of candidates) {
@@ -134,14 +134,14 @@ export function rateFor(model: string): ModelRate {
   return best?.rate ?? (rates.default as ModelRate);
 }
 
-export function estimateCost(
+export async function estimateCost(
   _provider: string,
   model: string,
   inputTokens: number,
   outputTokens: number,
-): number {
+): Promise<number> {
   if (!inputTokens && !outputTokens) return 0;
-  const rate = rateFor(model);
+  const rate = await rateFor(model);
   const cost = (inputTokens / 1_000_000) * rate.input + (outputTokens / 1_000_000) * rate.output;
   return Number(cost.toFixed(6));
 }

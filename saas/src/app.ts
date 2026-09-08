@@ -1,7 +1,7 @@
 import path from 'node:path';
 import express, { type Express } from 'express';
 import { env, ROOT } from './config/env.ts';
-import { migrate } from './db/index.ts';
+import { connectDb } from './db/mongo.ts';
 import { errorHandler, notFoundHandler } from './middleware/errors.ts';
 import { httpsOnly, securityHeaders } from './middleware/security.ts';
 import { loadSession } from './middleware/session.ts';
@@ -12,9 +12,12 @@ import { adminRouter } from './routes/admin.ts';
 import { portalApiRouter } from './routes/portalApi.ts';
 import { seedDefaultPlans } from './services/plans.ts';
 
-export function createApp(): Express {
-  migrate();
-  seedDefaultPlans();
+// Async because connecting to MongoDB is: unlike node:sqlite's DatabaseSync,
+// which opened the file synchronously on first query, the driver has to
+// finish its handshake before a single collection call is safe to make.
+export async function createApp(): Promise<Express> {
+  await connectDb();
+  await seedDefaultPlans();
 
   const app = express();
 
