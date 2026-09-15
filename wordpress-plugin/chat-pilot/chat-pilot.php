@@ -3,7 +3,7 @@
  * Plugin Name:       Chat Pilot
  * Plugin URI:        https://localmarketinggeeks.com/chat-pilot
  * Description:       AI chatbot for WordPress, powered by the Chat Pilot Cloud platform.
- * Version:           2.2.0
+ * Version:           2.3.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Local Marketing Geeks
@@ -36,7 +36,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CHAT_PILOT_VERSION', '2.2.0' );
+define( 'CHAT_PILOT_VERSION', '2.3.0' );
 define( 'CHAT_PILOT_API_VERSION', 'v1' );
 define( 'CHAT_PILOT_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CHAT_PILOT_URL', plugin_dir_url( __FILE__ ) );
@@ -55,7 +55,16 @@ define( 'CHAT_PILOT_BASENAME', plugin_basename( __FILE__ ) );
 define( 'CHAT_PILOT_API_URL_PINNED', defined( 'CHAT_PILOT_API_URL' ) );
 
 if ( ! defined( 'CHAT_PILOT_API_URL' ) ) {
-	define( 'CHAT_PILOT_API_URL', 'https://app.chatpilot.cloud' );
+	// The Cloud this build ships to. A site that defines the constant above
+	// overrides it; a site that does not gets a working default rather than a
+	// placeholder that resolves nowhere, which reads to an administrator as
+	// "Chat Pilot could not be reached" with nothing to suggest the address is
+	// the part that is wrong.
+	//
+	// Change this when the Cloud moves to its permanent domain, and rebuild -
+	// every site installed from that build then points at the new address
+	// without anyone editing wp-config.php.
+	define( 'CHAT_PILOT_API_URL', 'https://palevioletred-louse-364639.hostingersite.com' );
 }
 
 require_once CHAT_PILOT_PATH . 'includes/Autoloader.php';
