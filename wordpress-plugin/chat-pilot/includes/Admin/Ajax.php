@@ -223,10 +223,16 @@ class Ajax {
 			wp_send_json_error( array( 'message' => __( 'Paste your Chat Pilot Site API Key to continue.', 'chat-pilot' ) ), 400 );
 		}
 		if ( ! preg_match( '/^cp_(live|test)_[A-Za-z0-9_\-]{20,}$/', $key ) ) {
-			wp_send_json_error(
-				array( 'message' => __( 'That does not look like a Chat Pilot Site API Key. It starts with cp_live_.', 'chat-pilot' ) ),
-				400
-			);
+			// Say which way it is wrong. The old message always claimed the key
+			// had the wrong prefix, which reads as nonsense to someone looking
+			// at a key that plainly starts with cp_live_ - and the usual cause
+			// is the browser having autofilled a saved password over the field,
+			// where the value is not a key at all.
+			$message = ( 0 === strpos( $key, 'cp_live_' ) || 0 === strpos( $key, 'cp_test_' ) )
+				? __( 'That key is incomplete. Copy the whole value from Chat Pilot - it is one long line with no spaces.', 'chat-pilot' )
+				: __( 'That does not look like a Site API Key. It must start with cp_live_. If the field filled itself in, clear it and paste the key again.', 'chat-pilot' );
+
+			wp_send_json_error( array( 'message' => $message ), 400 );
 		}
 
 		$result = \ChatPilot\Api\Connection::connect( $key );

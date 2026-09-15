@@ -3,7 +3,7 @@
  * Plugin Name:       Chat Pilot
  * Plugin URI:        https://localmarketinggeeks.com/chat-pilot
  * Description:       AI chatbot for WordPress, powered by the Chat Pilot Cloud platform.
- * Version:           2.3.0
+ * Version:           2.3.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Local Marketing Geeks
@@ -36,7 +36,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CHAT_PILOT_VERSION', '2.3.0' );
+define( 'CHAT_PILOT_VERSION', '2.3.1' );
 define( 'CHAT_PILOT_API_VERSION', 'v1' );
 define( 'CHAT_PILOT_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CHAT_PILOT_URL', plugin_dir_url( __FILE__ ) );

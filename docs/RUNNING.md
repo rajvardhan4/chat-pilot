@@ -244,13 +244,20 @@ version.
 
 ### Updating a live site
 
-WordPress will not install a plugin over itself from the upload screen. Either:
+**Plugins → Add New → Upload Plugin → choose the new ZIP → Install Now.**
+WordPress sees that `chat-pilot` is already installed and offers **Replace
+current with uploaded** — take it. The Site API Key and every setting survive,
+because they live in `wp_options` and an update never touches them.
 
-* **Deactivate → Delete → upload the new ZIP → Activate.** Your Site API Key and
-  settings survive, because they live in `wp_options`, not in the plugin files.
-  Deleting does *not* run `uninstall.php` while the plugin is only deactivated
-  in this flow — but to be safe, note your key first.
-* Or replace `wp-content/plugins/chat-pilot/` over FTP/SSH with the new files.
+Or replace `wp-content/plugins/chat-pilot/` over FTP/SSH with the new files,
+which amounts to the same thing.
+
+> **Do not Delete the plugin to update it.** Deleting runs `uninstall.php`,
+> which removes the Site API Key, the connection state and the cached widget
+> config by design — that is what uninstalling is supposed to do. The site then
+> has to be connected again with a fresh key from the dashboard. Use Replace
+> current with uploaded instead; deleting is for removing Chat Pilot, not for
+> upgrading it.
 
 After updating, open **Chat Pilot → Connection** and press **Re-check
 connection** to confirm the new version registered.

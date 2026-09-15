@@ -35,8 +35,16 @@ function cp_render_key_field( $id, $label, $placeholder ) {
 	<div class="cp-form-group">
 		<label class="cp-label" for="<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $label ); ?></label>
 		<span class="cp-secret-field">
+			<?php
+			/*
+			 * autocomplete="new-password", not "off": browsers ignore "off" on
+			 * password fields and will happily autofill a saved site password
+			 * here, which then gets submitted as the Site API Key and rejected
+			 * with an error that looks like the key is wrong.
+			 */
+			?>
 			<input type="password" id="<?php echo esc_attr( $id ); ?>" class="cp-input"
-			       placeholder="<?php echo esc_attr( $placeholder ); ?>" autocomplete="off" spellcheck="false">
+			       placeholder="<?php echo esc_attr( $placeholder ); ?>" autocomplete="new-password" spellcheck="false">
 			<button type="button" class="cp-eye" data-reveal="<?php echo esc_attr( $id ); ?>"
 			        aria-pressed="false" aria-label="<?php esc_attr_e( 'Show key', 'chat-pilot' ); ?>">
 				<svg class="cp-eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
