@@ -11,6 +11,15 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 
 /** Minimal .env loader (no dependency); real env vars always win. */
 function loadDotEnv(): void {
+  // A test run must never inherit the developer's .env. tests/setup.ts sets
+  // everything the suite needs and scripts/run-tests.mjs points MONGODB_URI at
+  // a throwaway replica set, so nothing here is missed - but MONGODB_DB would
+  // otherwise be read from .env and collapse every test file onto that one
+  // database, silently undoing the per-process isolation below. Files then see
+  // each other's accounts, plans and pricing, and fail in whatever order they
+  // happened to interleave.
+  if (process.env.NODE_ENV === 'test') return;
+
   const file = path.join(ROOT, '.env');
   if (!existsSync(file)) return;
   for (const rawLine of readFileSync(file, 'utf8').split('\n')) {

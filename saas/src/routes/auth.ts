@@ -57,9 +57,14 @@ authRouter.post(
     try {
       parsed = parseOrThrow(loginSchema, req.body ?? {});
     } catch (err) {
-      res.status(422).render('auth/login', {
+      // parseOrThrow throws AppError('validation_failed') and nothing else, so
+      // anything different came from somewhere unexpected. Re-throw it: the
+      // central handler logs it with a reference and answers 500, rather than
+      // telling the visitor to check a form that was never the problem.
+      if (!(err instanceof AppError)) throw err;
+      res.status(err.status).render('auth/login', {
         title: 'Sign in',
-        error: err instanceof AppError ? err.publicMessage : 'Check your details and try again.',
+        error: err.publicMessage,
         notice: '',
         email: String((req.body as Record<string, unknown>)?.email ?? ''),
       });
@@ -76,10 +81,16 @@ authRouter.post(
     } catch (err) {
       // Preserve the error's own status: a suspended account is 403 and a
       // locked-out one is 429, neither of which is "bad credentials".
-      const appError = err instanceof AppError ? err : null;
-      res.status(appError?.status ?? 401).render('auth/login', {
+      //
+      // Bad credentials are already an AppError (invalid_credentials, 401), so
+      // anything that is not an AppError here is a bug or an outage — a failed
+      // database call, say. Answering "email or password is incorrect" to that
+      // tells the user something untrue and hides the real fault, so it is
+      // re-thrown for the central handler to log and report as a 500.
+      if (!(err instanceof AppError)) throw err;
+      res.status(err.status).render('auth/login', {
         title: 'Sign in',
-        error: appError?.publicMessage ?? 'Email or password is incorrect.',
+        error: err.publicMessage,
         notice: '',
         email: parsed.email,
       });
@@ -123,11 +134,16 @@ authRouter.post(
       log.info('New account created.', { accountId: result.account.id });
       res.redirect('/app/websites/new?welcome=1');
     } catch (err) {
-      const appError = err instanceof AppError ? err : null;
-      res.status(appError?.status ?? 422).render('auth/signup', {
+      // Same rule as login: only an AppError describes something the visitor
+      // can act on. A failed insert or a dropped connection is neither their
+      // fault nor fixable from this form, and reporting it as a validation
+      // error hides it — which is exactly how a transaction failure here once
+      // read as "please check the form".
+      if (!(err instanceof AppError)) throw err;
+      res.status(err.status).render('auth/signup', {
         title: 'Create your account',
-        error: appError?.publicMessage ?? 'Please check the form and try again.',
-        fields: appError?.fields ?? {},
+        error: err.publicMessage,
+        fields: err.fields ?? {},
         values: {
           full_name: String(raw.full_name ?? ''),
           company_name: String(raw.company_name ?? ''),

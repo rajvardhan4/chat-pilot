@@ -31,6 +31,11 @@ export async function startServer(): Promise<TestServer> {
   return {
     base: 'http://127.0.0.1:' + port,
     close: async () => {
+      // fetch() holds its sockets open for reuse, and server.close() does not
+      // fire its callback until every connection is gone - so without this the
+      // teardown waits on keep-alive sockets that nothing will ever close, the
+      // test file never exits, and the whole run stalls behind it.
+      server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
       await closeDb();
     },

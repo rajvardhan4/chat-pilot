@@ -8,6 +8,7 @@
     "plugin:patch": "node scripts/build-plugin.mjs --bump patch",
     "plugin:minor": "node scripts/build-plugin.mjs --bump minor",
     "plugin:major": "node scripts/build-plugin.mjs --bump major",
-    "cloud:build": "node scripts/build-cloud.mjs"
+    "cloud:build": "node scripts/build-cloud.mjs",
+    "hostinger:build": "node scripts/build-hostinger.mjs"
   }
 }
