@@ -1,0 +1,1416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<title>Chat Pilot Flight Manual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+/* ---------------------------------------------------------------- tokens --
+   Palette taken from the Chat Pilot logo: cap-and-wordmark navy #0D1F35 and
+   bubble blue #0678F9. Neutrals are biased cool toward that navy rather than
+   being pure grey, so the page reads as part of the product it documents. */
+:root {
+  --ink:#0d1f35; --blue:#0678f9; --blue-deep:#0450b0; --blue-wash:#e9f1fe;
+  --ground:#f2f6fb; --surface:#ffffff; --raised:#e9f0f9;
+  --line:#d8e3f1; --line-soft:#e7eef7;
+  --text:#0d1f35; --text-2:#4d617c; --text-3:#7d90a8;
+  --ok:#0b7a58; --ok-wash:#e2f4ee;
+  --warn:#8f5710; --warn-wash:#fbf0dd;
+  --stop:#bd3348; --stop-wash:#fbe9ec;
+  --shell:#0d1f35; --shell-text:#dfe9f6; --shell-dim:#8ba3c0;
+  --measure:68ch;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --blue:#4a9dff; --blue-deep:#7fbaff; --blue-wash:#122c48;
+    --ground:#060f1b; --surface:#0d1f35; --raised:#14293f;
+    --line:#21384f; --line-soft:#182c42;
+    --text:#e7eff8; --text-2:#a2b5cb; --text-3:#74889f;
+    --ok:#3fc79b; --ok-wash:#0b2a22;
+    --warn:#e0a63f; --warn-wash:#2d2410;
+    --stop:#f0798c; --stop-wash:#2f151b;
+    --shell:#05101d; --shell-text:#dfe9f6; --shell-dim:#7a92ae;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --blue:#4a9dff; --blue-deep:#7fbaff; --blue-wash:#122c48;
+  --ground:#060f1b; --surface:#0d1f35; --raised:#14293f;
+  --line:#21384f; --line-soft:#182c42;
+  --text:#e7eff8; --text-2:#a2b5cb; --text-3:#74889f;
+  --ok:#3fc79b; --ok-wash:#0b2a22;
+  --warn:#e0a63f; --warn-wash:#2d2410;
+  --stop:#f0798c; --stop-wash:#2f151b;
+  --shell:#05101d; --shell-text:#dfe9f6; --shell-dim:#7a92ae;
+  color-scheme: dark;
+}
+
+/* ----------------------------------------------------------------- base -- */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--text);
+  font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  color: var(--text);
+  text-wrap: balance;
+  margin: 0;
+}
+
+a { color: var(--blue); text-underline-offset: 2px; }
+a:hover { color: var(--blue-deep); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 3px; }
+
+code, kbd, pre, .mono { font-family: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; font-variant-ligatures: none; }
+
+p code, li code, td code, dd code {
+  font-size: 0.86em; background: var(--raised);
+  border: 1px solid var(--line-soft); border-radius: 4px;
+  padding: 0.08em 0.34em; color: var(--text); word-break: break-word;
+}
+
+.eyebrow {
+  font-family: 'Archivo', sans-serif; font-size: 0.7rem; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-3);
+}
+
+/* --------------------------------------------------------------- layout -- */
+.page { max-width: 1180px; margin: 0 auto; padding-inline: 1.25rem; padding-block: 0 6rem; }
+
+.masthead {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 2rem; flex-wrap: wrap; padding-block: 3rem 1.5rem;
+  border-bottom: 2px solid var(--ink);
+}
+:root[data-theme="dark"] .masthead { border-bottom-color: var(--line); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .masthead { border-bottom-color: var(--line); } }
+
+.masthead h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; letter-spacing: -0.028em; line-height: 1.05; }
+.masthead p { margin: 0.6rem 0 0; max-width: 46ch; color: var(--text-2); font-size: 1.02rem; }
+.masthead-meta { display: grid; gap: 0.3rem; font-size: 0.8rem; color: var(--text-2); }
+.masthead-meta b { font-weight: 600; color: var(--text); }
+@media (min-width: 620px) { .masthead-meta { text-align: right; } }
+
+.theme-toggle {
+  justify-self: start; background: var(--surface); color: var(--text-2);
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 0.3rem 0.75rem; font: inherit; font-size: 0.76rem;
+  cursor: pointer; margin-top: 0.4rem;
+}
+@media (min-width: 620px) { .theme-toggle { justify-self: end; } }
+.theme-toggle:hover { color: var(--text); border-color: var(--blue); }
+
+/* --------------------------------------------------------- vitals strip --
+   A new developer's first question is "where is everything, and is it up".
+   These four answer it before any prose. */
+.vitals { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.6rem; margin-top: 1.75rem; }
+.vital { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--blue); border-radius: 7px; padding: 0.8rem 0.9rem; }
+.vital.is-ok { border-left-color: var(--ok); }
+.vital.is-warn { border-left-color: var(--warn); }
+.vital dt {
+  font-family: 'Archivo', sans-serif; font-size: 0.65rem; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); margin-bottom: 0.25rem;
+}
+.vital dd { margin: 0; font-size: 0.86rem; color: var(--text); word-break: break-word; }
+.vital dd.mono { font-size: 0.78rem; }
+
+.body-grid { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 3.5rem; align-items: start; padding-top: 2.5rem; }
+@media (max-width: 900px) { .body-grid { grid-template-columns: 1fr; gap: 2rem; } .toc { position: static !important; } }
+
+/* ------------------------------------------------------------------ toc -- */
+.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 1.5rem); font-size: 0.83rem; }
+.toc ol { list-style: none; margin: 0.7rem 0 0; padding: 0; display: grid; gap: 0.1rem; }
+.toc a {
+  display: grid; grid-template-columns: 1.6rem 1fr; gap: 0.2rem;
+  padding: 0.28rem 0.4rem; border-radius: 5px; color: var(--text-2);
+  text-decoration: none; border-left: 2px solid transparent;
+}
+.toc a:hover { background: var(--raised); color: var(--text); border-left-color: var(--blue); }
+.toc a span { color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------- parts -- */
+.part { padding-top: 3.25rem; scroll-margin-top: 1.5rem; }
+.part:first-of-type { padding-top: 0; }
+
+.part-head {
+  display: grid; grid-template-columns: auto 1fr; align-items: baseline;
+  gap: 0.9rem; padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--line); margin-bottom: 1.5rem;
+}
+.part-num { font-family: 'Archivo', sans-serif; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.1em; color: var(--blue); font-variant-numeric: tabular-nums; }
+.part-head h2 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.018em; }
+.part-head p { grid-column: 2; margin: 0.3rem 0 0; color: var(--text-2); font-size: 0.95rem; max-width: var(--measure); }
+
+.part > p, .part > ul, .part > ol { max-width: var(--measure); }
+.part > p { margin: 0 0 1rem; }
+
+h3 { font-size: 1.02rem; font-weight: 600; margin: 2rem 0 0.7rem; letter-spacing: -0.008em; }
+h3:first-child { margin-top: 0; }
+h4 { font-size: 0.9rem; font-weight: 600; margin: 1.3rem 0 0.4rem; }
+
+ul, ol { padding-left: 1.15rem; }
+li { margin-bottom: 0.4rem; }
+li::marker { color: var(--text-3); }
+
+/* --------------------------------------------------------------- shell -- */
+/* Command blocks name the directory they run in. Half the commands in this
+   product run from the repository root and half from saas/, and running one
+   in the wrong place is the most common way to get a confusing error. */
+.cmd { background: var(--shell); border-radius: 8px; overflow: hidden; margin: 0.9rem 0 1.4rem; border: 1px solid var(--line); }
+.cmd-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.45rem 0.85rem; background: rgba(255,255,255,0.045);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--shell-dim);
+}
+.cmd-bar .where::before { content: '\25B8  '; }
+.cmd-bar .when { letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+.cmd pre { margin: 0; padding: 0.9rem 0.95rem; overflow-x: auto; font-size: 0.83rem; line-height: 1.75; color: var(--shell-text); }
+.cmd pre .p { color: var(--shell-dim); user-select: none; }
+.cmd pre .c { color: #7fb2e8; }
+
+/* --------------------------------------------------------------- panels -- */
+.note {
+  display: grid; grid-template-columns: auto 1fr; gap: 0.8rem;
+  padding: 0.95rem 1.1rem; border-radius: 8px; margin: 1.3rem 0;
+  font-size: 0.93rem; max-width: var(--measure);
+}
+.note b { display: block; margin-bottom: 0.15rem; }
+.note p { margin: 0; }
+.note p + p { margin-top: 0.5rem; }
+.note-mark { font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 0.95rem; line-height: 1.6; }
+.note-tip { background: var(--blue-wash); color: var(--text); }
+.note-tip .note-mark { color: var(--blue); }
+.note-warn { background: var(--warn-wash); color: var(--text); }
+.note-warn .note-mark { color: var(--warn); }
+.note-stop { background: var(--stop-wash); color: var(--text); }
+.note-stop .note-mark { color: var(--stop); }
+.note-ok { background: var(--ok-wash); color: var(--text); }
+.note-ok .note-mark { color: var(--ok); }
+
+/* ------------------------------------------------------------ key cards --
+   The single most confusing thing in this product is that two different
+   secrets both get called "the API key". They get equal billing, side by side,
+   so the difference is impossible to miss. */
+.keys { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 1rem; margin: 1.4rem 0 1.6rem; }
+.key-card { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--blue); border-radius: 8px; padding: 1.1rem 1.15rem; }
+.key-card.is-alt { border-top-color: var(--ok); }
+.key-card h4 { font-size: 0.98rem; font-weight: 600; margin: 0.35rem 0 0.55rem; }
+.key-card .sample {
+  display: block; font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem;
+  background: var(--raised); border: 1px solid var(--line-soft); border-radius: 5px;
+  padding: 0.4rem 0.55rem; margin-bottom: 0.85rem; color: var(--text); overflow-x: auto; white-space: nowrap;
+}
+.key-card dl { margin: 0; display: grid; gap: 0.5rem; font-size: 0.87rem; }
+.key-card dt { color: var(--text-3); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+.key-card dd { margin: 0.05rem 0 0; color: var(--text-2); }
+
+/* --------------------------------------------------------------- tables -- */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; margin: 1.2rem 0 1.6rem; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 0.89rem; }
+th {
+  text-align: left; font-family: 'Archivo', sans-serif; font-size: 0.68rem;
+  font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-3); background: var(--raised); padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+td { padding: 0.68rem 0.85rem; border-bottom: 1px solid var(--line-soft); color: var(--text-2); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td strong { color: var(--text); font-weight: 600; }
+td.num { font-variant-numeric: tabular-nums; text-align: right; }
+
+/* ---------------------------------------------------------------- steps -- */
+.steps { list-style: none; padding: 0; margin: 1.2rem 0; counter-reset: step; max-width: var(--measure); }
+.steps > li { counter-increment: step; display: grid; grid-template-columns: 1.9rem 1fr; gap: 0.85rem; padding-bottom: 1.15rem; margin: 0; }
+.steps > li::before {
+  content: counter(step); font-family: 'Archivo', sans-serif; font-size: 0.78rem;
+  font-weight: 700; color: var(--blue); background: var(--blue-wash);
+  border-radius: 50%; width: 1.65rem; height: 1.65rem; display: grid;
+  place-items: center; font-variant-numeric: tabular-nums; margin-top: 0.1rem;
+}
+.steps > li > b { display: block; font-weight: 600; color: var(--text); }
+.steps > li > p { margin: 0.15rem 0 0; color: var(--text-2); font-size: 0.94rem; }
+.steps .cmd, .steps .note, .steps .table-wrap { grid-column: 2; max-width: none; }
+
+/* ----------------------------------------------------------- flow strip -- */
+.flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.5rem; margin: 1.5rem 0 1.8rem; }
+.flow-step { background: var(--surface); border: 1px solid var(--line); border-radius: 7px; padding: 0.75rem 0.85rem; }
+.flow-step .n {
+  font-family: 'Archivo', sans-serif; font-size: 0.66rem; font-weight: 700;
+  letter-spacing: 0.1em; color: var(--blue); display: block; margin-bottom: 0.25rem;
+}
+.flow-step b { display: block; font-size: 0.9rem; font-weight: 600; }
+.flow-step span.sub { font-size: 0.78rem; color: var(--text-3); }
+
+/* ------------------------------------------------------------ flow rail --
+   The runtime path is a real sequence, so it gets numbered markers; the
+   structural numbering elsewhere in this document marks parts, not order. */
+.rail { display: grid; gap: 0.4rem; margin: 1.3rem 0 1.6rem; max-width: var(--measure); }
+.rail-step {
+  display: grid; grid-template-columns: 2.1rem 1fr; gap: 0.75rem; align-items: start;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 7px; padding: 0.7rem 0.85rem;
+}
+.rail-step .n {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; font-weight: 500;
+  color: var(--blue); background: var(--blue-wash); border-radius: 4px;
+  padding: 0.12rem 0; text-align: center; font-variant-numeric: tabular-nums;
+}
+.rail-step b { display: block; font-size: 0.92rem; font-weight: 600; }
+.rail-step span { font-size: 0.85rem; color: var(--text-2); }
+
+/* ---------------------------------------------------------- file layout -- */
+.tree { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.1rem; overflow-x: auto; margin: 1.1rem 0 1.5rem; }
+.tree pre { margin: 0; font-size: 0.8rem; line-height: 1.7; color: var(--text-2); }
+.tree pre b { color: var(--text); font-weight: 600; }
+.tree pre i { color: var(--text-3); font-style: normal; }
+
+.foot { margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--line); font-size: 0.83rem; color: var(--text-3); max-width: var(--measure); }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <div>
+      <div class="eyebrow">Handover &middot; operating guide</div>
+      <h1>Chat Pilot Flight Manual</h1>
+      <p>What this product is, where every piece lives, and how to work on it &mdash; written for a developer who has never seen it before.</p>
+    </div>
+    <div class="masthead-meta">
+      <div>Cloud <b>live on Hostinger</b></div>
+      <div>Plugin <b>v2.3.1</b></div>
+      <div>Database <b>MongoDB Atlas</b></div>
+      <div>Node <b>20.19+</b> &middot; PHP <b>7.4+</b></div>
+      <button class="theme-toggle" type="button" id="themeBtn" aria-live="polite">Switch to night</button>
+    </div>
+  </header>
+
+  <dl class="vitals">
+    <div class="vital is-ok">
+      <dt>Live Cloud</dt>
+      <dd class="mono"><a href="https://palevioletred-louse-364639.hostingersite.com">palevioletred-louse-364639.hostingersite.com</a></dd>
+    </div>
+    <div class="vital">
+      <dt>Repository</dt>
+      <dd class="mono"><a href="https://github.com/rajvardhan4/chat-pilot">github.com/rajvardhan4/chat-pilot</a> &middot; private</dd>
+    </div>
+    <div class="vital">
+      <dt>Local checkout</dt>
+      <dd class="mono">C:\Projects\Claude\Chat Pilot Project</dd>
+    </div>
+    <div class="vital is-warn">
+      <dt>Needs attention</dt>
+      <dd>0 knowledge documents &middot; no database backup</dd>
+    </div>
+  </dl>
+
+  <div class="body-grid">
+
+    <nav class="toc" aria-label="Contents">
+      <div class="eyebrow">Contents</div>
+      <ol>
+        <li><a href="#what"><span>01</span> What this is</a></li>
+        <li><a href="#stack"><span>02</span> Stack &amp; layout</a></li>
+        <li><a href="#cloud"><span>03</span> The Cloud</a></li>
+        <li><a href="#plugin"><span>04</span> The plugin</a></li>
+        <li><a href="#keys"><span>05</span> The two keys</a></li>
+        <li><a href="#setup"><span>06</span> Onboarding</a></li>
+        <li><a href="#providers"><span>07</span> AI providers</a></li>
+        <li><a href="#dashboards"><span>08</span> The dashboards</a></li>
+        <li><a href="#runtime"><span>09</span> One message</a></li>
+        <li><a href="#verify"><span>10</span> Verify it works</a></li>
+        <li><a href="#local"><span>11</span> Running locally</a></li>
+        <li><a href="#builds"><span>12</span> The three builds</a></li>
+        <li><a href="#deploy"><span>13</span> Deployment</a></li>
+        <li><a href="#env"><span>14</span> Environment</a></li>
+        <li><a href="#tests"><span>15</span> Tests</a></li>
+        <li><a href="#state"><span>16</span> Live state today</a></li>
+        <li><a href="#history"><span>17</span> What changed</a></li>
+        <li><a href="#trouble"><span>18</span> Troubleshooting</a></li>
+        <li><a href="#reference"><span>19</span> Command card</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <!-- ============================================================ 01 -->
+      <section class="part" id="what">
+        <div class="part-head">
+          <span class="part-num">01</span>
+          <h2>What this is</h2>
+          <p>A multi-tenant AI chatbot platform, sold to businesses, delivered onto their WordPress sites.</p>
+        </div>
+
+        <p>Two programs, and understanding the split explains almost every design decision in the codebase.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="min-width:9rem">System</th><th>Runs on</th><th>Owns</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>Chat Pilot Cloud</strong><br><span style="font-size:0.82rem">Node.js</span></td>
+                <td>Hostinger shared hosting, behind Passenger</td>
+                <td>Accounts, AI provider keys, knowledge base, the answering engine, conversations, leads, analytics, plans, and the admin console</td>
+              </tr>
+              <tr>
+                <td><strong>Chat Pilot for WordPress</strong><br><span style="font-size:0.82rem">PHP plugin</span></td>
+                <td>each customer's own WordPress site</td>
+                <td>Drawing the chat widget and relaying messages over a signed connection. One secret: the Site API Key.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>The plugin is deliberately thin. It holds no AI key, no knowledge, no system prompt. If a customer's WordPress site is compromised, the attacker gets one revocable key scoped to one website &mdash; not the AI account, not other customers.</p>
+
+        <p>That is also why the setup order is not optional: the Cloud has to be running and configured before the plugin has anything to connect to.</p>
+
+        <div class="flow">
+          <div class="flow-step"><span class="n">A</span><b>Cloud runs</b><span class="sub">already live</span></div>
+          <div class="flow-step"><span class="n">B</span><b>Customer + website</b><span class="sub">in the portal</span></div>
+          <div class="flow-step"><span class="n">C</span><b>AI connected</b><span class="sub">their provider key</span></div>
+          <div class="flow-step"><span class="n">D</span><b>Knowledge added</b><span class="sub">FAQs, pages, docs</span></div>
+          <div class="flow-step"><span class="n">E</span><b>Site key issued</b><span class="sub">cp_live_&hellip;</span></div>
+          <div class="flow-step"><span class="n">F</span><b>Plugin connected</b><span class="sub">widget goes live</span></div>
+        </div>
+
+        <div class="note note-tip">
+          <span class="note-mark">i</span>
+          <div>
+            <b>Each customer brings their own AI key</b>
+            <p>AI usage is billed to the customer's own OpenAI/Anthropic/Gemini account, not to the platform. One customer on Claude and another on Groq is normal &mdash; the provider is chosen per website.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ 02 -->
+      <section class="part" id="stack">
+        <div class="part-head">
+          <span class="part-num">02</span>
+          <h2>Stack and repository layout</h2>
+          <p>No build step in development, no frontend framework, no ORM. Deliberately small.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="min-width:8rem">Layer</th><th>Choice</th><th>Why</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Runtime</strong></td><td>Node.js 22.18+ in development</td><td>Runs TypeScript directly by stripping types &mdash; no build step</td></tr>
+              <tr><td><strong>Web</strong></td><td>Express 4</td><td>Boring and well understood</td></tr>
+              <tr><td><strong>Views</strong></td><td>EJS, server-rendered</td><td>No SPA, no hydration, no bundler</td></tr>
+              <tr><td><strong>Database</strong></td><td>MongoDB 7 driver &rarr; Atlas</td><td>Migrated from SQLite &mdash; see <a href="#history">what changed</a></td></tr>
+              <tr><td><strong>Validation</strong></td><td>Zod 3</td><td>One helper turns a schema failure into a per-field API error</td></tr>
+              <tr><td><strong>Frontend</strong></td><td>Plain CSS + vanilla JS</td><td>No React, no build pipeline</td></tr>
+              <tr><td><strong>Plugin</strong></td><td>PHP 7.4+, PSR-4 autoloaded</td><td>No Composer dependencies at all</td></tr>
+              <tr><td><strong>Tests</strong></td><td><code>node:test</code> + in-memory MongoDB</td><td>183 tests, no test-framework dependency</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>Five production dependencies in the Cloud, and that is the whole list:</p>
+
+        <div class="cmd">
+          <div class="cmd-bar"><span class="where">saas/package.json</span><span class="when">dependencies</span></div>
+<pre>@anthropic-ai/sdk  ^0.124.0
+ejs                ^3.1.10
+express            ^4.21.2
+mongodb            ^7.6.0
+zod                ^3.24.1</pre>
+        </div>
+
+        <h3>Repository map</h3>
+
+        <div class="tree">
+<pre><b>Chat Pilot Project/</b>
+├── <b>saas/</b>                      <i>Chat Pilot Cloud — the Node app</i>
+│   ├── src/
+│   │   ├── config/env.ts          <i>every process.env read happens here, nowhere else</i>
+│   │   ├── core/                  <i>errors, crypto, logging + redaction, validation</i>
+│   │   ├── db/mongo.ts            <i>connection, col() accessor, indexes, transactions</i>
+│   │   ├── providers/             <i>one adapter per AI vendor + registry</i>
+│   │   ├── middleware/            <i>security headers, rate limit, session/CSRF, HMAC auth</i>
+│   │   ├── services/              <i>23 modules — the business logic</i>
+│   │   ├── routes/                <i>siteApi, portal, portalApi, admin, auth</i>
+│   │   ├── views/                 <i>EJS templates</i>
+│   │   └── public/                <i>CSS + JS served at /assets</i>
+│   ├── scripts/                   <i>seed, create-admin, local-mongo, run-tests</i>
+│   ├── tests/                     <i>12 test files + the WordPress PHP harness</i>
+│   ├── .env                       <i>your secrets — never committed</i>
+│   └── server.js                  <i>plain-JS entry point for Passenger</i>
+│
+├── <b>wordpress-plugin/chat-pilot/</b>  <i>the PHP plugin — edit here</i>
+├── <b>scripts/</b>                  <i>three build scripts</i>
+├── <b>deploy/</b>                   <i>systemd unit, nginx config, backup script, .env template</i>
+├── <b>docs/</b>                     <i>RUNNING.md, DEPLOY.md, API.md, ARCHITECTURE-MAP.md</i>
+├── <b>dist/</b>                     <i>build output — gitignored</i>
+└── <b>_reference/</b>               <i>the untouched v1.1.7 plugin, for comparison</i></pre>
+        </div>
+      </section>
+
+      <!-- ============================================================ 03 -->
+      <section class="part" id="cloud">
+        <div class="part-head">
+          <span class="part-num">03</span>
+          <h2>The Cloud</h2>
+          <p>Where to look when you need to change behaviour.</p>
+        </div>
+
+        <h3>Services &mdash; the business logic</h3>
+        <p>Twenty-three modules under <code>src/services/</code>. The ones you will touch most:</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="min-width:10rem">Module</th><th>Responsibility</th></tr></thead>
+            <tbody>
+              <tr><td><code>chatEngine</code></td><td>The answering pipeline. Intent, retrieval, prompt assembly, provider call, sanitising the answer.</td></tr>
+              <tr><td><code>retrieval</code></td><td>Finds knowledge for a question. If this returns nothing, the visitor gets the fallback.</td></tr>
+              <tr><td><code>knowledge</code></td><td>FAQs, manual entries, uploads, website-scan imports.</td></tr>
+              <tr><td><code>crawler</code> / <code>parsers</code></td><td>Website scanning, and PDF/DOCX/CSV extraction.</td></tr>
+              <tr><td><code>providerService</code></td><td>Stores and decrypts customer AI keys; tests connections; discovers models.</td></tr>
+              <tr><td><code>accounts</code></td><td>Signup, login, sessions, password changes. Holds <code>requireAccountAccess()</code>.</td></tr>
+              <tr><td><code>websites</code></td><td>Website records and plan limits. Holds <code>getWebsiteForAccount()</code>.</td></tr>
+              <tr><td><code>siteKeys</code></td><td>Issues, verifies and revokes Site API Keys; enforces the domain binding.</td></tr>
+              <tr><td><code>conversations</code></td><td>Conversations and messages.</td></tr>
+              <tr><td><code>forms</code> / <code>widget</code></td><td>Pre-chat forms and widget configuration.</td></tr>
+              <tr><td><code>usage</code> / <code>budget</code> / <code>pricing</code></td><td>Token counting, cost estimation, monthly budget alerts.</td></tr>
+              <tr><td><code>maintenance</code></td><td>Periodic sweep: closes idle conversations, purges past retention.</td></tr>
+              <tr><td><code>audit</code> / <code>notifications</code></td><td>Who did what when; and the notification queue.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note note-stop">
+          <span class="note-mark">!</span>
+          <div>
+            <b>Two functions carry the entire tenant boundary</b>
+            <p><code>requireAccountAccess()</code> in <code>accounts.ts</code> and <code>getWebsiteForAccount()</code> in <code>websites.ts</code>. Both return <b>404, not 403</b>, for another tenant's id &mdash; a 403 would confirm the record exists. Any new route that touches customer data must go through one of them. This is the most important invariant in the codebase.</p>
+          </div>
+        </div>
+
+        <h3>Routes</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="min-width:8rem">Router</th><th>Mounted at</th><th>Serves</th></tr></thead>
+            <tbody>
+              <tr><td><code>siteApi</code></td><td><code>/api/v1/site</code></td><td>The plugin. HMAC-signed, no cookies.</td></tr>
+              <tr><td><code>auth</code></td><td><code>/</code></td><td>Signup, login, logout, password reset and change.</td></tr>
+              <tr><td><code>portal</code></td><td><code>/app</code></td><td>The customer's server-rendered screens.</td></tr>
+              <tr><td><code>portalApi</code></td><td><code>/api/v1/portal</code></td><td>JSON for those screens (~40 endpoints).</td></tr>
+              <tr><td><code>admin</code></td><td><code>/admin</code></td><td>Platform console. Super admins only.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Database access</h3>
+        <p>Everything goes through <code>src/db/mongo.ts</code>. No service imports the MongoDB driver directly.</p>
+
+        <div class="cmd">
+          <div class="cmd-bar"><span class="where">saas/src/db/mongo.ts</span><span class="when">the whole surface</span></div>
+<pre><span class="c">// every collection read/write goes through this</span>
+col('websites').findOne({ _id: id })
+
+<span class="c">// multi-document atomicity (needs a replica set — Atlas always is one)</span>
+await withTransaction(async (session) =&gt; { ... })
+
+<span class="c">// called once at startup: connects, pings, ensures 44 indexes</span>
+await connectDb()</pre>
+        </div>
+
+        <p>32 collections, named exactly as the old SQL tables were. Every document's <code>_id</code> is the application's own opaque id string, never a Mongo <code>ObjectId</code>. There are no schema migrations &mdash; indexes are re-ensured at every startup, which is idempotent.</p>
+
+        <div class="note note-warn">
+          <span class="note-mark">!</span>
+          <div>
+            <b>The client is pinned to Stable API v1 with <code>strict: true</code></b>
+            <p>That keeps an Atlas upgrade from silently changing a driver default under production traffic &mdash; but it also rejects commands outside API v1. <code>.distinct()</code> is one of them; use an aggregation with <code>$group</code> instead. This has already bitten once, on the admin audit page.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ 04 -->
+      <section class="part" id="plugin">
+        <div class="part-head">
+          <span class="part-num">04</span>
+          <h2>The WordPress plugin</h2>
+          <p>Fourteen PHP classes, no Composer, no dependencies. Version 2.3.1.</p>
+        </div>
+
+        <h3>Every file, and what it does</h3>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="min-width:13rem">File</th><th>Responsibility</th></tr></thead>
+            <tbody>
+              <tr><td><code>chat-pilot.php</code></td><td>Plugin header, constants, and the Cloud address default. Bootstraps the autoloader and <code>Plugin::instance()</code>.</td></tr>
+              <tr><td><code>includes/Autoloader.php</code></td><td>PSR-4 autoloader for the <code>ChatPilot</code> namespace. This is why there is no Composer.</td></tr>
+              <tr><td><code>Core/Plugin.php</code></td><td>Bootstrap container &mdash; wires every other class onto WordPress hooks.</td></tr>
+              <tr><td><code>Core/Frontend.php</code></td><td>Renders the visitor-facing widget and enqueues its CSS/JS.</td></tr>
+              <tr><td><code>Core/Rest.php</code></td><td>One REST route the Cloud calls to verify this site really owns the domain.</td></tr>
+              <tr><td><code>Core/Lifecycle.php</code></td><td>Activation and deactivation hooks.</td></tr>
+              <tr><td><code>Api/Client.php</code></td><td><strong>The signed HTTP client.</strong> Builds the HMAC signature on every request to the Cloud, and resolves the Cloud address.</td></tr>
+              <tr><td><code>Api/Connection.php</code></td><td>Owns the Site API Key and the connection state machine; connect, re-check, disconnect.</td></tr>
+              <tr><td><code>Api/ConfigCache.php</code></td><td>Caches widget config in a transient, with a last-good fallback so a Cloud outage does not blank the widget.</td></tr>
+              <tr><td><code>Admin/Menu.php</code></td><td>Registers the Chat Pilot admin menu.</td></tr>
+              <tr><td><code>Admin/TabsController.php</code></td><td>Routes the four admin tabs.</td></tr>
+              <tr><td><code>Admin/Assets.php</code></td><td>Loads admin CSS/JS on the Chat Pilot page only, never site-wide.</td></tr>
+              <tr><td><code>Admin/Ajax.php</code></td><td>All AJAX handlers &mdash; admin actions and the two public visitor endpoints.</td></tr>
+              <tr><td><code>Settings/Repository.php</code></td><td>Local plugin settings, stored as one option tree.</td></tr>
+              <tr><td><code>Common/Logger.php</code></td><td>Ring-buffer log in a single option, keys redacted. First place to look when something misbehaves.</td></tr>
+              <tr><td><code>uninstall.php</code></td><td>Removes every option including the Site API Key. <strong>Runs on Delete, never on update.</strong></td></tr>
+              <tr><td><code>templates/</code></td><td>Six admin templates: dashboard, the four tabs, and a not-connected partial.</td></tr>
+              <tr><td><code>assets/</code></td><td>Admin CSS/JS, widget CSS/JS, logo.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>AJAX actions it registers</h3>
+        <p>Admin actions are guarded by <code>current_user_can()</code> plus a nonce. Two are public, because visitors are not logged in:</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="min-width:15rem">Action</th><th>Who</th><th>Does</th></tr></thead>
+            <tbody>
+              <tr><td><code>chat_pilot_chat</code></td><td><strong>public</strong></td><td>Relays a visitor message to the Cloud</td></tr>
+              <tr><td><code>chat_pilot_submit_prechat_form</code></td><td><strong>public</strong></td><td>Relays a pre-chat form submission</td></tr>
+              <tr><td><code>chat_pilot_connect</code></td><td>admin</td><td>Connects with a Site API Key</td></tr>
+              <tr><td><code>chat_pilot_disconnect</code></td><td>admin</td><td>Clears the key and state</td></tr>
+              <tr><td><code>chat_pilot_refresh_status</code></td><td>admin</td><td>Re-checks the connection</td></tr>
+              <tr><td><code>chat_pilot_sync_config</code></td><td>admin</td><td>Pulls fresh widget settings</td></tr>
+              <tr><td><code>chat_pilot_save_settings</code></td><td>admin</td><td>Saves local plugin settings</td></tr>
+              <tr><td><code>chat_pilot_save_api_url</code></td><td>admin</td><td>Sets the Cloud address when it is not pinned in <code>wp-config.php</code></td></tr>
+              <tr><td><code>chat_pilot_clear_log</code></td><td>admin</td><td>Empties the plugin log</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>The four admin tabs</h3>
+        <p>All four open whether or not the site is connected &mdash; an unconnected tab says why it is empty rather than doing nothing.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="min-width:9rem">Tab</th><th>What you do there</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>Dashboard</strong></td>
+                <td>Read-only status board. Four tiles answer "is the chatbot working right now": Cloud online or offline, AI provider set or not, knowledge-document count, widget on or off. Below that, what the widget is currently showing, with <b>Sync now</b>, links into every Cloud screen, and the installed version.</td>
+              </tr>
+              <tr>
+                <td><strong>Connection</strong></td>
+                <td>The only screen in WordPress that holds a secret. Before connecting: one masked field with an eye button, and <b>Connect Chat Pilot</b>. After: masked key, website name, registered domain, this site's domain, account, ownership badge, last checked &mdash; plus <b>Re-check</b>, <b>Sync widget settings</b>, <b>Disconnect</b>, and a field for a replacement key after a rotation.</td>
+              </tr>
+              <tr>
+                <td><strong>Chat Widget</strong></td>
+                <td>Two halves. The top shows what the Cloud is sending &mdash; read-only, because appearance is designed in the Cloud so one dashboard drives every site. The bottom holds the WordPress-only controls: whether the widget may render at all, whether to hide it from logged-in admins, and page rules.</td>
+              </tr>
+              <tr>
+                <td><strong>Settings</strong></td>
+                <td>Local switches: enable the plugin, logging on or off, developer mode. Underneath, the last 40 log entries with keys redacted, and <b>Clear log</b>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note note-tip">
+          <span class="note-mark">i</span>
+          <div>
+            <b>Why so little is editable in WordPress</b>
+            <p>Provider, model, knowledge, instructions, widget design, forms, conversations and analytics all live in the Cloud. Two editable copies of that data is how a site ends up saying one thing while the engine believes another. The plugin displays and relays; it does not edit.</p>
+          </div>
+        </div>
+
+        <h3>How the plugin finds the Cloud</h3>
+        <p>In precedence order:</p>
+        <ol>
+          <li><code>CHAT_PILOT_API_URL</code> defined in <code>wp-config.php</code> &mdash; pins it at server level; the admin screen then shows it read-only, so nobody with only wp-admin access can redirect this site's signed traffic.</li>
+          <li>The built-in default in <code>chat-pilot.php</code>, currently the live Hostinger address.</li>
+        </ol>
+
+        <div class="note note-warn">
+          <span class="note-mark">!</span>
+          <div>
+            <b>The built-in default is a temporary domain</b>
+            <p><code>chat-pilot.php</code> ships pointing at <code>palevioletred-louse-364639.hostingersite.com</code>. When the Cloud moves to a permanent domain, change that line, rebuild the plugin, and re-upload it to every site that has not pinned the constant. Doing it now, at three sites, is much cheaper than doing it at thirty.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ 05 -->
+      <section class="part" id="keys">
+        <div class="part-head">
+          <span class="part-num">05</span>
+          <h2>The two keys &mdash; read this first</h2>
+          <p>Two completely different secrets, and people call both of them "the API key". Mixing them up is the single most common way this setup goes wrong.</p>
+        </div>
+
+        <div class="keys">
+          <div class="key-card">
+            <div class="eyebrow">Key 1 &middot; the customer's</div>
+            <h4>AI provider key</h4>
+            <code class="sample">sk-ant-api03-xxxxxxxxxxxxxxxx</code>
+            <dl>
+              <dt>Comes from</dt><dd>OpenAI, Anthropic, Gemini, Groq &mdash; whichever AI account the customer owns</dd>
+              <dt>Goes into</dt><dd>Chat Pilot Cloud &rarr; <b>AI Providers</b></dd>
+              <dt>Never goes into</dt><dd>WordPress. Not the plugin, not the browser, not anywhere a visitor can reach.</dd>
+              <dt>Stored as</dt><dd>AES-256-GCM ciphertext, decrypted only inside the generation path</dd>
+              <dt>Who pays</dt><dd>The customer &mdash; billed on their own AI account</dd>
+            </dl>
+          </div>
+
+          <div class="key-card is-alt">
+            <div class="eyebrow">Key 2 &middot; issued by Chat Pilot</div>
+            <h4>Site API Key</h4>
+            <code class="sample">cp_live_8f6032a29183d8b6_oKm9pDXE&hellip;</code>
+            <dl>
+              <dt>Comes from</dt><dd>Cloud &rarr; the website's <b>Connection</b> tab &rarr; Generate key</dd>
+              <dt>Goes into</dt><dd>The WordPress plugin &rarr; <b>Connection</b> tab</dd>
+              <dt>What it unlocks</dt><dd>Only that one website's chat, only from its registered domain. It cannot log in or see other sites.</dd>
+              <dt>Stored as</dt><dd>HMAC-SHA256 with a server-side pepper &mdash; never recoverable</dd>
+              <dt>Shown</dt><dd>Once. Lose it and issue a new one; that costs nothing.</dd>
+            </dl>
+          </div>
+        </div>
+
+        <div class="note note-tip">
+          <span class="note-mark">i</span>
+          <div>
+            <b>The short version</b>
+            <p>The customer's AI key goes <em>into the Cloud</em>. The Cloud's Site API Key goes <em>into WordPress</em>. If you ever find yourself pasting an <code>sk-</code> key into WordPress, stop &mdash; that is the wrong key in the wrong place.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ 06 -->
+      <section class="part" id="setup">
+        <div class="part-head">
+          <span class="part-num">06</span>
+          <h2>Onboarding a customer</h2>
+          <p>Eight steps, once per customer. Step 4 decides whether the chatbot is any good.</p>
+        </div>
+
+        <ol class="steps">
+          <li><b>Account</b><p>The customer signs up at <code>/signup</code>, or you do it for them. The signup form only ever creates a customer account, never an admin.</p></li>
+          <li>
+            <b>Website</b>
+            <p><b>My Websites &rarr; Add website</b>, with the site's real URL.</p>
+            <div class="note note-warn">
+              <span class="note-mark">!</span>
+              <div>
+                <b>The domain you enter is the only domain the key will work on</b>
+                <p>If the live site is <code>www.example.com</code>, register that, not the bare domain. Getting it wrong means the plugin connects and then refuses every message with <code>domain_mismatch</code>.</p>
+              </div>
+            </div>
+          </li>
+          <li><b>AI provider</b><p><b>AI Providers</b> &rarr; pick the vendor, paste the customer's key, <b>Test connection &amp; find models</b>, then choose a model from the ones the test actually discovered. A provider cannot go live until its test has passed, so a mistyped key can never leave the site pointing at an AI that does not answer.</p></li>
+          <li>
+            <b>Knowledge</b>
+            <p>Start with a <b>website scan</b> for coverage, then add <b>FAQs</b> for everything that must come out word-perfect. Four sources, and when two disagree the higher one wins:</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Priority</th><th>Source</th><th>Use it for</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>1 &mdash; highest</strong></td><td><strong>FAQ</strong></td><td>Exact question, exact answer. Prices, hours, policies.</td></tr>
+                  <tr><td><strong>2</strong></td><td><strong>Manual knowledge</strong></td><td>Facts you type in that live nowhere on the site.</td></tr>
+                  <tr><td><strong>3</strong></td><td><strong>Uploaded documents</strong></td><td>PDF, DOCX, TXT, MD, CSV &mdash; brochures, price lists, spec sheets.</td></tr>
+                  <tr><td><strong>4 &mdash; lowest</strong></td><td><strong>Website scan</strong></td><td>Bulk background from the customer's pages. Good coverage, weakest authority.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="note note-stop">
+              <span class="note-mark">!</span>
+              <div>
+                <b>Skip this and the bot answers nothing</b>
+                <p>With no knowledge, retrieval finds nothing and every real question returns the fallback sentence. That is exactly the state all three live websites are in right now &mdash; see <a href="#state">live state today</a>.</p>
+              </div>
+            </div>
+          </li>
+          <li><b>Instructions</b><p><b>AI Instructions</b> &mdash; tone, answer length, and the fallback wording. The bot never invents an answer; it falls back. Write that sentence in the customer's voice.</p></li>
+          <li><b>Preview</b><p><b>Developer Chat Preview</b> runs the identical engine with diagnostics showing what retrieval matched. If it answers well here, it will answer well on the site. If it falls back here, fix the knowledge now, not later.</p></li>
+          <li><b>Site API Key</b><p><b>Connection &rarr; Generate key</b>. A label like "WordPress" helps when you are later looking at a list of keys. Copy it immediately. You can issue several per website and revoke any one without touching the others.</p></li>
+          <li><b>Plugin</b><p>Upload the ZIP on the customer's site, activate, paste the key, <b>Connect</b>.</p></li>
+        </ol>
+      </section>
+
+      <!-- ============================================================ 07 -->
+      <section class="part" id="providers">
+        <div class="part-head">
+          <span class="part-num">07</span>
+          <h2>AI providers</h2>
+          <p>Nine adapters plus a mock, in <code>src/providers/</code>, behind one interface and a registry.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Provider</th><th>Key looks like</th><th>Get one at</th></tr></thead>
+            <tbody>
+              <tr><td><strong>OpenAI</strong></td><td><code>sk-&hellip;</code></td><td>platform.openai.com/api-keys</td></tr>
+              <tr><td><strong>Anthropic (Claude)</strong></td><td><code>sk-ant-&hellip;</code></td><td>console.anthropic.com/settings/keys</td></tr>
+              <tr><td><strong>Google Gemini</strong></td><td><code>AIza&hellip;</code></td><td>aistudio.google.com/apikey</td></tr>
+              <tr><td><strong>Mistral AI</strong></td><td>32-character key</td><td>console.mistral.ai/api-keys</td></tr>
+              <tr><td><strong>Groq</strong></td><td><code>gsk_&hellip;</code></td><td>console.groq.com/keys</td></tr>
+              <tr><td><strong>DeepSeek</strong></td><td><code>sk-&hellip;</code></td><td>platform.deepseek.com/api_keys</td></tr>
+              <tr><td><strong>Together AI</strong></td><td>64-character key</td><td>api.together.xyz/settings/api-keys</td></tr>
+              <tr><td><strong>OpenRouter</strong></td><td><code>sk-or-&hellip;</code></td><td>openrouter.ai/keys</td></tr>
+              <tr><td><strong>Custom</strong></td><td>anything</td><td>your own gateway, vLLM, Ollama, LM&nbsp;Studio &mdash; needs a base URL</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p><b>Custom</b> is the escape hatch: anything speaking the OpenAI format works by entering its base URL, so a provider not on this list is still usable. Model lists are read live from the provider during the connection test, so retired models simply stop appearing.</p>
+
+        <div class="note note-warn">
+          <span class="note-mark">!</span>
+          <div>
+            <b>The mock provider is refused in production</b>
+            <p><code>mock</code> exists for the test suite and for local development. It is rejected when <code>NODE_ENV=production</code> regardless of configuration, so a test fixture can never quietly serve a real customer.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ 08 -->
+      <section class="part" id="dashboards">
+        <div class="part-head">
+          <span class="part-num">08</span>
+          <h2>The three dashboards</h2>
+          <p>Chat Pilot has three, and people mix them up. Each answers a different question.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="min-width:11rem">Dashboard</th><th>Where</th><th>Answers</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>Master Admin</strong><br><span style="font-size:0.8rem">yours</span></td>
+                <td><code>/admin</code></td>
+                <td>How is the <em>whole platform</em> doing? Every customer, every website, provider failures across all of them.</td>
+              </tr>
+              <tr>
+                <td><strong>Customer account</strong><br><span style="font-size:0.8rem">theirs</span></td>
+                <td><code>/app</code></td>
+                <td>How is <em>my business</em> doing? My websites, conversations, leads, plan and usage.</td>
+              </tr>
+              <tr>
+                <td><strong>Website</strong><br><span style="font-size:0.8rem">per site</span></td>
+                <td><code>/app/websites/&hellip;</code></td>
+                <td>How is <em>this one site's chatbot</em> doing? Setup checklist, knowledge counts, model usage, cost.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>The plugin's own Dashboard is a fourth, much smaller thing: a status board inside WordPress that reads the third one over the connection. It shows; it never edits.</p>
+
+        <h3>Master Admin vs customer</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th></th><th>Customer</th><th>Master Admin</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Created by</strong></td><td><code>/signup</code>, self-service</td><td><code>npm run admin:create</code>, on the server only</td></tr>
+              <tr><td><strong>Lands on</strong></td><td><code>/app</code></td><td><code>/admin</code></td></tr>
+              <tr><td><strong>Can see</strong></td><td>only their own account</td><td>every account, website, plan, audit entry</td></tr>
+              <tr><td><strong>Can see customers' AI keys</strong></td><td>n/a</td><td><strong>No.</strong> Encrypted at rest, never displayed to anyone</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>The <b>Client portal</b> button in the admin header switches you to the customer view. There is one sign-in page; it just sends you somewhere different.</p>
+
+        <div class="note note-warn">
+          <span class="note-mark">!</span>
+          <div>
+            <b><code>admin:create</code> promotes whatever email you give it</b>
+            <p>Run it against an existing customer's email and that customer becomes a Master Admin with sight of every account. Only ever point it at an address you intend to be an admin. It is also how you add a colleague.</p>
+          </div>
+        </div>
+
+        <h3>Master Admin &mdash; <code>/admin</code></h3>
+        <ul>
+          <li><b>Dashboard</b> &mdash; accounts, customers, websites, conversations, leads, AI requests, tokens, estimated cost, provider errors, active and revoked site keys. Range switch: today, 7, 30, 90 days.</li>
+          <li><b>Customers</b> &mdash; every account with plan and status. Open one to see its websites and users, change its plan, suspend or reactivate.</li>
+          <li><b>Websites</b> &mdash; every site across every customer in one list.</li>
+          <li><b>Plans &amp; Pricing</b> &mdash; the plan ladder and per-model rate overrides.</li>
+          <li><b>System Health</b> &mdash; provider status platform-wide. Look here first when several customers report failures at once.</li>
+          <li><b>Audit Log</b> &mdash; logins, key generation and revocation, plan changes, suspensions.</li>
+        </ul>
+
+        <h3>Customer account &mdash; <code>/app</code></h3>
+        <ul>
+          <li><b>Dashboard</b> &mdash; account totals for the last 30 days, plus a table of their websites.</li>
+          <li><b>My Websites</b> &mdash; the list, and <b>+ Add website</b>.</li>
+          <li><b>Usage</b> &mdash; messages, AI requests, tokens, estimated cost this month, and the monthly budget.</li>
+          <li><b>Billing</b> &mdash; plan and limits. <b>Account</b> &mdash; profile and password. <b>Support</b> &mdash; how to reach you.</li>
+        </ul>
+
+        <h3>Website &mdash; the eleven tabs</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="min-width:12rem">Tab</th><th>What it is for</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Dashboard</strong></td><td>Setup checklist &mdash; provider connected, model selected, knowledge base, site key issued, plugin connected, widget enabled. Green all the way down means live.</td></tr>
+              <tr><td><strong>AI Providers</strong></td><td>Choose the AI, paste its key, test, pick the model.</td></tr>
+              <tr><td><strong>Knowledge Base</strong></td><td>Scan the site, add FAQs and manual facts, upload documents, run retrieval diagnostics.</td></tr>
+              <tr><td><strong>AI Instructions</strong></td><td>Tone, answer length, the fallback wording.</td></tr>
+              <tr><td><strong>Developer Chat Preview</strong></td><td>Test the bot with diagnostics before anyone sees it. Same engine as the live widget.</td></tr>
+              <tr><td><strong>Chat Widget</strong></td><td>Colour, position, header title, greeting, suggested questions, auto-open.</td></tr>
+              <tr><td><strong>Forms</strong></td><td>The pre-chat form &mdash; which fields, which are required.</td></tr>
+              <tr><td><strong>Leads</strong></td><td>Everyone who filled that form. Export them.</td></tr>
+              <tr><td><strong>Conversations</strong></td><td>Every chat, readable end to end. The best source of new FAQs.</td></tr>
+              <tr><td><strong>Analytics</strong></td><td>Volume, answer rate, fallback rate, token spend. CSV export.</td></tr>
+              <tr><td><strong>Connection</strong></td><td>Generate and revoke Site API Keys, and see the plugin's connection state.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note note-tip">
+          <span class="note-mark">i</span>
+          <div>
+            <b>The loop that makes a chatbot good</b>
+            <p>Read <b>Conversations</b> weekly. Every question that came back as a fallback is a missing FAQ. Add it in <b>Knowledge Base</b>, confirm the fix in <b>Developer Chat Preview</b>, and watch the fallback rate fall in <b>Analytics</b>. That loop, not the initial setup, is what the customer is paying for.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ 09 -->
+      <section class="part" id="runtime">
+        <div class="part-head">
+          <span class="part-num">09</span>
+          <h2>What happens on one visitor message</h2>
+          <p>The path a question takes, and where it can stop early.</p>
+        </div>
+
+        <div class="rail">
+          <div class="rail-step"><span class="n">1</span><div><b>Visitor types in the widget</b><span>Widget JS posts to WordPress admin-ajax, not to the Cloud. The browser never learns the Cloud's address or any key.</span></div></div>
+          <div class="rail-step"><span class="n">2</span><div><b>Plugin signs the request</b><span>HMAC-SHA256 over <code>METHOD\nPATH\nTIMESTAMP\nNONCE\nsha256(body)</code>, using the Site API Key.</span></div></div>
+          <div class="rail-step"><span class="n">3</span><div><b>Cloud verifies</b><span>Key hash, timestamp window, nonce replay cache, body hash, and that the calling domain matches the registered one.</span></div></div>
+          <div class="rail-step"><span class="n">4</span><div><b>Account and website checks</b><span>Account active, subscription active, website active. Each failure is a specific error code, not a generic one.</span></div></div>
+          <div class="rail-step"><span class="n">5</span><div><b>Intent</b><span>A greeting or small talk is answered without touching the provider at all &mdash; no tokens spent.</span></div></div>
+          <div class="rail-step"><span class="n">6</span><div><b>Retrieval</b><span>Search this website's knowledge only. <b>Nothing found &rarr; return the fallback, still without calling the provider.</b></span></div></div>
+          <div class="rail-step"><span class="n">7</span><div><b>Generate</b><span>Decrypt the customer's provider key, assemble the prompt from instructions plus retrieved documents, call the vendor.</span></div></div>
+          <div class="rail-step"><span class="n">8</span><div><b>Record</b><span>Strip HTML from the answer, store conversation and message, count tokens, estimate cost, check the budget.</span></div></div>
+          <div class="rail-step"><span class="n">9</span><div><b>Reply</b><span>The visitor receives <code>{ text, status }</code> and nothing else &mdash; no diagnostics, no model name, no key.</span></div></div>
+        </div>
+
+        <div class="note note-ok">
+          <span class="note-mark">&#10003;</span>
+          <div>
+            <b>Steps 5 and 6 are why a token bill can be zero</b>
+            <p>Greetings and unanswerable questions never reach the provider. On the live system today, all seven AI requests cost nothing at all, because there is no knowledge for retrieval to find.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ 10 -->
+      <section class="part" id="verify">
+        <div class="part-head">
+          <span class="part-num">10</span>
+          <h2>Verify it actually works</h2>
+          <p>Four checks. Do all four before telling a customer it is live.</p>
+        </div>
+
+        <ol class="steps">
+          <li><b>Plugin says Connected</b><p><b>Chat Pilot &rarr; Dashboard</b>. Provider configured, knowledge documents above zero, widget enabled, website active.</p></li>
+          <li><b>The widget appears</b><p>Open the customer's site in a private window. The launcher should be in the corner.</p></li>
+          <li><b>It answers a real question</b><p>Ask something you know is in the knowledge base. A fallback here but a good answer in Developer Chat Preview means the plugin is talking to a different website's configuration &mdash; check the key.</p></li>
+          <li><b>It shows up in the Cloud</b><p><b>Conversations</b> should list that chat and <b>Analytics</b> should count the request. If the widget answered but nothing was recorded, it is serving a stale cache &mdash; press <b>Sync widget settings</b>.</p></li>
+        </ol>
+      </section>
+
+      <!-- ============================================================ 11 -->
+      <section class="part" id="local">
+        <div class="part-head">
+          <span class="part-num">11</span>
+          <h2>Running it locally</h2>
+          <p>Node 22.18+ and a MongoDB. Nothing else to install.</p>
+        </div>
+
+        <ol class="steps">
+          <li>
+            <b>Install</b>
+            <div class="cmd">
+              <div class="cmd-bar"><span class="where">saas/</span><span class="when">once</span></div>
+<pre><span class="p">$</span> npm install
+<span class="p">$</span> cp .env.example .env</pre>
+            </div>
+          </li>
+          <li>
+            <b>Get a MongoDB</b>
+            <p>Either point <code>MONGODB_URI</code> at Atlas, or start a throwaway one &mdash; it prints the connection string to paste into <code>.env</code>:</p>
+            <div class="cmd">
+              <div class="cmd-bar"><span class="where">saas/</span><span class="when">leave running</span></div>
+<pre><span class="p">$</span> npm run mongo:local</pre>
+            </div>
+            <p>It is a single-member replica set, not a standalone <code>mongod</code>, because the app uses transactions &mdash; and because every Atlas cluster is one, so local matches production.</p>
+          </li>
+          <li>
+            <b>Secrets, then seed and start</b>
+            <div class="cmd">
+              <div class="cmd-bar"><span class="where">saas/</span><span class="when">once, then daily</span></div>
+<pre><span class="p">$</span> node -e "for (const k of ['ENCRYPTION_KEY','SESSION_SECRET','SITE_KEY_PEPPER']) console.log(k+'='+require('crypto').randomBytes(32).toString('hex'))"
+<span class="p">$</span> npm run seed
+<span class="p">$</span> npm start
+<span class="c">[chat-pilot] SaaS portal listening on port 4000</span></pre>
+            </div>
+            <p>Use <code>npm run dev</code> instead to reload on save.</p>
+          </li>
+          <li>
+            <b>Make yourself an admin</b>
+            <div class="cmd">
+              <div class="cmd-bar"><span class="where">saas/</span><span class="when">once</span></div>
+<pre><span class="p">$</span> npm run admin:create -- --email you@example.com --name "Your Name"</pre>
+            </div>
+            <p>Prints a generated password once. Pass <code>--password</code> to choose your own.</p>
+          </li>
+        </ol>
+
+        <div class="note note-warn">
+          <span class="note-mark">!</span>
+          <div>
+            <b>Port 4000 already in use</b>
+            <p>An older server is still running. On Windows <code>pkill</code> will not kill it &mdash; use PowerShell:</p>
+            <p style="margin-top:0.4rem"><code>Get-NetTCPConnection -LocalPort 4000 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }</code></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ 12 -->
+      <section class="part" id="builds">
+        <div class="part-head">
+          <span class="part-num">12</span>
+          <h2>The three builds</h2>
+          <p>Three destinations, three shapes. They are siblings, not alternatives.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="min-width:11rem">Command</th><th>Produces</th><th>For</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><code>npm run hostinger:build</code></td>
+                <td><code>dist/hostinger/&hellip;zip</code><br><span style="font-size:0.82rem">compiled JavaScript, flat</span></td>
+                <td><strong>What is live now.</strong> Shared hosting behind Passenger. Files at the ZIP root because the panel points "Application root" at the folder holding <code>package.json</code>.</td>
+              </tr>
+              <tr>
+                <td><code>npm run cloud:build</code></td>
+                <td><code>dist/cloud/&hellip;zip</code><br><span style="font-size:0.82rem">TypeScript source, nested</span></td>
+                <td>A VPS you have root on. Unpacks to <code>chat-pilot/saas/</code> + <code>deploy/</code>, matching <code>docs/DEPLOY.md</code>.</td>
+              </tr>
+              <tr>
+                <td><code>npm run plugin:patch</code><br><code>plugin:minor</code> / <code>plugin:major</code></td>
+                <td><code>dist/plugin/chat-pilot-X.Y.Z.zip</code></td>
+                <td>The customer's WordPress site. The bump variants edit the version first, in both places it lives, and refuse to build if the two disagree.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Why the Hostinger build compiles and the others do not</h3>
+        <p>Everywhere else, Node runs the TypeScript directly by stripping types &mdash; no build step to forget. That needs Node 22.18+. Hostinger's shared plans run Passenger on older Node, which cannot load a <code>.ts</code> file at all: the process dies and the panel shows a 503 with nothing in it mentioning TypeScript. So <code>build-hostinger.mjs</code> runs <code>tsc</code> first. <code>tsconfig.json</code> already sets <code>rewriteRelativeImportExtensions</code>, so <code>import './app.ts'</code> becomes <code>'./app.js'</code> in the output and the emitted tree needs no patching. The floor is then Node 20.19, set by the MongoDB driver rather than by us. That build also strips <code>devDependencies</code> from the shipped <code>package.json</code>, so a plain <code>npm install</code> on the server cannot pull <code>mongodb-memory-server</code> and download a MongoDB binary onto shared hosting.</p>
+
+        <div class="note note-stop">
+          <span class="note-mark">!</span>
+          <div>
+            <b>Always bump the plugin version when you change the plugin</b>
+            <p>WordPress caches plugin CSS and JS by version number. Ship a change without a bump and the admin screen looks broken in a way nothing in the code explains. <code>plugin:patch</code> for fixes, <code>plugin:minor</code> for behaviour changes, <code>plugin:major</code> for breaking ones. To set an exact version: <code>node scripts/build-plugin.mjs --set 2.3.4</code>.</p>
+          </div>
+        </div>
+
+        <h3>Updating the plugin on a live site</h3>
+        <p><b>Plugins &rarr; Add New &rarr; Upload Plugin &rarr; choose the new ZIP &rarr; Install Now.</b> WordPress sees <code>chat-pilot</code> is already installed and offers <b>Replace current with uploaded</b> &mdash; take it. The Site API Key and every setting survive.</p>
+
+        <div class="note note-stop">
+          <span class="note-mark">!</span>
+          <div>
+            <b>Do not Delete the plugin to update it</b>
+            <p>Deleting runs <code>uninstall.php</code>, which removes the Site API Key, the connection state and the cached widget config by design. The site then has to be connected again with a fresh key. Delete is for removing Chat Pilot, not for upgrading it. An earlier version of this guide had this wrong, and it silently disconnected sites on every documented update.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ 13 -->
+      <section class="part" id="deploy">
+        <div class="part-head">
+          <span class="part-num">13</span>
+          <h2>How it is deployed today</h2>
+          <p>Hostinger shared hosting, Node app manager, MongoDB Atlas behind it.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <tbody>
+              <tr><td><strong>Cloud</strong></td><td>Hostinger shared hosting &rarr; hPanel &rarr; Node.js app</td></tr>
+              <tr><td><strong>Address</strong></td><td><code>palevioletred-louse-364639.hostingersite.com</code> &mdash; Hostinger's temporary domain</td></tr>
+              <tr><td><strong>Startup file</strong></td><td><code>server.js</code></td></tr>
+              <tr><td><strong>Node version</strong></td><td>20.19 or newer</td></tr>
+              <tr><td><strong>Database</strong></td><td>MongoDB Atlas M0 (free tier), database <code>chatpilot</code></td></tr>
+              <tr><td><strong>Atlas network access</strong></td><td><code>0.0.0.0/0</code> &mdash; required, because shared hosting has no fixed outbound IP</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Updating the deployed Cloud</h3>
+        <ol>
+          <li><code>npm run hostinger:build</code> on your machine</li>
+          <li>Upload and extract into the application root, replacing the old files</li>
+          <li>Restart the app from hPanel</li>
+        </ol>
+
+        <div class="note note-stop">
+          <span class="note-mark">!</span>
+          <div>
+            <b>Never set <code>PORT</code> in the Hostinger environment variables</b>
+            <p>Passenger assigns the port itself and expects the app to listen on the one it provides. Setting <code>PORT=4000</code> makes the app listen where Passenger is not looking, and every request returns 503 with no useful error. This cost a full debugging session already.</p>
+          </div>
+        </div>
+
+        <p><code>deploy/</code> also holds a complete VPS setup &mdash; systemd unit, nginx config, backup script &mdash; used by <code>docs/DEPLOY.md</code> and the separate <b>Launch Plan</b> runbook. None of it applies to the current shared-hosting deployment.</p>
+      </section>
+
+      <!-- ============================================================ 14 -->
+      <section class="part" id="env">
+        <div class="part-head">
+          <span class="part-num">14</span>
+          <h2>Environment</h2>
+          <p>Every <code>process.env</code> read in the Cloud happens in <code>src/config/env.ts</code> and nowhere else.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="min-width:13rem">Variable</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>MONGODB_URI</code></td><td><strong>Required in production.</strong> Atlas connection string.</td></tr>
+              <tr><td><code>MONGODB_DB</code></td><td>Database name. <code>chatpilot</code> in production.</td></tr>
+              <tr><td><code>ENCRYPTION_KEY</code></td><td><strong>Required.</strong> Decrypts every stored AI provider key.</td></tr>
+              <tr><td><code>SESSION_SECRET</code></td><td><strong>Required.</strong> Signs portal session cookies.</td></tr>
+              <tr><td><code>SITE_KEY_PEPPER</code></td><td><strong>Required.</strong> Verifies every Site API Key.</td></tr>
+              <tr><td><code>APP_URL</code></td><td>Public address. Used in emails and dashboard links.</td></tr>
+              <tr><td><code>PORT</code></td><td>Local only. <strong>Must not be set on Hostinger.</strong></td></tr>
+              <tr><td><code>FORCE_HTTPS</code> + <code>TRUST_PROXY</code></td><td>Both <code>true</code> behind a proxy. Only the first &rarr; infinite redirect loop.</td></tr>
+              <tr><td><code>MAIL_TRANSPORT</code></td><td><code>log</code> today: notifications are recorded but <strong>never sent</strong>.</td></tr>
+              <tr><td><code>SUPERADMIN_EMAIL</code> / <code>_PASSWORD</code></td><td>Read by <code>npm run seed</code> only, to create the first admin.</td></tr>
+              <tr><td><code>RATE_LIMIT_*</code>, <code>UPLOAD_*</code>, <code>PROVIDER_TIMEOUT_MS</code></td><td>Sensible defaults; change only if real traffic demands it.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note note-stop">
+          <span class="note-mark">!</span>
+          <div>
+            <b>The three secrets are not recoverable, and they are your backup</b>
+            <p><code>ENCRYPTION_KEY</code> is the only thing that opens the customer AI keys sitting encrypted in Atlas. Lose it and the database stays perfectly healthy while every provider key in it becomes permanently unreadable, and every installed plugin disconnects. The app refuses to start in production without all three &mdash; deliberately, because a missing secret should fail loudly rather than fall back to a throwaway value and silently destroy data.</p>
+            <p>The production values live in <code>dist/hostinger/chat-pilot-hostinger.env</code> on the maintainer's machine and in the Hostinger panel. That is not a backup. Put them in a password manager, today.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ 15 -->
+      <section class="part" id="tests">
+        <div class="part-head">
+          <span class="part-num">15</span>
+          <h2>Tests</h2>
+          <p>183 tests across 12 files. They boot the real app and drive it over HTTP; only the AI provider is mocked.</p>
+        </div>
+
+        <div class="cmd">
+          <div class="cmd-bar"><span class="where">saas/</span><span class="when">before every commit</span></div>
+<pre><span class="p">$</span> npm test
+<span class="c">ℹ tests 183   ℹ pass 183   ℹ fail 0</span>
+
+<span class="p">$</span> npm run typecheck</pre>
+        </div>
+
+        <p><code>npm test</code> goes through <code>scripts/run-tests.mjs</code>, which starts one in-memory MongoDB replica set and points every test file at it. Each test file runs in its own process and gets its own database, named <code>chatpilot_test_&lt;pid&gt;</code>.</p>
+
+        <div class="note note-warn">
+          <span class="note-mark">!</span>
+          <div>
+            <b>Run tests only through <code>npm test</code></b>
+            <p><code>node --test</code> directly fails loudly rather than quietly reaching for whatever <code>mongodb://127.0.0.1:27017</code> happens to resolve to. A test run also ignores <code>.env</code> entirely &mdash; deliberately, because inheriting <code>MONGODB_DB</code> from it once collapsed all twelve files onto a single database and broke isolation silently.</p>
+          </div>
+        </div>
+
+        <p><code>10-wordpress-plugin.test.ts</code> runs the real plugin PHP against the real server on a minimal WordPress shim. It skips, loudly, when PHP is not installed &mdash; which is the case on the current development machine, so that file's assertions are <em>not</em> currently being exercised.</p>
+      </section>
+
+      <!-- ============================================================ 16 -->
+      <section class="part" id="state">
+        <div class="part-head">
+          <span class="part-num">16</span>
+          <h2>Live state today</h2>
+          <p>Read from Atlas on 21 September 2026.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Collection</th><th class="num">Count</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td><code>accounts</code></td><td class="num">3</td><td>Real customers</td></tr>
+              <tr><td><code>users</code></td><td class="num">4</td><td>1 super admin + 3 customer users</td></tr>
+              <tr><td><code>websites</code></td><td class="num">3</td><td>greggsauto.net, threelakesmd.com, awyeelectric.com</td></tr>
+              <tr><td><code>site_api_credentials</code></td><td class="num">2</td><td>Two sites have plugins connected (v2.3.1)</td></tr>
+              <tr><td><code>ai_provider_credentials</code></td><td class="num">2</td><td>OpenAI configured</td></tr>
+              <tr><td><code>knowledge_documents</code></td><td class="num">0</td><td><strong>Nothing. This is why the bots answer nothing.</strong></td></tr>
+              <tr><td><code>conversations</code> / <code>messages</code></td><td class="num">2 / 14</td><td>Real visitor traffic has happened</td></tr>
+              <tr><td><code>form_submissions</code></td><td class="num">2</td><td>Leads captured</td></tr>
+              <tr><td><code>ai_requests</code></td><td class="num">7</td><td>Mostly <code>fallback</code>, zero tokens spent</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Open items, most urgent first</h3>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="min-width:2rem"></th><th style="min-width:12rem">Item</th><th>Why it matters</th></tr></thead>
+            <tbody>
+              <tr><td><strong style="color:var(--stop)">1</strong></td><td><strong>No knowledge loaded</strong></td><td>Three live sites with chatbots that answer every real question with the fallback. Nothing else on this list changes that.</td></tr>
+              <tr><td><strong style="color:var(--stop)">2</strong></td><td><strong>No database backup</strong></td><td>Atlas M0 has no automated backup. Real customer conversations and leads exist with no copy anywhere.</td></tr>
+              <tr><td><strong style="color:var(--warn)">3</strong></td><td>Temporary domain</td><td>Baked into the plugin default. Every extra site installed now is another to re-upload later.</td></tr>
+              <tr><td><strong style="color:var(--warn)">4</strong></td><td>Email not wired</td><td><code>MAIL_TRANSPORT=log</code>. Password-reset mail is recorded, never delivered &mdash; a locked-out customer cannot recover.</td></tr>
+              <tr><td><strong style="color:var(--text-3)">5</strong></td><td>No payment processor</td><td>Plans, limits and subscription state are complete and enforced. Only card collection is absent.</td></tr>
+              <tr><td><strong style="color:var(--text-3)">6</strong></td><td>Atlas open to <code>0.0.0.0/0</code></td><td>Unavoidable on shared hosting. The database user's password is the only boundary; keep it strong.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================ 17 -->
+      <section class="part" id="history">
+        <div class="part-head">
+          <span class="part-num">17</span>
+          <h2>What changed, and why</h2>
+          <p>The commits that shaped the current codebase. Useful context before you change something that looks odd.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="min-width:6rem">Commit</th><th>Change</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><code>c8f94b4</code></td>
+                <td><strong>SQLite &rarr; MongoDB.</strong> The whole data layer. <code>src/db/index.ts</code> deleted, <code>mongo.ts</code> written; 32 tables became 32 collections with the same names; <code>ON DELETE CASCADE</code> became explicit cascade helpers; every synchronous call became async up the whole chain, through services, routes and middleware. Three real bugs surfaced and were fixed: new accounts were not getting a plan assigned, the default pre-chat form was never found, and <code>/admin/audit</code> returned 500.</td>
+              </tr>
+              <tr>
+                <td><code>63de5c1</code></td>
+                <td>MongoDB connection failures now name the thing to fix &mdash; the <code>&lt;db_username&gt;</code> placeholder, bad credentials, the missing IP allowlist entry, or DNS &mdash; instead of repeating the driver's "server selection timed out".</td>
+              </tr>
+              <tr>
+                <td><code>6ff97f3</code></td>
+                <td><strong>Three test faults.</strong> Per-file database isolation had silently stopped working once <code>.env</code> gained <code>MONGODB_DB</code>, collapsing all twelve files onto one database. Teardown waited forever on <code>fetch()</code> keep-alive sockets. And both login catches plus signup reported internal failures as "email or password is incorrect" or "please check the form" &mdash; untrue, and it hid the real fault twice during debugging.</td>
+              </tr>
+              <tr>
+                <td><code>626e991</code></td>
+                <td>The plugin's default Cloud address now points at the deployed Cloud instead of a placeholder that resolves nowhere.</td>
+              </tr>
+              <tr>
+                <td><code>b27284a</code></td>
+                <td>The update instructions told people to Delete the plugin and re-upload, and claimed that would not run <code>uninstall.php</code>. It does &mdash; so every documented update silently wiped the Site API Key. Replaced with "Replace current with uploaded". Also fixed the key field asking for <code>autocomplete="off"</code>, which browsers ignore on password inputs, letting a saved password autofill over the key.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============================================================ 18 -->
+      <section class="part" id="trouble">
+        <div class="part-head">
+          <span class="part-num">18</span>
+          <h2>Troubleshooting</h2>
+          <p>Things that have already cost someone a day. Read before debugging.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="min-width:15rem">You see</th><th>What it means</th><th>Fix</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>503 from Hostinger</strong>, nothing in the logs</td>
+                <td>The Node process is not running, or Passenger cannot reach it.</td>
+                <td>Check <code>PORT</code> is not set in the panel. Then Node version, then <code>stderr.log</code>.</td>
+              </tr>
+              <tr>
+                <td><strong><code>SSL alert number 80</code></strong> / server selection timed out</td>
+                <td>Atlas is refusing this IP. Not a code problem.</td>
+                <td>Atlas &rarr; Network Access. Also check the cluster is not paused.</td>
+              </tr>
+              <tr>
+                <td><strong><code>bad auth</code></strong></td>
+                <td>The connection string still has <code>&lt;db_username&gt;</code> in it, or the password has an unencoded <code>@ : / ? #</code>.</td>
+                <td>Rebuild the URI from Atlas &rarr; Connect &rarr; Drivers.</td>
+              </tr>
+              <tr>
+                <td><strong>"Chat Pilot could not be reached"</strong></td>
+                <td>Transport failure &mdash; the request never arrived anywhere. The address is wrong or unreachable, not the key.</td>
+                <td>Check the Cloud address and that it resolves from the WordPress machine. A bad key gives a different error.</td>
+              </tr>
+              <tr>
+                <td><strong>"That does not look like a Site API Key"</strong></td>
+                <td>What was submitted is not a <code>cp_live_</code> key &mdash; usually the browser autofilled a saved password over the field.</td>
+                <td>Clear the field and paste the key again. Fixed properly in v2.3.1.</td>
+              </tr>
+              <tr>
+                <td><strong>Site API Key vanished after an update</strong></td>
+                <td>The plugin was Deleted rather than replaced; <code>uninstall.php</code> wipes it by design.</td>
+                <td>Issue a fresh key. Next time use <b>Replace current with uploaded</b>.</td>
+              </tr>
+              <tr>
+                <td>Connects, then <strong>every message fails</strong></td>
+                <td>Domain mismatch. The key is bound to the registered domain.</td>
+                <td>Compare <b>Registered domain</b> and <b>This site</b> on the Connection tab. <code>www</code> counts.</td>
+              </tr>
+              <tr>
+                <td><strong>Infinite HTTPS redirect</strong></td>
+                <td><code>FORCE_HTTPS=true</code> without <code>TRUST_PROXY=true</code>.</td>
+                <td>Set both.</td>
+              </tr>
+              <tr>
+                <td>Widget answers <strong>the fallback every time</strong></td>
+                <td>Nothing in the knowledge base matched. Not a provider failure.</td>
+                <td>Check <code>knowledge_documents</code>. Ask the same question in Developer Chat Preview.</td>
+              </tr>
+              <tr>
+                <td><strong>Provider stuck on "Invalid Credential"</strong></td>
+                <td>The AI provider rejected the key &mdash; expired, revoked, or wrong provider.</td>
+                <td>Re-create it in that provider's console and save again. The status detail says which.</td>
+              </tr>
+              <tr>
+                <td><strong>"Quota Limited"</strong> or <strong>"Rate Limited"</strong></td>
+                <td>The key works; the customer's AI account is out of credit or throttled.</td>
+                <td>The customer tops up or waits. Nothing to fix on your side.</td>
+              </tr>
+              <tr>
+                <td><strong>Widget does not appear at all</strong></td>
+                <td>Disabled locally, hidden by a page rule, or hidden for logged-in admins.</td>
+                <td>Plugin <b>Chat Widget</b> tab, then Cloud <b>Chat Widget</b>. Check in a private window.</td>
+              </tr>
+              <tr>
+                <td><strong>Ownership shows "Not verified"</strong></td>
+                <td>The Cloud could not read <code>/wp-json/chat-pilot/v1/site-token</code> &mdash; HTTP auth, a firewall, or a staging password.</td>
+                <td>Cosmetic. The connection works; only the badge is affected.</td>
+              </tr>
+              <tr>
+                <td><strong>Admin page 500s</strong> after adding a Mongo query</td>
+                <td>A command outside Stable API v1 &mdash; <code>.distinct()</code> is the usual one.</td>
+                <td>Use an aggregation with <code>$group</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Tests fail or hang only together</strong></td>
+                <td>Something broke per-file database isolation again.</td>
+                <td>Check a test run still ignores <code>.env</code>.</td>
+              </tr>
+              <tr>
+                <td><strong>Plugin screen looks broken after a change</strong></td>
+                <td>Cached CSS or JS from the previous version.</td>
+                <td>You skipped the version bump. Rebuild with <code>plugin:patch</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>For anything else: the plugin's <b>Settings &rarr; Plugin log</b> records the WordPress side with keys redacted. In the Cloud, <b>Master Admin &rarr; System Health</b> and <b>Audit Log</b> cover the server side.</p>
+      </section>
+
+      <!-- ============================================================ 19 -->
+      <section class="part" id="reference">
+        <div class="part-head">
+          <span class="part-num">19</span>
+          <h2>Command card</h2>
+          <p>Everything, and which folder it runs in.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Command</th><th>Run from</th><th>Does</th></tr></thead>
+            <tbody>
+              <tr><td><code>npm install</code></td><td><code>saas/</code></td><td>Install dependencies (once)</td></tr>
+              <tr><td><code>npm run mongo:local</code></td><td><code>saas/</code></td><td>Start a throwaway MongoDB replica set</td></tr>
+              <tr><td><code>npm run seed</code></td><td><code>saas/</code></td><td>Ensure indexes and default plans; create the first admin from <code>SUPERADMIN_*</code></td></tr>
+              <tr><td><code>npm start</code></td><td><code>saas/</code></td><td>Start the Cloud</td></tr>
+              <tr><td><code>npm run dev</code></td><td><code>saas/</code></td><td>Start it with reload-on-save</td></tr>
+              <tr><td><code>npm run admin:create -- --email &hellip;</code></td><td><code>saas/</code></td><td>Create or promote a Master Admin</td></tr>
+              <tr><td><code>npm test</code></td><td><code>saas/</code></td><td>Run all 183 tests</td></tr>
+              <tr><td><code>npm run typecheck</code></td><td><code>saas/</code></td><td>Type-check without building</td></tr>
+              <tr><td><code>npm run hostinger:build</code></td><td>project root</td><td>Compiled ZIP for shared hosting &mdash; <strong>the live one</strong></td></tr>
+              <tr><td><code>npm run cloud:build</code></td><td>project root</td><td>Source ZIP for a VPS</td></tr>
+              <tr><td><code>npm run plugin:patch</code> / <code>minor</code> / <code>major</code></td><td>project root</td><td>Bump the plugin version, then build</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Where things live</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Path</th><th>What</th></tr></thead>
+            <tbody>
+              <tr><td><code>C:\Projects\Claude\Chat Pilot Project</code></td><td>The local checkout</td></tr>
+              <tr><td><code>saas/</code></td><td>Chat Pilot Cloud &mdash; server and portal</td></tr>
+              <tr><td><code>saas/.env</code></td><td>Your secrets. Never commit this.</td></tr>
+              <tr><td><code>wordpress-plugin/chat-pilot/</code></td><td>Plugin source &mdash; edit here</td></tr>
+              <tr><td><code>dist/plugin/chat-pilot-2.3.1.zip</code></td><td>The built plugin &mdash; upload this</td></tr>
+              <tr><td><code>dist/hostinger/</code></td><td>The live Cloud build and its production <code>.env</code></td></tr>
+              <tr><td><code>docs/RUNNING.md</code></td><td>The same walkthrough, in the repo</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note note-ok">
+          <span class="note-mark">&#10003;</span>
+          <div>
+            <b>Before you commit</b>
+            <p><code>npm test</code> and <code>npm run typecheck</code>, both from <code>saas/</code>. The suite is green and stays green; a failure is a real signal, not noise.</p>
+          </div>
+        </div>
+      </section>
+
+      <footer class="foot">
+        Chat Pilot &middot; handover and operating guide &middot; Cloud live on Hostinger, plugin v2.3.1, MongoDB Atlas &middot; by Local Marketing Geeks.<br>
+        Written against commit <code>b27284a</code>, verified 21 September 2026 &mdash; 183 tests passing.
+        Companion document: the <b>Launch Plan</b> deployment runbook. Repository docs: <code>docs/RUNNING.md</code>, <code>docs/DEPLOY.md</code>, <code>docs/API.md</code>, <code>docs/ARCHITECTURE-MAP.md</code>.
+      </footer>
+
+    </main>
+  </div>
+</div>
+
+<script>
+(function () {
+  var btn = document.getElementById('themeBtn');
+  var root = document.documentElement;
+
+  function current() {
+    var set = root.getAttribute('data-theme');
+    if (set) return set;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  function label() {
+    btn.textContent = current() === 'dark' ? 'Switch to day' : 'Switch to night';
+  }
+
+  btn.addEventListener('click', function () {
+    root.setAttribute('data-theme', current() === 'dark' ? 'light' : 'dark');
+    label();
+  });
+
+  label();
+})();
+</script>
+</body>
+</html>
