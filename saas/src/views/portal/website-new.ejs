@@ -6,6 +6,29 @@
   <div class="cp-alert cp-alert-info">👋 Welcome to Chat Pilot. Register your first website to get started.</div>
 <% } %>
 
+<div class="cp-card" style="margin-bottom:1.5rem; background:linear-gradient(135deg, rgba(6,120,249,0.14) 0%, rgba(13,148,136,0.12) 100%); border:1px solid rgba(6,182,212,0.35); box-shadow:0 12px 32px rgba(0,0,0,0.25);">
+  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1.25rem;">
+    <div style="display:flex; align-items:center; gap:1rem;">
+      <div style="width:48px; height:48px; border-radius:12px; background:rgba(6,182,212,0.15); border:1px solid rgba(6,182,212,0.3); display:flex; align-items:center; justify-content:center; font-size:1.6rem;">
+        📥
+      </div>
+      <div>
+        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.25rem; flex-wrap:wrap;">
+          <h3 style="margin:0; font-size:1.15rem; font-weight:700; color:#fff;">Chat Pilot WordPress Plugin</h3>
+          <span class="cp-pill cp-pill-info" style="font-weight:700;">v<%= typeof pluginVersion !== 'undefined' ? pluginVersion : '2.3.1' %></span>
+          <span class="cp-pill cp-pill-success" style="font-size:0.75rem;">Auto-Updated</span>
+        </div>
+        <p style="margin:0; color:var(--text-secondary); font-size:0.875rem;">
+          Download the official connector plugin to install on your WordPress site. This portal link always delivers the newest release build automatically.
+        </p>
+      </div>
+    </div>
+    <a href="/download/plugin" class="cp-btn cp-btn-primary cp-btn-lg" style="display:inline-flex; align-items:center; gap:0.6rem; text-decoration:none; font-weight:700; white-space:nowrap;">
+      <span>⬇️ Download Plugin (.zip)</span>
+    </a>
+  </div>
+</div>
+
 <div class="cp-grid cp-grid-sidebar">
   <form class="cp-card" method="post" action="/app/websites">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -35,7 +58,7 @@
       <li>Chat Pilot discovers the models your key can actually use.</li>
       <li>Build your Knowledge Base and AI Instructions.</li>
       <li>Generate a Site API Key.</li>
-      <li>Paste it into the Chat Pilot WordPress plugin.</li>
+      <li>Paste it into the <a href="/download/plugin" style="color:var(--accent-cyan); font-weight:600; text-decoration:underline;">Chat Pilot WordPress plugin</a>.</li>
     </ol>
   </div>
 </div>

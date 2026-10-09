@@ -57,6 +57,7 @@ adminRouter.get('/', asyncRoute(async (req, res) => {
         stats: await platformAnalytics(resolveRange(preset)),
     });
 }));
+adminRouter.post('/', (req, res) => res.redirect(303, '/admin'));
 /* ------------------------------------------------------------ accounts -- */
 adminRouter.get('/accounts', asyncRoute(async (req, res) => {
     const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';

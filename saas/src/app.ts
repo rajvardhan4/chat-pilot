@@ -11,6 +11,7 @@ import { portalRouter } from './routes/portal.ts';
 import { adminRouter } from './routes/admin.ts';
 import { portalApiRouter } from './routes/portalApi.ts';
 import { seedDefaultPlans } from './services/plans.ts';
+import { getPluginZipFile, getPluginVersion } from './services/pluginPackage.ts';
 
 // Async because connecting to MongoDB is: unlike node:sqlite's DatabaseSync,
 // which opened the file synchronously on first query, the driver has to
@@ -62,17 +63,32 @@ export async function createApp(): Promise<Express> {
 
   // --- Portal (session cookie) ---
   app.use(loadSession);
+  // Defensive handlers for 307-forwarded POST requests
+  app.post('/admin', (_req, res) => res.redirect(303, '/admin'));
+  app.post('/app', (_req, res) => res.redirect(303, '/app'));
   app.use('/', authRouter);
   app.use('/app', portalRouter);
   app.use('/api/v1/portal', portalApiRouter);
   app.use('/admin', adminRouter);
+  // --- Plugin Download Route ---
+  app.get(['/download/plugin', '/download/chat-pilot.zip'], (_req, res) => {
+    const file = getPluginZipFile();
+    if (!file) {
+      return res.status(404).send('Plugin archive not found.');
+    }
+    const version = getPluginVersion();
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="chat-pilot-v${version}.zip"`);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    return res.sendFile(file);
+  });
 
   app.get('/', (req, res) => {
     if (req.user) {
-      res.redirect(req.user.platform_role === 'super_admin' ? '/admin' : '/app');
+      res.redirect(303, req.user.platform_role === 'super_admin' ? '/admin' : '/app');
       return;
     }
-    res.redirect('/login');
+    res.redirect(303, '/login');
   });
 
   app.use(notFoundHandler);

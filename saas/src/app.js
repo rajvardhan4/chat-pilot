@@ -12,6 +12,7 @@ import { portalRouter } from "./routes/portal.js";
 import { adminRouter } from "./routes/admin.js";
 import { portalApiRouter } from "./routes/portalApi.js";
 import { seedDefaultPlans } from "./services/plans.js";
+import { getPluginZipFile, getPluginVersion } from "./services/pluginPackage.js";
 // Async because connecting to MongoDB is: unlike node:sqlite's DatabaseSync,
 // which opened the file synchronously on first query, the driver has to
 // finish its handshake before a single collection call is safe to make.
@@ -98,16 +99,31 @@ export async function createApp() {
     app.use('/api/v1/site', siteApiRouter);
     // --- Portal (session cookie) ---
     app.use(loadSession);
+    // Defensive handlers for 307-forwarded POST requests
+    app.post('/admin', (_req, res) => res.redirect(303, '/admin'));
+    app.post('/app', (_req, res) => res.redirect(303, '/app'));
     app.use('/', authRouter);
     app.use('/app', portalRouter);
     app.use('/api/v1/portal', portalApiRouter);
     app.use('/admin', adminRouter);
+    // --- Plugin Download Route ---
+    app.get(['/download/plugin', '/download/chat-pilot.zip'], (req, res) => {
+        const file = getPluginZipFile();
+        if (!file) {
+            return res.status(404).send('Plugin archive not found.');
+        }
+        const version = getPluginVersion();
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="chat-pilot-v${version}.zip"`);
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        return res.sendFile(file);
+    });
     app.get('/', (req, res) => {
         if (req.user) {
-            res.redirect(req.user.platform_role === 'super_admin' ? '/admin' : '/app');
+            res.redirect(303, req.user.platform_role === 'super_admin' ? '/admin' : '/app');
             return;
         }
-        res.redirect('/login');
+        res.redirect(303, '/login');
     });
     app.use(notFoundHandler);
     app.use(errorHandler);

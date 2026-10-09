@@ -10,8 +10,12 @@
         <p class="cp-brand-sub">by <strong>Local Marketing Geeks</strong></p>
       </div>
     </div>
-    <div class="cp-header-actions">
       <%- include('./theme-toggle') %>
+
+      <a href="/download/plugin" class="cp-btn cp-btn-secondary cp-btn-sm" style="display:inline-flex; align-items:center; gap:0.35rem; font-weight:600;" title="Download Latest Chat Pilot WordPress Plugin">
+        <span>⬇️ Plugin</span>
+        <span class="cp-pill cp-pill-info" style="font-size:0.7rem; padding:1px 5px;"><%= typeof pluginVersion !== 'undefined' ? ('v' + pluginVersion) : 'v2.3.1' %></span>
+      </a>
 
       <% if (typeof websites !== 'undefined' && websites.length && typeof website !== 'undefined' && website) { %>
         <div class="cp-website-switcher">

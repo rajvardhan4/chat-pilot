@@ -69,6 +69,7 @@ adminRouter.get(
     });
   }),
 );
+adminRouter.post('/', (_req, res) => res.redirect(303, '/admin'));
 
 /* ------------------------------------------------------------ accounts -- */
 

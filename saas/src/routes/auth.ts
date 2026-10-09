@@ -77,7 +77,7 @@ authRouter.post(
         userAgent: req.get('user-agent') ?? '',
       });
       setSessionCookie(res, result.session.id);
-      res.redirect(redirectAfterLogin(result.user.platform_role));
+      res.redirect(303, redirectAfterLogin(result.user.platform_role));
     } catch (err) {
       // Preserve the error's own status: a suspended account is 403 and a
       // locked-out one is 429, neither of which is "bad credentials".
@@ -132,7 +132,7 @@ authRouter.post(
       });
       setSessionCookie(res, session.session.id);
       log.info('New account created.', { accountId: result.account.id });
-      res.redirect('/app/websites/new?welcome=1');
+      res.redirect(303, '/app/websites/new?welcome=1');
     } catch (err) {
       // Same rule as login: only an AppError describes something the visitor
       // can act on. A failed insert or a dropped connection is neither their

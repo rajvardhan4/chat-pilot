@@ -141,9 +141,15 @@
 
   <div>
     <div class="cp-card">
-      <h3 class="cp-card-title">Connect your WordPress site</h3>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem; flex-wrap:wrap; gap:0.5rem;">
+        <h3 class="cp-card-title" style="margin:0">Connect WordPress</h3>
+        <a href="/download/plugin" class="cp-btn cp-btn-primary cp-btn-sm" style="display:inline-flex; align-items:center; gap:0.35rem; font-weight:700;">
+          <span>⬇️ Download Plugin</span>
+          <span class="cp-pill cp-pill-info" style="font-size:0.7rem; padding:1px 5px;"><%= typeof pluginVersion !== 'undefined' ? ('v' + pluginVersion) : 'v2.3.1' %></span>
+        </a>
+      </div>
       <ol class="cp-secondary" style="padding-left:1.1rem; font-size:0.875rem; line-height:1.85">
-        <li>Install and activate the Chat Pilot plugin.</li>
+        <li><a href="/download/plugin" style="color:var(--accent-cyan); font-weight:600; text-decoration:underline;">Download the plugin</a> and activate it in your WordPress admin.</li>
         <li>Open <strong>Chat Pilot &rarr; Connection</strong> in WordPress.</li>
         <li>Paste your Site API Key and press <strong>Connect Chat Pilot</strong>.</li>
         <li>The plugin verifies the key, the domain and your subscription, then the widget goes live.</li>

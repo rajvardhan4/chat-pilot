@@ -29,6 +29,7 @@ import { getSubscription, listPlans } from "../services/plans.js";
 import { updateAccount, listAccountsForUser } from "../services/accounts.js";
 import { listNotifications, listNotificationsForWebsite } from "../services/notifications.js";
 import { env } from "../config/env.js";
+import { getPluginVersion } from "../services/pluginPackage.js";
 export const portalRouter = Router();
 portalRouter.use(requireAuth, resolveAccount);
 /** Shared view context so every template has nav state without repetition. */
@@ -40,6 +41,8 @@ async function baseContext(req) {
         csrfToken: req.csrfToken,
         websites: await listWebsites(req.account.id),
         appUrl: env.APP_URL,
+        pluginVersion: getPluginVersion(),
+        pluginDownloadUrl: '/download/plugin',
         notice: typeof req.query.notice === 'string' ? req.query.notice : '',
         error: typeof req.query.error === 'string' ? req.query.error : '',
     };
@@ -66,6 +69,8 @@ portalRouter.get('/', asyncRoute(async (req, res) => {
         websiteCount,
     });
 }));
+portalRouter.post('/', (req, res) => res.redirect(303, '/app'));
+portalRouter.get('/download/plugin', (_req, res) => res.redirect(303, '/download/plugin'));
 /* ------------------------------------------------------------ websites -- */
 portalRouter.get('/websites', asyncRoute(async (req, res) => {
     res.render('portal/websites', {

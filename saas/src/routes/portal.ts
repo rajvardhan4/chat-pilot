@@ -39,6 +39,7 @@ import { getSubscription, listPlans } from '../services/plans.ts';
 import { updateAccount, listAccountsForUser } from '../services/accounts.ts';
 import { listNotifications } from '../services/notifications.ts';
 import { env } from '../config/env.ts';
+import { getPluginVersion } from '../services/pluginPackage.ts';
 
 export const portalRouter: Router = Router();
 
@@ -53,6 +54,8 @@ async function baseContext(req: any) {
     csrfToken: req.csrfToken,
     websites: await listWebsites(req.account.id),
     appUrl: env.APP_URL,
+    pluginVersion: getPluginVersion(),
+    pluginDownloadUrl: '/download/plugin',
     notice: typeof req.query.notice === 'string' ? req.query.notice : '',
     error: typeof req.query.error === 'string' ? req.query.error : '',
   };
@@ -85,6 +88,8 @@ portalRouter.get(
     });
   }),
 );
+portalRouter.post('/', (_req, res) => res.redirect(303, '/app'));
+portalRouter.get('/download/plugin', (_req, res) => res.redirect(303, '/download/plugin'));
 
 /* ------------------------------------------------------------ websites -- */
 
