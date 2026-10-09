@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgRobot" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="botHead" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+    <linearGradient id="visorGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+  </defs>
+  <circle cx="64" cy="64" r="64" fill="url(#bgRobot)"/>
+  
+  <!-- Robot Body / Neck -->
+  <rect x="56" y="86" width="16" height="12" rx="3" fill="#64748b"/>
+  <path d="M36 128 C36 102 50 96 64 96 C78 96 92 102 92 128 Z" fill="url(#botHead)"/>
+  <rect x="54" y="106" width="20" height="8" rx="4" fill="#06b6d4"/>
+  
+  <!-- Antenna -->
+  <line x1="64" y1="26" x2="64" y2="40" stroke="#94a3b8" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="64" cy="24" r="6" fill="#38bdf8" filter="drop-shadow(0 0 6px #0ea5e9)"/>
+  
+  <!-- Robot Head -->
+  <rect x="30" y="38" width="68" height="52" rx="16" fill="url(#botHead)"/>
+  <!-- Ears / Bolts -->
+  <rect x="24" y="54" width="6" height="18" rx="3" fill="#64748b"/>
+  <rect x="98" y="54" width="6" height="18" rx="3" fill="#64748b"/>
+  
+  <!-- Visor Screen -->
+  <rect x="36" y="46" width="56" height="34" rx="10" fill="#090d16"/>
+  
+  <!-- Glowing Digital Eyes -->
+  <rect x="44" y="55" width="12" height="12" rx="4" fill="#22d3ee" filter="drop-shadow(0 0 5px #06b6d4)"/>
+  <circle cx="50" cy="61" r="2" fill="#ffffff"/>
+  
+  <rect x="72" y="55" width="12" height="12" rx="4" fill="#22d3ee" filter="drop-shadow(0 0 5px #06b6d4)"/>
+  <circle cx="78" cy="61" r="2" fill="#ffffff"/>
+  
+  <!-- Cheek Blushes -->
+  <circle cx="43" cy="73" r="3" fill="#f43f5e" opacity="0.6"/>
+  <circle cx="85" cy="73" r="3" fill="#f43f5e" opacity="0.6"/>
+</svg>

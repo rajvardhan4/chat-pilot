@@ -15,6 +15,10 @@
     (function () {
       try {
         var saved = localStorage.getItem('cp-theme');
+        if (!saved) {
+          var m = document.cookie.match(/(?:^|; )cp-theme=([^;]*)/);
+          if (m) saved = m[1];
+        }
         if (saved === 'dark' || saved === 'light') {
           document.documentElement.setAttribute('data-theme', saved);
         }

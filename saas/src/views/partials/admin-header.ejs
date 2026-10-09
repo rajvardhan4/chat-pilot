@@ -12,7 +12,8 @@
     </div>
     <div class="cp-header-actions">
       <%- include('./theme-toggle') %>
-      <span class="cp-status-badge is-admin"><span class="cp-status-dot"></span> <%= user.email %></span>
+      <span class="cp-status-badge is-admin"><span class="cp-status-dot"></span> Master Admin</span>
+      <span class="cp-status-badge"><%= user.email %></span>
       <a class="cp-btn cp-btn-secondary cp-btn-sm" href="/app">Client portal</a>
       <form method="post" action="/logout" style="margin:0">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">

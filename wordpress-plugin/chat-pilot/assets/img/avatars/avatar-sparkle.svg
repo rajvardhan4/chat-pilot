@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgSpark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#312e81"/>
+    </linearGradient>
+    <linearGradient id="sparkGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="50%" stop-color="#facc15"/>
+      <stop offset="100%" stop-color="#ca8a04"/>
+    </linearGradient>
+  </defs>
+  <circle cx="64" cy="64" r="64" fill="url(#bgSpark)"/>
+  <circle cx="64" cy="64" r="58" stroke="rgba(250, 204, 21, 0.25)" stroke-width="2" fill="none"/>
+  
+  <!-- Main 4-point Star -->
+  <path d="M64 22 C64 48 48 64 22 64 C48 64 64 80 64 106 C64 80 80 64 106 64 C80 64 64 48 64 22 Z" fill="url(#sparkGold)" filter="drop-shadow(0 0 10px rgba(250, 204, 21, 0.6))"/>
+  
+  <!-- Mini Accent Sparkle Top Right -->
+  <path d="M96 28 C96 36 91 41 83 41 C91 41 96 46 96 54 C96 46 101 41 109 41 C101 41 96 36 96 28 Z" fill="#ffffff" filter="drop-shadow(0 0 4px #facc15)"/>
+  
+  <!-- Mini Accent Sparkle Bottom Left -->
+  <path d="M32 82 C32 88 28 92 22 92 C28 92 32 96 32 102 C32 96 36 92 42 92 C36 92 32 88 32 82 Z" fill="#ffffff" filter="drop-shadow(0 0 4px #facc15)"/>
+  
+  <!-- Center Core Glow -->
+  <circle cx="64" cy="64" r="5" fill="#ffffff"/>
+</svg>

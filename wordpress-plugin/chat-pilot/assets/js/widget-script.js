@@ -410,11 +410,21 @@
         function formatBotOutput(text) {
             if (!text) { return ''; }
 
-            var formatted = escapeHtml(text).replace(/\n/g, '<br>');
-            formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            formatted = formatted.replace(/(?:^|<br>)\s*-\s+(.*?)(?=<br>|$)/g, function (match, item) {
-                return '<br>&bull; ' + item;
+            var formatted = escapeHtml(text);
+
+            // Format action buttons [action:Label](url)
+            formatted = formatted.replace(/\[action:([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/gi, function(_, label, url) {
+                return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="cp-action-btn" style="display:inline-block; margin:6px 0; padding:6px 14px; background:#2563eb; color:#fff !important; font-weight:600; font-size:13px; border-radius:6px; text-decoration:none !important; box-shadow:0 1px 3px rgba(0,0,0,0.2);">' + label + ' &nearr;</a>';
             });
+
+            // Format regular markdown links [Label](url)
+            formatted = formatted.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/gi, function(_, label, url) {
+                return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="color:#0284c7 !important; text-decoration:underline !important; font-weight:600;">' + label + ' &nearr;</a>';
+            });
+
+            formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            formatted = formatted.replace(/(?:^|\n)\s*-\s+(.*?)(?=\n|$)/g, '<br>&bull; $1');
+            formatted = formatted.replace(/\n/g, '<br>');
 
             if (formatted.indexOf('<br>') === 0) {
                 formatted = formatted.substring(4);

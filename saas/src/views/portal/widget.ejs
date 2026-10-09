@@ -11,6 +11,52 @@
   </p>
 </div>
 
+<style>
+  .cp-avatar-card {
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 10px 4px;
+    text-align: center;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.03);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    user-select: none;
+  }
+  .cp-avatar-card:hover {
+    border-color: rgba(6, 120, 249, 0.5);
+    background: rgba(6, 120, 249, 0.08);
+    transform: translateY(-2px);
+  }
+  .cp-avatar-card.active {
+    border-color: #0678f9;
+    background: rgba(6, 120, 249, 0.18);
+    box-shadow: 0 0 14px rgba(6, 120, 249, 0.35);
+  }
+  .cp-avatar-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    margin: 0 auto 6px;
+    display: block;
+    pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.2);
+  }
+  .cp-avatar-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .cp-avatar-card.active .cp-avatar-label {
+    color: #60a5fa;
+  }
+</style>
+
 <form data-ajax="/widget" data-success="Widget settings saved.">
   <div class="cp-grid cp-grid-2">
     <div class="cp-card">
@@ -30,13 +76,120 @@
           <option value="bottom-left" <%= settings.position === 'bottom-left' ? 'selected' : '' %>>Bottom left</option>
         </select>
       </div>
-      <div class="cp-form-group">
-        <label class="cp-label" for="primary_color">Primary colour</label>
-        <input class="cp-input" type="color" id="primary_color" name="primary_color" value="<%= settings.primary_color %>" style="height:42px; padding:4px">
+
+      <!-- Color Pickers Row -->
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:1rem;">
+        <div class="cp-form-group" style="margin-bottom:0;">
+          <label class="cp-label" for="primary_color">Launcher Background</label>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input class="cp-input" type="color" id="primary_color" name="primary_color" value="<%= settings.primary_color || '#0678f9' %>" style="height:40px; width:50px; padding:2px; cursor:pointer; flex-shrink:0;">
+            <input class="cp-input" type="text" id="primary_color_text" value="<%= settings.primary_color || '#0678f9' %>" style="font-family:monospace; font-size:0.85rem;" readonly>
+          </div>
+        </div>
+        <div class="cp-form-group" style="margin-bottom:0;">
+          <label class="cp-label" for="icon_color">Launcher Icon Colour</label>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input class="cp-input" type="color" id="icon_color" name="icon_color" value="<%= settings.icon_color || '#ffffff' %>" style="height:40px; width:50px; padding:2px; cursor:pointer; flex-shrink:0;">
+            <input class="cp-input" type="text" id="icon_color_text" value="<%= settings.icon_color || '#ffffff' %>" style="font-family:monospace; font-size:0.85rem;" readonly>
+          </div>
+        </div>
       </div>
+
+      <!-- Launcher Display Mode -->
       <div class="cp-form-group">
-        <label class="cp-label" for="logo_url">Logo URL (https)</label>
+        <label class="cp-label">Floating Launcher Icon Style</label>
+        <div style="display:flex; gap:10px; margin-top:4px;">
+          <label style="flex:1; display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03); cursor:pointer; font-size:0.85rem;">
+            <input type="radio" name="launcher_icon_type" value="bubble" <%= (settings.launcher_icon_type !== 'avatar') ? 'checked' : '' %>>
+            <span>Chat Bubble Icon</span>
+          </label>
+          <label style="flex:1; display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03); cursor:pointer; font-size:0.85rem;">
+            <input type="radio" name="launcher_icon_type" value="avatar" <%= (settings.launcher_icon_type === 'avatar') ? 'checked' : '' %>>
+            <span>Selected Avatar</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Avatar Selector -->
+      <div class="cp-form-group">
+        <label class="cp-label">Bot Avatar Selection</label>
+        <p style="font-size:0.8rem; color:#94a3b8; margin:0 0 8px 0;">Choose a built-in character avatar or use your own custom logo URL:</p>
+        <input type="hidden" name="avatar_type" id="avatar_type" value="<%= settings.avatar_type || 'pilot' %>">
+        <div class="cp-avatar-selector-grid" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;">
+          <div class="cp-avatar-card <%= (settings.avatar_type === 'pilot' || !settings.avatar_type) ? 'active' : '' %>" data-avatar="pilot">
+            <img src="/assets/img/avatars/avatar-pilot.svg" alt="Pilot" class="cp-avatar-thumb">
+            <span class="cp-avatar-label">Pilot Mascot</span>
+          </div>
+          <div class="cp-avatar-card <%= settings.avatar_type === 'female' ? 'active' : '' %>" data-avatar="female">
+            <img src="/assets/img/avatars/avatar-female.svg" alt="Support Female" class="cp-avatar-thumb">
+            <span class="cp-avatar-label">Support (Female)</span>
+          </div>
+          <div class="cp-avatar-card <%= settings.avatar_type === 'male' ? 'active' : '' %>" data-avatar="male">
+            <img src="/assets/img/avatars/avatar-male.svg" alt="Support Male" class="cp-avatar-thumb">
+            <span class="cp-avatar-label">Support (Male)</span>
+          </div>
+          <div class="cp-avatar-card <%= settings.avatar_type === 'robot' ? 'active' : '' %>" data-avatar="robot">
+            <img src="/assets/img/avatars/avatar-robot.svg" alt="AI Robot" class="cp-avatar-thumb">
+            <span class="cp-avatar-label">AI Robot</span>
+          </div>
+          <div class="cp-avatar-card <%= settings.avatar_type === 'sparkle' ? 'active' : '' %>" data-avatar="sparkle">
+            <img src="/assets/img/avatars/avatar-sparkle.svg" alt="Sparkle AI" class="cp-avatar-thumb">
+            <span class="cp-avatar-label">Luxury Sparkle</span>
+          </div>
+          <div class="cp-avatar-card <%= settings.avatar_type === 'custom' ? 'active' : '' %>" data-avatar="custom">
+            <div class="cp-avatar-thumb-custom" style="width:44px; height:44px; border-radius:50%; background:rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center; margin:0 auto 6px; font-size:1.3rem;">
+              🎨
+            </div>
+            <span class="cp-avatar-label">Custom Logo</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cp-form-group" id="cp-custom-logo-container" style="<%= settings.avatar_type === 'custom' ? '' : 'display:none;' %>">
+        <label class="cp-label" for="logo_url">Custom Logo URL (https)</label>
         <input class="cp-input" id="logo_url" name="logo_url" value="<%= settings.logo_url %>" placeholder="https://example.com/logo.png">
+        <span style="font-size:0.75rem; color:#94a3b8; display:block; margin-top:4px;">Enter an https:// direct link to your PNG, JPG, or SVG image.</span>
+      </div>
+
+      <!-- Pre-Chat Lead Capture Form in Appearance -->
+      <div style="border-top:1px solid rgba(255,255,255,0.08); margin-top:1.25rem; padding-top:1.25rem;">
+        <div class="cp-switch-row" style="margin-bottom:0.75rem;">
+          <span class="cp-switch-text">
+            <strong style="color:#f59e0b; display:flex; align-items:center; gap:0.4rem;">
+              <span>📋</span> Enable Pre-Chat Lead Form
+            </strong>
+            <span>Collect visitor contact details (Name, Email, Phone) before allowing them to start chatting.</span>
+          </span>
+          <label class="cp-switch">
+            <input type="checkbox" name="prechat_enabled" id="cp_prechat_enabled" <%= settings.prechat_enabled ? 'checked' : '' %>>
+            <span class="cp-switch-slider"></span>
+          </label>
+        </div>
+
+        <div id="cp-prechat-options-panel" style="<%= settings.prechat_enabled ? '' : 'display:none;' %> background:rgba(245,158,11,0.05); border:1px solid rgba(245,158,11,0.2); border-radius:8px; padding:0.85rem 1rem; margin-top:0.75rem;">
+          <div class="cp-form-group" style="margin-bottom:0.75rem;">
+            <label class="cp-label" for="active_form_id">Select Active Pre-Chat Form</label>
+            <select class="cp-select" id="active_form_id" name="active_form_id">
+              <% forms.forEach(function (f) { %>
+                <option value="<%= f.id %>" <%= (settings.active_form_id === f.id || (f.is_default && !settings.active_form_id)) ? 'selected' : '' %>>
+                  <%= f.name %><%= f.is_default ? ' (Default)' : '' %><%= f.status === 'active' ? '' : ' (inactive)' %>
+                </option>
+              <% }); %>
+            </select>
+          </div>
+
+          <div class="cp-form-group" style="margin-bottom:0.75rem;">
+            <label class="cp-label" for="prechat_intro">Pre-Chat Introduction Message</label>
+            <input class="cp-input" id="prechat_intro" name="prechat_intro" value="<%= settings.prechat_intro || 'Please introduce yourself to start the conversation.' %>" placeholder="Please introduce yourself to start the conversation.">
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:#94a3b8; margin-top:0.5rem; padding-top:0.5rem; border-top:1px solid rgba(255,255,255,0.05);">
+            <span>Collects: <strong>Name</strong>, <strong>Email</strong>, <strong>Phone</strong></span>
+            <a href="/app/websites/<%= website.id %>/forms" style="color:var(--accent-cyan); text-decoration:none; font-weight:600;">
+              Form Builder &rarr;
+            </a>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -53,15 +206,6 @@
       <div class="cp-form-group">
         <label class="cp-label" for="suggested_questions">Suggested questions (one per line)</label>
         <textarea class="cp-input" id="suggested_questions" name="suggested_questions" rows="5"><%= settings.suggested_questions %></textarea>
-      </div>
-      <div class="cp-form-group">
-        <label class="cp-label" for="active_form_id">Pre-chat form</label>
-        <select class="cp-select" id="active_form_id" name="active_form_id">
-          <option value="" <%= settings.prechat_enabled ? '' : 'selected' %>>No pre-chat form</option>
-          <% forms.forEach(function (f) { %>
-            <option value="<%= f.id %>" <%= (settings.prechat_enabled && settings.active_form_id === f.id) ? 'selected' : '' %>><%= f.name %><%= f.status === 'active' ? '' : ' (inactive)' %></option>
-          <% }); %>
-        </select>
       </div>
     </div>
 

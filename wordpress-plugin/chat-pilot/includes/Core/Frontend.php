@@ -179,6 +179,9 @@ class Frontend {
 				'securityNonce'      => wp_create_nonce( 'chat_pilot_widget_nonce' ),
 				'position'           => isset( $widget['position'] ) ? sanitize_key( $widget['position'] ) : 'bottom-right',
 				'primaryColor'       => isset( $widget['primaryColor'] ) ? sanitize_hex_color( $widget['primaryColor'] ) : '#06b6d4',
+				'iconColor'          => isset( $widget['iconColor'] ) ? sanitize_hex_color( $widget['iconColor'] ) : '#ffffff',
+				'avatarType'         => isset( $widget['avatarType'] ) ? sanitize_key( $widget['avatarType'] ) : 'pilot',
+				'launcherIconType'   => isset( $widget['launcherIconType'] ) ? sanitize_key( $widget['launcherIconType'] ) : 'bubble',
 				'welcomeMessage'     => isset( $widget['welcomeMessage'] ) ? sanitize_text_field( $widget['welcomeMessage'] ) : '',
 				'placeholderText'    => isset( $widget['placeholderText'] ) ? sanitize_text_field( $widget['placeholderText'] ) : '',
 				'suggestedQuestions' => isset( $widget['suggestedQuestions'] ) ? array_map( 'sanitize_text_field', (array) $widget['suggestedQuestions'] ) : array(),
@@ -215,13 +218,21 @@ class Frontend {
 		$widget  = $config['widget'];
 		$prechat = isset( $widget['prechat'] ) ? $widget['prechat'] : array();
 
-		$plugin_name      = isset( $widget['displayName'] ) ? $widget['displayName'] : 'Chat Pilot';
-		$position         = isset( $widget['position'] ) ? $widget['position'] : 'bottom-right';
-		$primary_color    = isset( $widget['primaryColor'] ) ? $widget['primaryColor'] : '#06b6d4';
-		$welcome_message  = isset( $widget['welcomeMessage'] ) ? $widget['welcomeMessage'] : '';
-		$placeholder_text = isset( $widget['placeholderText'] ) ? $widget['placeholderText'] : '';
-		$logo_url         = isset( $widget['logoUrl'] ) ? $widget['logoUrl'] : '';
-		$suggested        = isset( $widget['suggestedQuestions'] ) ? (array) $widget['suggestedQuestions'] : array();
+		$plugin_name        = isset( $widget['displayName'] ) ? $widget['displayName'] : 'Chat Pilot';
+		$position           = isset( $widget['position'] ) ? $widget['position'] : 'bottom-right';
+		$primary_color      = isset( $widget['primaryColor'] ) ? $widget['primaryColor'] : '#06b6d4';
+		$icon_color         = isset( $widget['iconColor'] ) ? $widget['iconColor'] : '#ffffff';
+		$avatar_type        = isset( $widget['avatarType'] ) ? sanitize_key( $widget['avatarType'] ) : 'pilot';
+		$launcher_icon_type = isset( $widget['launcherIconType'] ) ? sanitize_key( $widget['launcherIconType'] ) : 'bubble';
+		$welcome_message    = isset( $widget['welcomeMessage'] ) ? $widget['welcomeMessage'] : '';
+		$placeholder_text   = isset( $widget['placeholderText'] ) ? $widget['placeholderText'] : '';
+		$logo_url           = isset( $widget['logoUrl'] ) ? $widget['logoUrl'] : '';
+		$suggested          = isset( $widget['suggestedQuestions'] ) ? (array) $widget['suggestedQuestions'] : array();
+
+		// Fallback to local plugin SVG avatar if logo_url is empty and a known preset is selected
+		if ( empty( $logo_url ) && in_array( $avatar_type, array( 'pilot', 'female', 'male', 'robot', 'sparkle' ), true ) ) {
+			$logo_url = CHAT_PILOT_URL . 'assets/img/avatars/avatar-' . $avatar_type . '.svg';
+		}
 
 		$has_prechat = ! empty( $prechat['enabled'] ) && ! empty( $prechat['fields'] );
 		$form_id     = $has_prechat && isset( $prechat['formId'] ) ? $prechat['formId'] : '';
@@ -229,10 +240,14 @@ class Frontend {
 			? $prechat['intro']
 			: __( 'Please introduce yourself to start the conversation.', 'chat-pilot' );
 		?>
-		<div id="chat-pilot-widget-container" class="cp-widget-position-<?php echo esc_attr( $position ); ?>" style="--cp-primary-color: <?php echo esc_attr( $primary_color ); ?>;">
+		<div id="chat-pilot-widget-container" class="cp-widget-position-<?php echo esc_attr( $position ); ?>" style="--cp-primary-color: <?php echo esc_attr( $primary_color ); ?>; --cp-icon-color: <?php echo esc_attr( $icon_color ); ?>;">
 			<!-- Launcher Button -->
-			<button id="chat-pilot-widget-launcher" aria-label="<?php esc_attr_e( 'Open Chat', 'chat-pilot' ); ?>">
-				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="cp-launcher-icon-open"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+			<button id="chat-pilot-widget-launcher" aria-label="<?php esc_attr_e( 'Open Chat', 'chat-pilot' ); ?>" class="cp-launcher-type-<?php echo esc_attr( $launcher_icon_type ); ?>">
+				<?php if ( 'avatar' === $launcher_icon_type && ! empty( $logo_url ) ) : ?>
+					<img src="<?php echo esc_url( $logo_url ); ?>" alt="<?php esc_attr_e( 'Chat Avatar', 'chat-pilot' ); ?>" class="cp-launcher-avatar-img cp-launcher-icon-open">
+				<?php else : ?>
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="cp-launcher-icon-open"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+				<?php endif; ?>
 				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="cp-launcher-icon-close" style="display:none;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
 			</button>
 

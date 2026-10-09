@@ -1,0 +1,218 @@
+/**
+ * Authentication screens: sign up, sign in, sign out, password reset.
+ */
+import { Router } from 'express';
+import { z } from 'zod';
+import { env } from "../config/env.js";
+import { emailSchema, parseOrThrow, passwordSchema, text } from "../core/validate.js";
+import { AppError } from "../core/errors.js";
+import { asyncRoute } from "../middleware/errors.js";
+import { clientIp, rateLimit } from "../middleware/security.js";
+import { changePassword, consumePasswordReset, createPasswordReset, login, revokeSession, signup, } from "../services/accounts.js";
+import { clearSessionCookie, requireAuth, requireCsrf, setSessionCookie } from "../middleware/session.js";
+import { enqueueNotification } from "../services/notifications.js";
+import { log } from "../core/logger.js";
+export const authRouter = Router();
+const authLimiter = rateLimit({
+    limit: env.RATE_LIMIT_AUTH_PER_15MIN,
+    windowMs: 15 * 60_000,
+    scope: 'auth',
+});
+function redirectAfterLogin(role) {
+    return role === 'super_admin' ? '/admin' : '/app';
+}
+/* --------------------------------------------------------------- login -- */
+authRouter.get('/login', (req, res) => {
+    if (req.user)
+        return res.redirect(redirectAfterLogin(req.user.platform_role));
+    res.render('auth/login', {
+        title: 'Sign in',
+        error: typeof req.query.error === 'string' ? req.query.error : '',
+        notice: typeof req.query.notice === 'string' ? req.query.notice : '',
+        email: '',
+    });
+});
+const loginSchema = z.object({
+    email: z.string().trim().min(1, 'Enter your email address.').max(254),
+    password: z.string().min(1, 'Enter your password.').max(200),
+});
+authRouter.post('/login', authLimiter, asyncRoute(async (req, res) => {
+    let parsed;
+    try {
+        parsed = parseOrThrow(loginSchema, req.body ?? {});
+    }
+    catch (err) {
+        // parseOrThrow throws AppError('validation_failed') and nothing else, so
+        // anything different came from somewhere unexpected. Re-throw it: the
+        // central handler logs it with a reference and answers 500, rather than
+        // telling the visitor to check a form that was never the problem.
+        if (!(err instanceof AppError))
+            throw err;
+        res.status(err.status).render('auth/login', {
+            title: 'Sign in',
+            error: err.publicMessage,
+            notice: '',
+            email: String(req.body?.email ?? ''),
+        });
+        return;
+    }
+    try {
+        const result = await login(parsed.email, parsed.password, {
+            ip: clientIp(req),
+            userAgent: req.get('user-agent') ?? '',
+        });
+        setSessionCookie(res, result.session.id);
+        res.redirect(redirectAfterLogin(result.user.platform_role));
+    }
+    catch (err) {
+        // Preserve the error's own status: a suspended account is 403 and a
+        // locked-out one is 429, neither of which is "bad credentials".
+        //
+        // Bad credentials are already an AppError (invalid_credentials, 401), so
+        // anything that is not an AppError here is a bug or an outage — a failed
+        // database call, say. Answering "email or password is incorrect" to that
+        // tells the user something untrue and hides the real fault, so it is
+        // re-thrown for the central handler to log and report as a 500.
+        if (!(err instanceof AppError))
+            throw err;
+        res.status(err.status).render('auth/login', {
+            title: 'Sign in',
+            error: err.publicMessage,
+            notice: '',
+            email: parsed.email,
+        });
+    }
+}));
+/* -------------------------------------------------------------- signup -- */
+authRouter.get('/signup', (req, res) => {
+    if (req.user)
+        return res.redirect(redirectAfterLogin(req.user.platform_role));
+    res.render('auth/signup', { title: 'Create your account', error: '', fields: {}, values: {} });
+});
+const signupSchema = z.object({
+    full_name: text(120, 'Your name').refine((v) => v.length >= 2, 'Enter your name.'),
+    company_name: text(160, 'Company name').refine((v) => v.length >= 2, 'Enter your company name.'),
+    email: emailSchema,
+    password: passwordSchema,
+});
+authRouter.post('/signup', authLimiter, asyncRoute(async (req, res) => {
+    const raw = (req.body ?? {});
+    try {
+        const parsed = parseOrThrow(signupSchema, raw);
+        const result = await signup({
+            email: parsed.email,
+            password: parsed.password,
+            fullName: parsed.full_name,
+            companyName: parsed.company_name,
+            ip: clientIp(req),
+        });
+        const session = await login(parsed.email, parsed.password, {
+            ip: clientIp(req),
+            userAgent: req.get('user-agent') ?? '',
+        });
+        setSessionCookie(res, session.session.id);
+        log.info('New account created.', { accountId: result.account.id });
+        res.redirect('/app/websites/new?welcome=1');
+    }
+    catch (err) {
+        // Same rule as login: only an AppError describes something the visitor
+        // can act on. A failed insert or a dropped connection is neither their
+        // fault nor fixable from this form, and reporting it as a validation
+        // error hides it — which is exactly how a transaction failure here once
+        // read as "please check the form".
+        if (!(err instanceof AppError))
+            throw err;
+        res.status(err.status).render('auth/signup', {
+            title: 'Create your account',
+            error: err.publicMessage,
+            fields: err.fields ?? {},
+            values: {
+                full_name: String(raw.full_name ?? ''),
+                company_name: String(raw.company_name ?? ''),
+                email: String(raw.email ?? ''),
+            },
+        });
+    }
+}));
+/* -------------------------------------------------------------- logout -- */
+authRouter.post('/logout', requireAuth, requireCsrf, asyncRoute(async (req, res) => {
+    if (req.session)
+        await revokeSession(req.session.id);
+    clearSessionCookie(res);
+    res.redirect('/login?notice=' + encodeURIComponent('You have been signed out.'));
+}));
+/* ------------------------------------------------------ password reset -- */
+authRouter.get('/forgot-password', (req, res) => {
+    res.render('auth/forgot-password', {
+        title: 'Reset your password',
+        notice: typeof req.query.notice === 'string' ? req.query.notice : '',
+        error: '',
+    });
+});
+authRouter.post('/forgot-password', authLimiter, asyncRoute(async (req, res) => {
+    const email = String(req.body?.email ?? '').trim();
+    const result = email ? await createPasswordReset(email) : null;
+    if (result) {
+        await enqueueNotification({
+            type: 'auth.password_reset',
+            recipient: result.user.email,
+            subject: 'Reset your Chat Pilot password',
+            body: 'Use this link within the next hour to choose a new password:\n' +
+                env.APP_URL + '/reset-password?token=' + result.token,
+            allowSecretsInBody: true,
+        });
+    }
+    // Always the same response, so the form cannot enumerate accounts.
+    res.render('auth/forgot-password', {
+        title: 'Reset your password',
+        notice: 'If that email address has a Chat Pilot account, a reset link is on its way.',
+        error: '',
+    });
+}));
+authRouter.get('/reset-password', (req, res) => {
+    res.render('auth/reset-password', {
+        title: 'Choose a new password',
+        token: typeof req.query.token === 'string' ? req.query.token : '',
+        error: '',
+    });
+});
+const resetSchema = z.object({
+    token: z.string().trim().min(10).max(200),
+    password: passwordSchema,
+});
+authRouter.post('/reset-password', authLimiter, asyncRoute(async (req, res) => {
+    const raw = (req.body ?? {});
+    try {
+        const parsed = parseOrThrow(resetSchema, raw);
+        const ok = await consumePasswordReset(parsed.token, parsed.password);
+        if (!ok) {
+            res.status(400).render('auth/reset-password', {
+                title: 'Choose a new password',
+                token: '',
+                error: 'That reset link is invalid or has expired. Request a new one.',
+            });
+            return;
+        }
+        res.redirect('/login?notice=' + encodeURIComponent('Your password has been updated. Please sign in.'));
+    }
+    catch (err) {
+        res.status(422).render('auth/reset-password', {
+            title: 'Choose a new password',
+            token: String(raw.token ?? ''),
+            error: err instanceof AppError ? err.publicMessage : 'Please choose a stronger password.',
+        });
+    }
+}));
+/* ------------------------------------------------------ change password -- */
+authRouter.post('/account/password', requireAuth, requireCsrf, asyncRoute(async (req, res) => {
+    const raw = (req.body ?? {});
+    try {
+        const parsed = parseOrThrow(z.object({ current_password: z.string().min(1), new_password: passwordSchema }), raw);
+        await changePassword(req.user.id, parsed.current_password, parsed.new_password);
+        res.redirect('/app/account?notice=' + encodeURIComponent('Your password has been updated.'));
+    }
+    catch (err) {
+        const message = err instanceof AppError ? err.publicMessage : 'Could not update your password.';
+        res.redirect('/app/account?error=' + encodeURIComponent(message));
+    }
+}));

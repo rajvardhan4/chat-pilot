@@ -1,0 +1,90 @@
+/**
+ * Structured logging with automatic secret redaction.
+ *
+ * Anything that looks like a provider key, a Chat Pilot site key, a bearer
+ * token or a `key=` query parameter is masked before it can reach stdout or
+ * the system_logs table.
+ */
+import { col, nowIso } from "../db/mongo.js";
+import { newId } from "./crypto.js";
+import { env } from "../config/env.js";
+const RANK = { debug: 0, info: 1, warn: 2, error: 3 };
+const REDACTIONS = [
+    [/\bsk-[A-Za-z0-9_-]{8,}/g, 'sk-***REDACTED***'],
+    [/\bAIza[0-9A-Za-z_-]{10,}/g, 'AIza***REDACTED***'],
+    [/\bcp_(live|test)_[A-Za-z0-9_-]+/g, 'cp_***REDACTED***'],
+    [/([?&]key=)[^&\s"']+/gi, '$1***REDACTED***'],
+    [/(Bearer\s+)[A-Za-z0-9._~+/-]+=*/gi, '$1***REDACTED***'],
+    [/("?(?:api[_-]?key|password|token|secret|authorization)"?\s*[:=]\s*"?)[^",\s}]+/gi, '$1***REDACTED***'],
+];
+export function redact(input) {
+    let out = input;
+    for (const [pattern, replacement] of REDACTIONS)
+        out = out.replace(pattern, replacement);
+    return out;
+}
+export function redactDeep(value, depth = 0) {
+    if (depth > 6)
+        return '[depth-limit]';
+    if (typeof value === 'string')
+        return redact(value);
+    if (Array.isArray(value))
+        return value.map((v) => redactDeep(v, depth + 1));
+    if (value && typeof value === 'object') {
+        const out = {};
+        for (const [k, v] of Object.entries(value)) {
+            if (/^(api_?key|password|token|secret|authorization|key_hash|api_key_enc)$/i.test(k)) {
+                out[k] = '***REDACTED***';
+            }
+            else {
+                out[k] = redactDeep(v, depth + 1);
+            }
+        }
+        return out;
+    }
+    return value;
+}
+let minLevel = env.isTest ? 'error' : env.isProd ? 'info' : 'debug';
+export function setLogLevel(level) {
+    minLevel = level;
+}
+function write(level, message, context, scope = {}) {
+    if (RANK[level] < RANK[minLevel])
+        return;
+    const safeMessage = redact(message);
+    const safeContext = context === undefined ? {} : redactDeep(context);
+    if (!env.isTest) {
+        const line = `[${nowIso()}] ${level.toUpperCase()} ${safeMessage}`;
+        if (level === 'error')
+            console.error(line, safeContext);
+        else if (level === 'warn')
+            console.warn(line, safeContext);
+        else
+            console.log(line, safeContext);
+    }
+    // Fire-and-forget, deliberately: log.*() is called from hundreds of sites
+    // across the codebase, many of them synchronous catch blocks, and a log
+    // call has never been allowed to make the request that triggered it wait
+    // on it - the SQLite version wrote inline only because that driver was
+    // synchronous, not because anything here depends on the write completing.
+    // The .catch() is what "logging must never break a request" now means for
+    // a driver that returns a promise: the DB write can fail silently, but it
+    // can never surface as this call throwing.
+    col('system_logs')
+        .insertOne({
+        _id: newId(),
+        account_id: scope.accountId ?? null,
+        website_id: scope.websiteId ?? null,
+        level,
+        message: safeMessage.slice(0, 2000),
+        context: JSON.stringify(safeContext).slice(0, 8000),
+        created_at: nowIso(),
+    })
+        .catch(() => { });
+}
+export const log = {
+    debug: (m, c, s) => write('debug', m, c, s),
+    info: (m, c, s) => write('info', m, c, s),
+    warn: (m, c, s) => write('warn', m, c, s),
+    error: (m, c, s) => write('error', m, c, s),
+};

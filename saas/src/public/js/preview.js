@@ -25,12 +25,36 @@
       .replace(/"/g, '&quot;');
   }
 
+  function formatPreviewMessage(text) {
+    if (!text) return '';
+    var escaped = escapeHtml(text);
+    // Format action buttons [action:Label](url)
+    escaped = escaped.replace(/\[action:([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/gi, function(_, label, url) {
+      return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="cp-action-btn" style="display:inline-block; margin:6px 0; padding:6px 14px; background:#2563eb; color:#fff; font-weight:600; font-size:13px; border-radius:6px; text-decoration:none; box-shadow:0 1px 3px rgba(0,0,0,0.2);">' + label + ' &nearr;</a>';
+    });
+    // Format regular markdown links [Label](url)
+    escaped = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/gi, function(_, label, url) {
+      return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="color:#38bdf8; text-decoration:underline; font-weight:600;">' + label + ' &nearr;</a>';
+    });
+    // Format bold **text**
+    escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // Format bullet points
+    escaped = escaped.replace(/(?:^|\n)\s*-\s+(.*?)(?=\n|$)/g, '<br>&bull; $1');
+    // Format line breaks
+    escaped = escaped.replace(/\n/g, '<br>');
+    return escaped;
+  }
+
   function append(role, text) {
     var wrap = document.createElement('div');
     wrap.className = 'cp-chat-msg ' + (role === 'user' ? 'is-user' : 'is-bot');
     var bubble = document.createElement('div');
     bubble.className = 'cp-chat-bubble';
-    bubble.textContent = text;
+    if (role === 'user') {
+      bubble.textContent = text;
+    } else {
+      bubble.innerHTML = formatPreviewMessage(text);
+    }
     wrap.appendChild(bubble);
     stream.appendChild(wrap);
     stream.scrollTop = stream.scrollHeight;

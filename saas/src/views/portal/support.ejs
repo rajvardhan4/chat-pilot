@@ -1,54 +1,137 @@
 <%- include('../partials/head') %>
 <%- include('../partials/portal-header') %>
-<%- include('../partials/account-tabs') %>
 
-<div class="cp-card">
-  <h2 class="cp-card-title">Support Center</h2>
-  <p class="cp-description">Chat Pilot is built and supported by <strong>Local Marketing Geeks</strong>.</p>
-  <ul class="cp-inline-list">
-    <li><span>Phone</span><span>888-299-2726</span></li>
-    <li><span>Email</span><span>info@localmarketinggeeks.com</span></li>
-  </ul>
-  <p class="cp-help-text">
-    These details are for Chat Pilot product support only. They are never injected into answers your chatbot
-    gives to your own website visitors &mdash; visitors always receive your business contact information from
-    your Knowledge Base.
-  </p>
-</div>
+<% if (typeof website !== 'undefined' && website) { %>
+  <div data-website-id="<%= website.id %>"></div>
+  <%- include('../partials/portal-tabs') %>
+<% } else { %>
+  <%- include('../partials/account-tabs') %>
+<% } %>
 
-<div class="cp-grid cp-grid-2">
-  <div class="cp-card">
-    <h3 class="cp-card-title">Getting started</h3>
-    <ol class="cp-secondary" style="padding-left:1.1rem; line-height:1.9; font-size:0.875rem">
-      <li><strong>Register your website</strong> &mdash; the domain you enter is the only domain your Site API Key will work on.</li>
-      <li><strong>Connect an AI provider</strong> &mdash; paste your own OpenAI or Gemini key. It is encrypted and never leaves our servers.</li>
-      <li><strong>Test the connection</strong> &mdash; Chat Pilot discovers the models your key can actually use.</li>
-      <li><strong>Build your Knowledge Base</strong> &mdash; scan your site, add FAQs, paste manual facts, upload documents.</li>
-      <li><strong>Tune AI Instructions</strong> &mdash; tone, length, and what to say when it does not know.</li>
-      <li><strong>Try the Developer Chat Preview</strong> &mdash; same engine as the live widget, with diagnostics.</li>
-      <li><strong>Generate a Site API Key</strong> and paste it into the WordPress plugin.</li>
-    </ol>
-  </div>
-
-  <div class="cp-card">
-    <h3 class="cp-card-title">Troubleshooting</h3>
-    <dl class="cp-secondary" style="font-size:0.875rem; line-height:1.7">
-      <dt><strong>&ldquo;Domain Mismatch&rdquo; in WordPress</strong></dt>
-      <dd style="margin:0 0 0.9rem">The site URL does not match the registered domain. Update the Website URL on the Connection tab, or add the hostname as an additional allowed domain.</dd>
-
-      <dt><strong>The bot always says it cannot find information</strong></dt>
-      <dd style="margin:0 0 0.9rem">Your Knowledge Base is empty or the retrieval threshold is too high. Use Retrieval Diagnostics on the Knowledge Base tab to see actual scores.</dd>
-
-      <dt><strong>&ldquo;Having trouble generating a response&rdquo;</strong></dt>
-      <dd style="margin:0 0 0.9rem">That is the AI provider failure message, not a knowledge problem. Check AI Providers &rarr; connection status; usually a quota or an expired key.</dd>
-
-      <dt><strong>Widget does not appear</strong></dt>
-      <dd style="margin:0 0 0.9rem">Check that the widget is enabled on the Chat Widget tab, the website status is Active, and the plugin shows Connected.</dd>
-
-      <dt><strong>Models list is empty</strong></dt>
-      <dd style="margin:0">Run &ldquo;Test connection &amp; discover models&rdquo;. Chat Pilot never shows a hardcoded model list &mdash; if your key cannot use a model, it will not appear.</dd>
-    </dl>
+<div class="cp-card" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, rgba(11, 15, 25, 0.95), rgba(17, 24, 39, 0.8)); border-color: rgba(6, 120, 249, 0.3);">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem;">
+    <div>
+      <h2 class="cp-card-title" style="font-size: 1.6rem; margin-bottom: 0.35rem;">Help &amp; Support Center</h2>
+      <p class="cp-description" style="margin: 0; max-width: 650px;">
+        Setup guides, interactive troubleshooting, diagnostics, and developer support for Chat Pilot.
+      </p>
+    </div>
+    
+    <div style="position: relative; min-width: 300px; flex-grow: 1; max-width: 420px;">
+      <input type="text" id="cp-support-search" class="cp-input" placeholder="Search guides (e.g. Quota, Domain, Tokens, Avatar)..." style="height: 42px; font-size: 0.85rem;">
+    </div>
   </div>
 </div>
+
+<div class="cp-grid cp-grid-2" style="align-items: start;">
+  <!-- Left Side: Getting Started Sequence -->
+  <div class="cp-card">
+    <h3 class="cp-card-title">🚀 Recommended Getting Started Sequence</h3>
+    <p class="cp-description" style="margin-bottom: 1.25rem;">
+      Follow this sequence to train, customize, and deploy Chat Pilot on your website:
+    </p>
+
+    <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+      <%
+        const siteBase = (typeof website !== 'undefined' && website) ? ('/app/websites/' + website.id) : '/app';
+        const steps = [
+          { num: '1', title: 'Connect AI Provider', desc: 'Enter your OpenAI, Gemini, Anthropic, or Groq API key and test connection.', href: siteBase + '/providers' },
+          { num: '2', title: 'Ingest Knowledge Base', desc: 'Add website pages, FAQs, manual facts, or document files to train your bot.', href: siteBase + '/knowledge' },
+          { num: '3', title: 'Configure AI Instructions', desc: 'Set company directives, response tone, length, and fallback answers.', href: siteBase + '/instructions' },
+          { num: '4', title: 'Test in Chat Preview', desc: 'Verify knowledge retrieval scores and inspect AI prompt execution in real time.', href: siteBase + '/preview' },
+          { num: '5', title: 'Customize Chat Widget', desc: 'Choose theme colors, character avatars, launcher button style, and pre-chat form.', href: siteBase + '/widget' },
+          { num: '6', title: 'Configure Lead Forms', desc: 'Build pre-chat lead capture forms to collect visitor names, emails, and phone numbers.', href: siteBase + '/forms' },
+          { num: '7', title: 'Set Up Notifications', desc: 'Configure recipient email and toggle alerts for leads, forms, and budget warnings.', href: siteBase + '/settings' },
+          { num: '8', title: 'Connect WordPress Plugin', desc: 'Generate a Site API Key and paste it into WordPress to launch live.', href: siteBase + '/connection' },
+        ];
+      %>
+
+      <% steps.forEach(function (s) { %>
+        <div class="cp-support-item" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; padding: 0.85rem 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+          <div>
+            <h4 style="font-size: 0.9rem; font-weight: 700; margin: 0 0 0.2rem 0; color: #ffffff;">
+              <span style="color: #60a5fa; margin-right: 0.25rem;"><%= s.num %>.</span> <%= s.title %>
+            </h4>
+            <p style="font-size: 0.78rem; color: #94a3b8; margin: 0;"><%= s.desc %></p>
+          </div>
+          <a href="<%= s.href %>" class="cp-btn cp-btn-secondary" style="font-size: 0.75rem; padding: 0.35rem 0.75rem; white-space: nowrap; text-decoration: none;">
+            Open Tab &rarr;
+          </a>
+        </div>
+      <% }); %>
+    </div>
+  </div>
+
+  <!-- Right Side: Technical Support & Diagnostics -->
+  <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+    <!-- Technical Support Contact Card -->
+    <div class="cp-card">
+      <h3 class="cp-card-title">📞 Technical Support Team</h3>
+      <p class="cp-description">
+        Chat Pilot is developed and supported by <strong>Local Marketing Geeks</strong>. Contact our engineering team for assistance:
+      </p>
+
+      <ul class="cp-inline-list" style="margin-bottom: 1rem;">
+        <li><span>Phone</span><span><strong>888-299-2726</strong></span></li>
+        <li><span>Email</span><span><strong>info@localmarketinggeeks.com</strong></span></li>
+      </ul>
+
+      <p class="cp-help-text">
+        These contact details are for Chat Pilot platform support only. They are never shown to website visitors &mdash; your chatbot answers visitors using only your own business Knowledge Base.
+      </p>
+    </div>
+
+    <!-- Troubleshooting Knowledge Base -->
+    <div class="cp-card">
+      <h3 class="cp-card-title">🛠️ Common Troubleshooting Topics</h3>
+      
+      <div style="display: flex; flex-direction: column; gap: 1rem;" id="cp-support-troubleshooting-list">
+        <div class="cp-trouble-entry">
+          <strong style="color: #ffffff; font-size: 0.875rem;">&ldquo;Domain Mismatch&rdquo; in WordPress Plugin</strong>
+          <p style="font-size: 0.8rem; color: #94a3b8; margin: 0.25rem 0 0 0;">
+            The WordPress site URL does not match the registered domain. Go to the <strong>Connection</strong> tab to update the primary URL or add the current hostname to the Allowed Domains list.
+          </p>
+        </div>
+
+        <div class="cp-trouble-entry">
+          <strong style="color: #ffffff; font-size: 0.875rem;">&ldquo;Having trouble generating a response&rdquo;</strong>
+          <p style="font-size: 0.8rem; color: #94a3b8; margin: 0.25rem 0 0 0;">
+            This is the AI provider error message. Check <strong>AI Providers</strong> &rarr; test connection. It typically indicates an invalid API key, expired prepaid credits, or provider rate limits.
+          </p>
+        </div>
+
+        <div class="cp-trouble-entry">
+          <strong style="color: #ffffff; font-size: 0.875rem;">Chatbot does not recognize business details</strong>
+          <p style="font-size: 0.8rem; color: #94a3b8; margin: 0.25rem 0 0 0;">
+            Check <strong>Knowledge Base</strong> &rarr; Retrieval Diagnostics to test your search queries. Ensure relevant website scanner pages or manual FAQs are active and score above the similarity threshold.
+          </p>
+        </div>
+
+        <div class="cp-trouble-entry">
+          <strong style="color: #ffffff; font-size: 0.875rem;">Chat Widget does not appear on site</strong>
+          <p style="font-size: 0.8rem; color: #94a3b8; margin: 0.25rem 0 0 0;">
+            Verify that <strong>Enable widget</strong> is turned on in the <strong>Chat Widget</strong> tab, the website operating status is <strong>Active</strong>, and the WordPress plugin displays <strong>Connected</strong>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    var searchInput = document.getElementById('cp-support-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', function() {
+        var q = this.value.toLowerCase().trim();
+        var items = document.querySelectorAll('.cp-support-item, .cp-trouble-entry');
+        items.forEach(function(item) {
+          var text = item.textContent.toLowerCase();
+          item.style.display = (!q || text.indexOf(q) !== -1) ? '' : 'none';
+        });
+      });
+    }
+  })();
+</script>
 
 <%- include('../partials/foot') %>

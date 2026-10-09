@@ -174,15 +174,26 @@
    */
   (function themeSwitch() {
     var buttons = document.querySelectorAll('[data-theme-set]');
-    if (!buttons.length) return;
 
-    function current() {
-      // Light is the product default; only an explicit choice makes it dark.
+    function getSavedTheme() {
+      try {
+        var local = localStorage.getItem('cp-theme');
+        if (local === 'dark' || local === 'light') return local;
+        var m = document.cookie.match(/(?:^|; )cp-theme=([^;]*)/);
+        if (m && (m[1] === 'dark' || m[1] === 'light')) return m[1];
+      } catch (e) {}
       return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
     }
 
+    var activeTheme = getSavedTheme();
+    if (activeTheme) {
+      document.documentElement.setAttribute('data-theme', activeTheme);
+    }
+
+    if (!buttons.length) return;
+
     function sync() {
-      var active = current();
+      var active = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       buttons.forEach(function (button) {
         button.setAttribute('aria-pressed', button.getAttribute('data-theme-set') === active ? 'true' : 'false');
       });
@@ -192,7 +203,10 @@
       button.addEventListener('click', function () {
         var choice = button.getAttribute('data-theme-set');
         document.documentElement.setAttribute('data-theme', choice);
-        try { localStorage.setItem('cp-theme', choice); } catch (e) { /* storage blocked */ }
+        try {
+          localStorage.setItem('cp-theme', choice);
+          document.cookie = 'cp-theme=' + choice + '; path=/; max-age=31536000; SameSite=Lax';
+        } catch (e) {}
         sync();
       });
     });

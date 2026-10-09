@@ -131,7 +131,12 @@
         <select class="cp-select" id="model-<%= p.provider %>" data-model-select="<%= p.provider %>"
                 style="max-width:420px; <%= p.models.length ? '' : 'display:none' %>">
           <% p.models.forEach(function (m) { %>
-            <option value="<%= m.id %>" <%= providerConfig.active_provider === p.provider && providerConfig.active_model === m.id ? 'selected' : '' %>><%= m.displayName %></option>
+            <%
+              var isSelected = (providerConfig.active_provider === p.provider && providerConfig.active_model === m.id)
+                || (providerConfig.active_provider === p.provider && !providerConfig.active_model && m.id === p.suggestedModel)
+                || (providerConfig.active_provider !== p.provider && m.id === p.suggestedModel);
+            %>
+            <option value="<%= m.id %>" <%= isSelected ? 'selected' : '' %>><%= m.displayName %></option>
           <% }); %>
         </select>
 

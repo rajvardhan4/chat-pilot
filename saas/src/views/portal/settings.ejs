@@ -1,0 +1,291 @@
+<%- include('../partials/head') %>
+<%- include('../partials/portal-header') %>
+<div data-website-id="<%= website.id %>"></div>
+<%- include('../partials/portal-tabs') %>
+
+<div class="cp-card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+    <div>
+      <h2 class="cp-card-title" style="margin-bottom:0.25rem;">Website Settings & System Center</h2>
+      <p class="cp-description" style="margin:0;">
+        Manage automated email notifications, language, session lifecycle, privacy rules, and operational settings for <strong><%= website.primary_domain %></strong>.
+      </p>
+    </div>
+    <div>
+      <button type="submit" form="cp-website-settings-form" class="cp-btn cp-btn-primary" style="padding:0.6rem 1.4rem; font-weight:700;">
+        Save All Settings
+      </button>
+    </div>
+  </div>
+</div>
+
+<form id="cp-website-settings-form" method="post" action="/app/websites/<%= website.id %>/settings" data-ajax="/settings" data-success="Settings saved successfully.">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <div class="cp-grid cp-grid-2">
+    <!-- SECTION 1: NOTIFICATIONS & EMAIL ALERTS -->
+    <div class="cp-card" style="grid-column: 1 / -1; border-color: rgba(6, 120, 249, 0.3); background: linear-gradient(180deg, rgba(6, 120, 249, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
+        <h3 class="cp-card-title" style="margin:0; color:#60a5fa; display:flex; align-items:center; gap:0.5rem;">
+          <span>🔔</span> Automated Email Notifications
+        </h3>
+        <span class="cp-badge-log" style="background:rgba(6, 120, 249, 0.15); color:#60a5fa; font-weight:700;">
+          <%= website.enable_notifications ? 'Enabled' : 'Paused' %>
+        </span>
+      </div>
+      <p class="cp-description" style="margin-bottom:1.25rem;">
+        Configure the recipient email and select which real-time alerts should be dispatched when visitors interact with Chat Pilot on this website.
+      </p>
+
+      <div class="cp-switch-row" style="margin-bottom:1.25rem; background:rgba(255,255,255,0.03); padding:0.85rem 1rem; border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+        <span class="cp-switch-text">
+          <strong style="font-size:0.95rem;">Enable Email Notifications</strong>
+          <span>Master switch. When turned off, automated email dispatch for this website is paused.</span>
+        </span>
+        <label class="cp-switch">
+          <input type="checkbox" name="enable_notifications" id="enable_notifications" <%= website.enable_notifications ? 'checked' : '' %>>
+          <span class="cp-switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="cp-form-group" style="margin-bottom:1.25rem;">
+        <label class="cp-label" for="notification_email">Notification Recipient Email Address</label>
+        <div style="display:flex; gap:0.75rem; align-items:center;">
+          <input class="cp-input" type="email" id="notification_email" name="notification_email" value="<%= website.notification_email || '' %>" placeholder="<%= account.billing_email || 'alerts@yourdomain.com' %>" style="max-width:480px;">
+          <button type="button" id="cp-btn-test-notification" class="cp-btn cp-btn-secondary" style="white-space:nowrap; padding:0.6rem 1rem; font-size:0.85rem;">
+            ✉️ Send Test Email
+          </button>
+        </div>
+        <p class="cp-help-text" style="margin-top:0.4rem;">
+          Alerts will be sent here. If left blank, notifications automatically fall back to your primary account email (<code><%= account.billing_email || user.email %></code>).
+        </p>
+        <div id="cp-test-email-status" style="display:none; margin-top:0.5rem; font-size:0.85rem; padding:0.5rem 0.75rem; border-radius:6px;"></div>
+      </div>
+
+      <div style="border-top:1px solid rgba(255,255,255,0.06); padding-top:1.25rem; margin-top:1.25rem;">
+        <h4 style="font-size:0.9rem; font-weight:700; color:#ffffff; margin:0 0 0.85rem 0;">Notification Event Triggers</h4>
+        
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1rem;">
+          <label class="cp-checkbox-label" style="display:flex; align-items:flex-start; gap:0.6rem; cursor:pointer; background:rgba(255,255,255,0.02); padding:0.75rem 1rem; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+            <input type="checkbox" name="notify_on_lead" class="cp-checkbox" style="margin-top:3px;" <%= website.notify_on_lead ? 'checked' : '' %>>
+            <div>
+              <strong style="color:#ffffff; font-size:0.875rem;">📋 New Lead Captured</strong>
+              <div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;">Immediate email alert when a visitor submits contact info in pre-chat form.</div>
+            </div>
+          </label>
+
+          <label class="cp-checkbox-label" style="display:flex; align-items:flex-start; gap:0.6rem; cursor:pointer; background:rgba(255,255,255,0.02); padding:0.75rem 1rem; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+            <input type="checkbox" name="notify_on_form" class="cp-checkbox" style="margin-top:3px;" <%= website.notify_on_form ? 'checked' : '' %>>
+            <div>
+              <strong style="color:#ffffff; font-size:0.875rem;">📝 Custom Form Submissions</strong>
+              <div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;">Email notification whenever any custom form created in Form Builder is completed.</div>
+            </div>
+          </label>
+
+          <label class="cp-checkbox-label" style="display:flex; align-items:flex-start; gap:0.6rem; cursor:pointer; background:rgba(255,255,255,0.02); padding:0.75rem 1rem; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+            <input type="checkbox" name="notify_on_budget_warning" class="cp-checkbox" style="margin-top:3px;" <%= website.notify_on_budget_warning ? 'checked' : '' %>>
+            <div>
+              <strong style="color:#ffffff; font-size:0.875rem;">⚠️ AI Budget Threshold & Overages</strong>
+              <div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;">Alert when compute spend reaches <%= website.budget_warning_pct || 80 %>% warning threshold or monthly limit.</div>
+            </div>
+          </label>
+
+          <label class="cp-checkbox-label" style="display:flex; align-items:flex-start; gap:0.6rem; cursor:pointer; background:rgba(255,255,255,0.02); padding:0.75rem 1rem; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+            <input type="checkbox" name="notify_on_ai_failure" class="cp-checkbox" style="margin-top:3px;" <%= website.notify_on_ai_failure ? 'checked' : '' %>>
+            <div>
+              <strong style="color:#ffffff; font-size:0.875rem;">🚨 AI Provider Failures & Quota Errors</strong>
+              <div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;">De-duplicated alerts when an AI provider returns quota exhaustion or HTTP errors.</div>
+            </div>
+          </label>
+
+          <label class="cp-checkbox-label" style="display:flex; align-items:flex-start; gap:0.6rem; cursor:pointer; background:rgba(255,255,255,0.02); padding:0.75rem 1rem; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+            <input type="checkbox" name="notify_on_conversation" class="cp-checkbox" style="margin-top:3px;" <%= website.notify_on_conversation ? 'checked' : '' %>>
+            <div>
+              <strong style="color:#ffffff; font-size:0.875rem;">💬 New Conversation Started</strong>
+              <div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;">Notification when a website visitor starts a new chat thread (disabled by default).</div>
+            </div>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: GENERAL WEBSITE CONFIGURATION -->
+    <div class="cp-card">
+      <h3 class="cp-card-title">⚙️ General Website Information</h3>
+      
+      <div class="cp-form-group">
+        <label class="cp-label" for="name">Website Display Name</label>
+        <input class="cp-input" id="name" name="name" value="<%= website.name %>" required>
+        <p class="cp-help-text">Internal identifier displayed across your client portal dashboards.</p>
+      </div>
+
+      <div class="cp-form-group">
+        <label class="cp-label" for="url">Primary Website URL</label>
+        <input class="cp-input" id="url" name="url" value="<%= website.url %>" required>
+        <p class="cp-help-text">Registered domain URL (e.g. <code>https://<%= website.primary_domain %></code>).</p>
+      </div>
+
+      <div class="cp-form-group">
+        <label class="cp-label" for="default_language">Default System Language</label>
+        <select class="cp-select" id="default_language" name="default_language">
+          <option value="en" <%= (website.default_language === 'en' || !website.default_language) ? 'selected' : '' %>>English (en)</option>
+          <option value="es" <%= website.default_language === 'es' ? 'selected' : '' %>>Español (es)</option>
+          <option value="fr" <%= website.default_language === 'fr' ? 'selected' : '' %>>Français (fr)</option>
+          <option value="de" <%= website.default_language === 'de' ? 'selected' : '' %>>Deutsch (de)</option>
+          <option value="it" <%= website.default_language === 'it' ? 'selected' : '' %>>Italiano (it)</option>
+          <option value="pt" <%= website.default_language === 'pt' ? 'selected' : '' %>>Português (pt)</option>
+        </select>
+        <p class="cp-help-text">Primary language fallback for widget labels and automated messages.</p>
+      </div>
+
+      <div class="cp-form-group">
+        <label class="cp-label" for="status">Operating Status</label>
+        <select class="cp-select" id="status" name="status">
+          <option value="active" <%= website.status === 'active' ? 'selected' : '' %>>Active (Live & Accepting Chats)</option>
+          <option value="inactive" <%= website.status === 'inactive' ? 'selected' : '' %>>Inactive (Paused)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- SECTION 3: CONVERSATION LIFECYCLE & PRIVACY -->
+    <div class="cp-card">
+      <h3 class="cp-card-title">💬 Conversation Lifecycle & Privacy</h3>
+
+      <div class="cp-form-group">
+        <label class="cp-label" for="inactivity_timeout_minutes">Session Inactivity Timeout (Minutes)</label>
+        <input class="cp-input" type="number" id="inactivity_timeout_minutes" name="inactivity_timeout_minutes" min="5" max="1440" value="<%= website.inactivity_timeout_minutes || 30 %>">
+        <p class="cp-help-text">Minutes of visitor inactivity before a chat session transitions to completed.</p>
+      </div>
+
+      <div class="cp-form-group">
+        <label class="cp-label" for="retention_days">Conversation Retention Period (Days)</label>
+        <input class="cp-input" type="number" id="retention_days" name="retention_days" min="0" max="3650" value="<%= website.retention_days || 90 %>">
+        <p class="cp-help-text">Days to retain chat transcripts. Set to 0 to keep transcripts indefinitely.</p>
+      </div>
+
+      <div style="border-top:1px solid rgba(255,255,255,0.06); padding-top:1rem; margin-top:1rem;">
+        <h4 style="font-size:0.875rem; font-weight:700; color:#ffffff; margin:0 0 0.75rem 0;">Privacy & Data Protection</h4>
+
+        <div style="display:flex; flex-direction:column; gap:0.6rem;">
+          <label class="cp-checkbox-label" style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+            <input type="checkbox" name="store_conversations" class="cp-checkbox" <%= website.store_conversations ? 'checked' : '' %>>
+            <span style="font-size:0.85rem; color:#cbd5e1;">Store Visitor Conversation Records in Database</span>
+          </label>
+
+          <label class="cp-checkbox-label" style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+            <input type="checkbox" name="store_visitor_info" class="cp-checkbox" <%= website.store_visitor_info ? 'checked' : '' %>>
+            <span style="font-size:0.85rem; color:#cbd5e1;">Store Visitor Contact Details (Name, Email, Phone)</span>
+          </label>
+
+          <label class="cp-checkbox-label" style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+            <input type="checkbox" name="anonymize_ips" class="cp-checkbox" <%= website.anonymize_ips ? 'checked' : '' %>>
+            <span style="font-size:0.85rem; color:#cbd5e1;">Anonymize Visitor IP Addresses (One-Way Salted Hash)</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 4: NOTIFICATION AUDIT LOG -->
+    <div class="cp-card" style="grid-column: 1 / -1;">
+      <h3 class="cp-card-title">📜 Recent Notification Activity Log</h3>
+      <p class="cp-description">
+        Recent notification emails dispatched for <%= website.primary_domain %>.
+      </p>
+
+      <% if (!notifications || !notifications.length) { %>
+        <p class="cp-help-text" style="margin:1rem 0;">No notification events recorded yet for this website.</p>
+      <% } else { %>
+        <div class="cp-table-wrap" style="max-height: 280px; overflow-y: auto;">
+          <table class="cp-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Event Type</th>
+                <th>Recipient</th>
+                <th>Subject</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% notifications.forEach(function (n) { %>
+                <tr>
+                  <td style="font-family:monospace; font-size:0.75rem; white-space:nowrap; color:#94a3b8;"><%= n.created_at %></td>
+                  <td>
+                    <span class="cp-badge-log" style="font-size:0.75rem; text-transform:uppercase;">
+                      <%= n.type %>
+                    </span>
+                  </td>
+                  <td style="font-size:0.85rem;"><%= n.recipient %></td>
+                  <td style="font-size:0.85rem; font-weight:600; color:#f1f5f9;"><%= n.subject %></td>
+                  <td>
+                    <span class="cp-badge-log <%= n.delivered ? 'cp-badge-success' : 'cp-badge-error' %>" style="font-size:0.75rem;">
+                      <%= n.delivered ? 'Delivered / Queued' : 'Failed' %>
+                    </span>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <div style="margin-top:1.5rem;">
+    <button class="cp-btn cp-btn-primary cp-btn-lg" type="submit">Save All Settings</button>
+  </div>
+</form>
+
+<script>
+  (function() {
+    var btnTest = document.getElementById('cp-btn-test-notification');
+    var statusDiv = document.getElementById('cp-test-email-status');
+    var inputEmail = document.getElementById('notification_email');
+    var siteId = '<%= website.id %>';
+
+    if (btnTest) {
+      btnTest.addEventListener('click', function() {
+        var recipient = (inputEmail && inputEmail.value.trim()) ? inputEmail.value.trim() : '';
+        btnTest.disabled = true;
+        btnTest.textContent = 'Sending...';
+
+        if (statusDiv) {
+          statusDiv.style.display = 'block';
+          statusDiv.style.background = 'rgba(6, 120, 249, 0.1)';
+          statusDiv.style.color = '#60a5fa';
+          statusDiv.style.border = '1px solid rgba(6, 120, 249, 0.2)';
+          statusDiv.textContent = 'Dispatching test notification...';
+        }
+
+        if (window.cpApi) {
+          window.cpApi.post('/websites/' + siteId + '/settings/test-notification', { recipient: recipient })
+            .then(function(res) {
+              btnTest.disabled = false;
+              btnTest.textContent = '✉️ Send Test Email';
+              if (statusDiv) {
+                statusDiv.style.background = 'rgba(34, 197, 94, 0.15)';
+                statusDiv.style.color = '#4ade80';
+                statusDiv.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+                statusDiv.innerHTML = '<strong>Success!</strong> ' + (res.message || 'Test notification sent.');
+              }
+            })
+            .catch(function(err) {
+              btnTest.disabled = false;
+              btnTest.textContent = '✉️ Send Test Email';
+              if (statusDiv) {
+                statusDiv.style.background = 'rgba(239, 68, 68, 0.15)';
+                statusDiv.style.color = '#f87171';
+                statusDiv.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                statusDiv.textContent = err.message || 'Could not send test notification.';
+              }
+            });
+        } else {
+          btnTest.disabled = false;
+          btnTest.textContent = '✉️ Send Test Email';
+        }
+      });
+    }
+  })();
+</script>
+
+<%- include('../partials/foot') %>

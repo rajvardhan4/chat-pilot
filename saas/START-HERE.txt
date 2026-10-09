@@ -1,0 +1,52 @@
+CHAT PILOT CLOUD - Hostinger Node.js app (compiled build)
+=========================================================
+
+Ye build PLAIN JAVASCRIPT hai. Koi .ts file nahi - Hostinger ke purane Node
+par bhi chalega.
+
+Is ZIP ko application root folder ke ANDAR extract karo. package.json seedha
+usi folder me dikhna chahiye, uske upar koi aur folder nahi.
+
+
+hPanel -> Node.js me settings
+-----------------------------
+  Node version       20.19 ya usse naya  (mongodb driver ki zaroorat hai)
+  Application root   wahi folder jahan ye ZIP extract kiya
+  Startup file       server.js
+
+
+Environment variables
+---------------------
+Alag se bheji gayi .env file se saari rows panel me daalo.
+
+  >>> PORT MAT DAALNA <<<
+  Passenger khud port/socket deta hai. Aap PORT set kar doge to app galat
+  jagah sunega aur panel 503 dikhayega.
+
+  APP_URL me apna asli domain daalo.
+
+
+MongoDB Atlas
+-------------
+Shared hosting ka outbound IP badalta rehta hai, isliye Atlas me:
+  Network Access -> Add IP Address -> ALLOW ACCESS FROM ANYWHERE (0.0.0.0/0)
+
+Ye kiye bina app start hote hi crash hoga aur 503 aayega.
+
+
+Deploy ke baad ek baar (SSH se)
+-------------------------------
+  cd <application root>
+  npm run seed
+
+Ye default plans banata hai, aur SUPERADMIN_EMAIL/PASSWORD set hon to master
+admin bhi bana deta hai.
+
+
+Kuch na chale to
+----------------
+  node -v                  version 20.19+ hona chahiye
+  cat stderr.log           asli wajah yahan likhi hoti hai
+
+App fail hone par saaf-saaf batata hai: database nahi mila, secret missing hai,
+ya port galat hai. Log ki pehli 5 lines me jawab hota hai.
