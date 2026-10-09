@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgMale" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#0d9488"/>
+    </linearGradient>
+    <linearGradient id="hairMale" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#292524"/>
+      <stop offset="100%" stop-color="#0c0a09"/>
+    </linearGradient>
+  </defs>
+  <circle cx="64" cy="64" r="64" fill="url(#bgMale)"/>
+  
+  <!-- Shoulders / Suit -->
+  <path d="M26 128 C26 98 46 94 64 94 C82 94 102 98 102 128 Z" fill="#0f172a"/>
+  <!-- White Collar & Tie -->
+  <path d="M52 94 L64 110 L76 94 Z" fill="#ffffff"/>
+  <path d="M61 98 L67 98 L69 118 L64 124 L59 118 Z" fill="#0284c7"/>
+  
+  <!-- Neck -->
+  <rect x="56" y="78" width="16" height="20" rx="3" fill="#fed7aa"/>
+  
+  <!-- Face -->
+  <ellipse cx="64" cy="64" rx="20" ry="23" fill="#ffedd5"/>
+  
+  <!-- Eyes -->
+  <ellipse cx="56" cy="63" rx="2.5" ry="3" fill="#1e293b"/>
+  <ellipse cx="72" cy="63" rx="2.5" ry="3" fill="#1e293b"/>
+  <!-- Smile -->
+  <path d="M58 74 Q64 80 70 74" stroke="#b45309" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  
+  <!-- Modern Hair Style -->
+  <path d="M42 52 C42 34 86 32 86 48 C84 44 76 42 68 43 C58 44 48 48 42 52 Z" fill="url(#hairMale)"/>
+  <path d="M41 52 C39 58 42 66 43 68 C44 65 44 56 46 54 Z" fill="url(#hairMale)"/>
+  <path d="M87 50 C89 56 86 64 85 66 C84 63 84 54 82 52 Z" fill="url(#hairMale)"/>
+  
+  <!-- Headset -->
+  <path d="M41 62 C39 36 89 36 87 62" stroke="#cbd5e1" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <rect x="39" y="56" width="6" height="12" rx="3" fill="#0284c7"/>
+  <rect x="83" y="56" width="6" height="12" rx="3" fill="#0284c7"/>
+  <path d="M42 66 Q45 84 58 82" stroke="#94a3b8" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <circle cx="59" cy="82" r="3" fill="#0284c7"/>
+</svg>

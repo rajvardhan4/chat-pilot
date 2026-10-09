@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgPilot" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0678f9"/>
+      <stop offset="100%" stop-color="#0a2a5e"/>
+    </linearGradient>
+    <linearGradient id="hatGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+  </defs>
+  <!-- Circle BG -->
+  <circle cx="64" cy="64" r="64" fill="url(#bgPilot)"/>
+  
+  <!-- Robot Face / Bubble -->
+  <rect x="30" y="44" width="68" height="52" rx="26" fill="#ffffff" filter="drop-shadow(0 4px 6px rgba(0,0,0,0.15))"/>
+  <!-- Eyes -->
+  <circle cx="50" cy="68" r="6" fill="#0d1f35"/>
+  <circle cx="78" cy="68" r="6" fill="#0d1f35"/>
+  <circle cx="52" cy="66" r="2" fill="#38bdf8"/>
+  <circle cx="80" cy="66" r="2" fill="#38bdf8"/>
+  <!-- Smile -->
+  <path d="M56 78 Q64 85 72 78" stroke="#0d1f35" stroke-width="3" stroke-linecap="round" fill="none"/>
+  
+  <!-- Pilot Cap -->
+  <path d="M26 44 C26 22 102 22 102 44 Z" fill="url(#hatGrad)"/>
+  <path d="M20 44 Q64 48 108 44" stroke="#0d1f35" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <!-- Gold Badge on Cap -->
+  <circle cx="64" cy="33" r="8" fill="url(#goldGrad)"/>
+  <!-- Wings on Badge -->
+  <path d="M52 35 C56 31 60 32 64 34 C68 32 72 31 76 35 C70 37 68 35 64 36 C60 35 58 37 52 35 Z" fill="url(#goldGrad)"/>
+</svg>
