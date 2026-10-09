@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Chat Pilot SaaS Portal - multi-tenant AI chatbot control plane",
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "scripts": {
     "start": "node server.js",

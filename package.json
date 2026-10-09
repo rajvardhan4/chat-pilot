@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Chat Pilot - multi-tenant SaaS control plane + WordPress connector plugin",
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "scripts": {
     "start": "node saas/server.js",
