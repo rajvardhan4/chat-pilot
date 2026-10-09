@@ -271,8 +271,8 @@ class Frontend {
 
 				<!-- Chat Area -->
 				<div class="cp-widget-body">
-					<?php if ( $has_prechat ) : ?>
-						<div id="cp-widget-prechat-form" data-form-id="<?php echo esc_attr( $form_id ); ?>">
+					<?php if ( ! empty( $prechat['fields'] ) ) : ?>
+						<div id="cp-widget-prechat-form" data-form-id="<?php echo esc_attr( $form_id ); ?>" style="<?php echo $has_prechat ? '' : 'display: none;'; ?>">
 							<p class="cp-widget-prechat-intro"><?php echo esc_html( $intro ); ?></p>
 							<div class="cp-prechat-error-msg" style="display:none; color:#ef4444; font-size:0.85rem; margin-bottom:0.75rem; border:1px solid rgba(239,68,68,0.15); background:rgba(239,68,68,0.05); padding:0.5rem 0.75rem; border-radius:6px; line-height:1.4;"></div>
 							<?php foreach ( $prechat['fields'] as $field ) : ?>

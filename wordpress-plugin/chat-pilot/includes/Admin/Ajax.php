@@ -33,6 +33,8 @@ class Ajax {
 		add_action( 'wp_ajax_nopriv_chat_pilot_chat', array( $this, 'ajax_chat' ) );
 		add_action( 'wp_ajax_chat_pilot_submit_prechat_form', array( $this, 'ajax_submit_prechat_form' ) );
 		add_action( 'wp_ajax_nopriv_chat_pilot_submit_prechat_form', array( $this, 'ajax_submit_prechat_form' ) );
+		add_action( 'wp_ajax_chat_pilot_get_config', array( $this, 'ajax_get_config' ) );
+		add_action( 'wp_ajax_nopriv_chat_pilot_get_config', array( $this, 'ajax_get_config' ) );
 
 		// Administrator only.
 		add_action( 'wp_ajax_chat_pilot_connect', array( $this, 'ajax_connect' ) );
@@ -399,5 +401,28 @@ class Ajax {
 		$this->guard_admin();
 		\ChatPilot\Common\Logger::clear();
 		wp_send_json_success( array( 'message' => __( 'Plugin log cleared.', 'chat-pilot' ) ) );
+	}
+
+	/**
+	 * Returns current safe widget configuration for client-side dynamic synchronization.
+	 * Bypasses page-caching plugins (LiteSpeed, WP Rocket, etc.) completely.
+	 */
+	public function ajax_get_config() {
+		$config = \ChatPilot\Api\ConfigCache::get();
+		if ( empty( $config['widget'] ) ) {
+			wp_send_json_error( array( 'message' => 'Configuration unavailable.' ), 400 );
+		}
+		$widget  = $config['widget'];
+		$prechat = isset( $widget['prechat'] ) ? $widget['prechat'] : array();
+		wp_send_json_success(
+			array(
+				'hasPrechat'   => ! empty( $prechat['enabled'] ) && ! empty( $prechat['fields'] ),
+				'formId'       => isset( $prechat['formId'] ) ? sanitize_text_field( $prechat['formId'] ) : '',
+				'intro'        => isset( $prechat['intro'] ) ? sanitize_text_field( $prechat['intro'] ) : '',
+				'fields'       => isset( $prechat['fields'] ) ? $prechat['fields'] : array(),
+				'primaryColor' => isset( $widget['primaryColor'] ) ? sanitize_text_field( $widget['primaryColor'] ) : '',
+				'iconColor'    => isset( $widget['iconColor'] ) ? sanitize_text_field( $widget['iconColor'] ) : '',
+			)
+		);
 	}
 }

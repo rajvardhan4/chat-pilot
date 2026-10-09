@@ -132,45 +132,76 @@
                 return;
             }
 
-            $.each(chatPilotWidget.formFields, function (i, field) {
-                var fid = field.id;
-                var $el = $('#cp-prechat-' + fid);
-                var val = '';
+            var $fields = $('.cp-prechat-input-field');
+            if ($fields.length > 0) {
+                $fields.each(function () {
+                    var $el = $(this);
+                    var fid = ($el.attr('id') || '').replace('cp-prechat-', '');
+                    var isReq = $el.prop('required');
+                    var val = '';
 
-                if (field.type === 'checkbox') {
-                    val = $el.is(':checked') ? '1' : '';
-                } else if (field.type === 'radio') {
-                    val = $('input[name="cp-prechat-' + fid + '"]:checked').val() || '';
-                } else {
-                    val = $el.val() || '';
-                }
-
-                // Client-side checks are a courtesy for fast feedback. Chat Pilot
-                // validates authoritatively on the server, so a tampered browser
-                // gains nothing by skipping these.
-                if (field.required && !val.trim()) {
-                    errorMessages.push('The field "' + field.label + '" is required.');
-                }
-
-                if (val.trim()) {
-                    if (field.type === 'email' && !validateEmail(val)) {
-                        errorMessages.push('Please enter a valid email address for "' + field.label + '".');
+                    if ($el.is(':checkbox')) {
+                        val = $el.is(':checked') ? '1' : '';
+                    } else if ($el.is(':radio')) {
+                        var rname = $el.attr('name');
+                        val = $('input[name="' + rname + '"]:checked').val() || '';
+                    } else {
+                        val = $.trim($el.val());
                     }
-                    if (field.type === 'phone' && val.replace(/[^0-9]/g, '').length < 5) {
-                        errorMessages.push('Please enter a valid phone number for "' + field.label + '".');
-                    }
-                }
 
-                fieldsData[fid] = val;
-            });
+                    if (fid) {
+                        fieldsData[fid] = val;
+                    }
+
+                    var labelText = $('label[for="' + $el.attr('id') + '"]').text().replace('*', '').trim() || fid;
+                    if (isReq && !val) {
+                        errorMessages.push('The field "' + labelText + '" is required.');
+                    } else if (val) {
+                        if ($el.attr('type') === 'email' && !validateEmail(val)) {
+                            errorMessages.push('Please enter a valid email address for "' + labelText + '".');
+                        }
+                        if ($el.attr('type') === 'phone' && val.replace(/[^0-9]/g, '').length < 5) {
+                            errorMessages.push('Please enter a valid phone number for "' + labelText + '".');
+                        }
+                    }
+                });
+            } else if (chatPilotWidget.formFields) {
+                $.each(chatPilotWidget.formFields, function (i, field) {
+                    var fid = field.id;
+                    var $el = $('#cp-prechat-' + fid);
+                    var val = '';
+
+                    if (field.type === 'checkbox') {
+                        val = $el.is(':checked') ? '1' : '';
+                    } else if (field.type === 'radio') {
+                        val = $('input[name="cp-prechat-' + fid + '"]:checked').val() || '';
+                    } else {
+                        val = $.trim($el.val());
+                    }
+
+                    if (field.required && !val) {
+                        errorMessages.push('The field "' + field.label + '" is required.');
+                    }
+                    if (val) {
+                        if (field.type === 'email' && !validateEmail(val)) {
+                            errorMessages.push('Please enter a valid email address for "' + field.label + '".');
+                        }
+                        if (field.type === 'phone' && val.replace(/[^0-9]/g, '').length < 5) {
+                            errorMessages.push('Please enter a valid phone number for "' + field.label + '".');
+                        }
+                    }
+                    fieldsData[fid] = val;
+                });
+            }
 
             if (errorMessages.length) {
                 showPrechatErrors(errorMessages);
                 return;
             }
 
-            var $submitBtn = $('#cp-widget-prechat-submit');
+            var $submitBtn = $(this);
             var originalBtnText = $submitBtn.text();
+            var activeFormId = chatPilotWidget.formId || $('#cp-widget-prechat-form').attr('data-form-id') || '';
             $submitBtn.prop('disabled', true).text('Submitting...');
 
             $.ajax({
@@ -178,7 +209,7 @@
                 type: 'POST',
                 data: {
                     action: 'chat_pilot_submit_prechat_form',
-                    form_id: chatPilotWidget.formId,
+                    form_id: activeFormId,
                     fields: fieldsData,
                     session_id: sessionId,
                     page_url: window.location.href,
@@ -190,7 +221,7 @@
                         if (fieldsData.name) { storageSet('cp_visitor_name', fieldsData.name); }
                         if (fieldsData.email) { storageSet('cp_visitor_email', fieldsData.email); }
                         if (fieldsData.phone) { storageSet('cp_visitor_phone', fieldsData.phone); }
-                        storageSet('cp_prechat_done_' + chatPilotWidget.formId, 'yes');
+                        if (activeFormId) { storageSet('cp_prechat_done_' + activeFormId, 'yes'); }
 
                         $('#cp-widget-prechat-form').fadeOut(200, function () {
                             $messages.fadeIn(200);
@@ -230,21 +261,69 @@
             $errorContainer.html(html).slideDown(150);
         }
 
-        // Skip the pre-chat form when this visitor already completed it.
-        if (chatPilotWidget.hasPrechat) {
-            if (storageGet('cp_prechat_done_' + chatPilotWidget.formId) === 'yes') {
-                $('#cp-widget-prechat-form').hide();
-                $messages.show();
-                $('.cp-widget-footer').show();
-            } else {
+        // --- Pre-Chat Visibility & Live Config Synchronization ---
+        function updatePrechatVisibility(hasPrechat, formId) {
+            var activeFormId = formId || chatPilotWidget.formId || $('#cp-widget-prechat-form').attr('data-form-id') || '';
+            var isCompleted = activeFormId && storageGet('cp_prechat_done_' + activeFormId) === 'yes';
+
+            if (hasPrechat && !isCompleted && $('#cp-widget-prechat-form').length > 0) {
                 $('#cp-widget-prechat-form').show();
                 $messages.hide();
                 $('.cp-widget-footer').hide();
+            } else {
+                $('#cp-widget-prechat-form').hide();
+                $messages.show();
+                $('.cp-widget-footer').show();
             }
-        } else {
-            $('#cp-widget-prechat-form').hide();
-            $messages.show();
-            $('.cp-widget-footer').show();
+        }
+
+        // Initial setup from inline localized data
+        updatePrechatVisibility(Boolean(chatPilotWidget.hasPrechat), chatPilotWidget.formId);
+
+        // Dynamic synchronization via admin-ajax.php (bypasses LiteSpeed & page caches completely)
+        if (chatPilotWidget.ajaxUrl) {
+            $.ajax({
+                url: chatPilotWidget.ajaxUrl,
+                type: 'GET',
+                data: { action: 'chat_pilot_get_config' },
+                dataType: 'json',
+                success: function (res) {
+                    if (res && res.success && res.data) {
+                        var live = res.data;
+                        if (live.formId) {
+                            chatPilotWidget.formId = live.formId;
+                            $('#cp-widget-prechat-form').attr('data-form-id', live.formId);
+                        }
+                        if (typeof live.hasPrechat !== 'undefined') {
+                            chatPilotWidget.hasPrechat = live.hasPrechat ? '1' : '';
+                        }
+                        // If prechat is enabled but the form markup was missing in a cached page, dynamically build it!
+                        if (live.hasPrechat && $('#cp-widget-prechat-form').length === 0 && live.fields && live.fields.length > 0) {
+                            var formHtml = '<div id="cp-widget-prechat-form" data-form-id="' + escapeHtml(live.formId || '') + '">';
+                            formHtml += '<p class="cp-widget-prechat-intro">' + escapeHtml(live.intro || 'Please introduce yourself to start the conversation.') + '</p>';
+                            formHtml += '<div class="cp-prechat-error-msg" style="display:none; color:#ef4444; font-size:0.85rem; margin-bottom:0.75rem; border:1px solid rgba(239,68,68,0.15); background:rgba(239,68,68,0.05); padding:0.5rem 0.75rem; border-radius:6px; line-height:1.4;"></div>';
+                            $.each(live.fields, function (i, f) {
+                                var fid = escapeHtml(f.key || f.id || '');
+                                var ftype = f.type || 'text';
+                                var label = escapeHtml(f.label || '');
+                                var placeholder = escapeHtml(f.placeholder || '');
+                                var req = Boolean(f.required);
+                                var reqStar = req ? ' <span class="cp-required-star" style="color:#ef4444;">*</span>' : '';
+                                var reqAttr = req ? 'required' : '';
+                                if (!fid) return;
+                                formHtml += '<div class="cp-widget-form-group" style="margin-bottom:0.75rem;">';
+                                formHtml += '<label for="cp-prechat-' + fid + '" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:0.25rem;">' + label + reqStar + '</label>';
+                                formHtml += '<input type="' + (ftype === 'email' ? 'email' : 'text') + '" id="cp-prechat-' + fid + '" class="cp-widget-input cp-prechat-input-field" placeholder="' + placeholder + '" ' + reqAttr + ' style="width:100%; border-radius:6px; padding:0.5rem 0.75rem; height:38px; background:rgba(255,255,255,0.05); color:#ffffff; border:1px solid rgba(255,255,255,0.1);">';
+                                formHtml += '</div>';
+                            });
+                            formHtml += '<button id="cp-widget-prechat-submit" class="cp-widget-btn">Start Chat</button>';
+                            formHtml += '</div>';
+                            $('.cp-widget-body').prepend(formHtml);
+                        }
+                        updatePrechatVisibility(Boolean(live.hasPrechat), live.formId);
+                    }
+                }
+            });
         }
 
         /* ------------------------------------------------------ sending -- */
