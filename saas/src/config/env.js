@@ -5,6 +5,7 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 const computedRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const ROOT = existsSync(path.join(computedRoot, 'src', 'views'))
     ? computedRoot
