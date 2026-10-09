@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { existsSync, statSync } from 'node:fs';
 import express, {} from 'express';
 import { env, ROOT } from "./config/env.js";
 import { connectDb } from "./db/mongo.js";
@@ -37,18 +38,26 @@ export async function createApp() {
         },
     }));
     app.use(express.urlencoded({ extended: false, limit: '1mb' }));
-    app.use('/assets', express.static(path.join(ROOT, 'src', 'public'), {
-        maxAge: env.isProd ? '7d' : 0,
-        etag: true,
-    }));
-    app.use('/assets', express.static(path.join(process.cwd(), 'saas', 'src', 'public'), {
-        maxAge: env.isProd ? '7d' : 0,
-        etag: true,
-    }));
-    app.use('/assets', express.static(path.join(process.cwd(), 'src', 'public'), {
-        maxAge: env.isProd ? '7d' : 0,
-        etag: true,
-    }));
+    app.use('/assets', (req, res, next) => {
+        const candidates = [
+            path.join(ROOT, 'src', 'public', req.path),
+            path.join(process.cwd(), 'public', 'assets', req.path),
+            path.join(process.cwd(), 'saas', 'src', 'public', req.path),
+            path.join(process.cwd(), 'src', 'public', req.path),
+            path.join(ROOT, 'public', 'assets', req.path),
+            path.join(process.cwd(), 'saas', 'public', 'assets', req.path),
+        ];
+        for (const file of candidates) {
+            try {
+                if (existsSync(file) && !statSync(file).isDirectory()) {
+                    return res.sendFile(file);
+                }
+            } catch {
+                // Ignore filesystem errors and continue
+            }
+        }
+        next();
+    });
     // Unauthenticated liveness probe. Deliberately reveals nothing.
     app.get('/healthz', (_req, res) => {
         res.json({ ok: true, service: 'chat-pilot-saas', api_version: 'v1' });
