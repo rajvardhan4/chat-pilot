@@ -27,12 +27,30 @@ class ConfigCache {
 	const OPTION_FALLBACK = 'chat_pilot_widget_config_last_good';
 
 	/**
-	 * Cache lifetime in seconds.
+	 * Cache lifetime in seconds (default 60s for responsive portal updates).
 	 *
 	 * @return int
 	 */
 	public static function ttl() {
-		return (int) apply_filters( 'chat_pilot_config_ttl', 5 * MINUTE_IN_SECONDS );
+		return (int) apply_filters( 'chat_pilot_config_ttl', MINUTE_IN_SECONDS );
+	}
+
+	/**
+	 * Flushes popular WordPress page caches and object cache.
+	 */
+	public static function purge_page_caches() {
+		if ( function_exists( 'wp_cache_flush' ) ) {
+			wp_cache_flush();
+		}
+		if ( has_action( 'litespeed_purge_all' ) ) {
+			do_action( 'litespeed_purge_all' );
+		}
+		if ( function_exists( 'rocket_clean_domain' ) ) {
+			rocket_clean_domain();
+		}
+		if ( function_exists( 'w3tc_flush_all' ) ) {
+			w3tc_flush_all();
+		}
 	}
 
 	/**
@@ -41,8 +59,13 @@ class ConfigCache {
 	 * @param array $config Config payload from the SaaS.
 	 */
 	public static function store( array $config ) {
+		$previous = get_option( self::OPTION_FALLBACK, null );
 		set_transient( self::TRANSIENT, $config, self::ttl() );
 		update_option( self::OPTION_FALLBACK, $config, false );
+
+		if ( null !== $previous && serialize( $previous ) !== serialize( $config ) ) {
+			self::purge_page_caches();
+		}
 	}
 
 	/**
@@ -51,6 +74,7 @@ class ConfigCache {
 	public static function flush() {
 		delete_transient( self::TRANSIENT );
 		delete_option( self::OPTION_FALLBACK );
+		self::purge_page_caches();
 	}
 
 	/**
