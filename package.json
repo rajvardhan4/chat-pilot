@@ -2,13 +2,28 @@
   "name": "chat-pilot",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Chat Pilot - multi-tenant SaaS control plane + WordPress connector plugin",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
+    "start": "node saas/server.js",
     "plugin:build": "node scripts/build-plugin.mjs",
     "plugin:patch": "node scripts/build-plugin.mjs --bump patch",
     "plugin:minor": "node scripts/build-plugin.mjs --bump minor",
     "plugin:major": "node scripts/build-plugin.mjs --bump major",
     "cloud:build": "node scripts/build-cloud.mjs",
     "hostinger:build": "node scripts/build-hostinger.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.124.0",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "mongodb": "^7.6.0",
+    "zod": "^3.24.1"
+  },
+  "overrides": {
+    "qs": "^6.16.0"
   }
 }

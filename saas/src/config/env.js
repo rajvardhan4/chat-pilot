@@ -5,8 +5,14 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const computedRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+export const ROOT = existsSync(path.join(computedRoot, 'src', 'views'))
+    ? computedRoot
+    : (existsSync(path.join(process.cwd(), 'saas', 'src', 'views'))
+        ? path.join(process.cwd(), 'saas')
+        : (existsSync(path.join(process.cwd(), 'src', 'views'))
+            ? process.cwd()
+            : computedRoot));
 /** Minimal .env loader (no dependency); real env vars always win. */
 function loadDotEnv() {
     // A test run must never inherit the developer's .env. tests/setup.ts sets
@@ -124,12 +130,12 @@ export const env = {
     SESSION_SECRET: secret('SESSION_SECRET'),
     SITE_KEY_PEPPER: secret('SITE_KEY_PEPPER'),
     FORCE_HTTPS: bool('FORCE_HTTPS', isProd),
-    TRUST_PROXY: bool('TRUST_PROXY', false),
+    TRUST_PROXY: bool('TRUST_PROXY', Boolean(process.env.VERCEL)),
     RATE_LIMIT_CHAT_PER_MINUTE: num('RATE_LIMIT_CHAT_PER_MINUTE', 20),
     RATE_LIMIT_AUTH_PER_15MIN: num('RATE_LIMIT_AUTH_PER_15MIN', 10),
     RATE_LIMIT_API_PER_MINUTE: num('RATE_LIMIT_API_PER_MINUTE', 120),
     UPLOAD_MAX_BYTES: num('UPLOAD_MAX_BYTES', 10 * 1024 * 1024),
-    UPLOAD_DIR: path.resolve(ROOT, str('UPLOAD_DIR', './data/uploads')),
+    UPLOAD_DIR: process.env.VERCEL ? '/tmp/uploads' : path.resolve(ROOT, str('UPLOAD_DIR', './data/uploads')),
     PROVIDER_TIMEOUT_MS: num('PROVIDER_TIMEOUT_MS', 20_000),
     MAIL_TRANSPORT: str('MAIL_TRANSPORT', 'log'),
     MAIL_FROM: str('MAIL_FROM', 'no-reply@chatpilot.local'),
