@@ -8,7 +8,12 @@
   ],
   "functions": {
     "api/index.js": {
-      "includeFiles": "saas/src/views/**,saas/src/public/**"
+      "includeFiles": [
+        "saas/src/views/**",
+        "saas/src/public/**",
+        "src/views/**",
+        "src/public/**"
+      ]
     }
   }
 }

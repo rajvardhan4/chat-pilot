@@ -8,7 +8,10 @@
   ],
   "functions": {
     "api/index.js": {
-      "includeFiles": "src/views/**,src/public/**"
+      "includeFiles": [
+        "src/views/**",
+        "src/public/**"
+      ]
     }
   }
 }

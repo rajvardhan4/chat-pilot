@@ -41,6 +41,14 @@ export async function createApp() {
         maxAge: env.isProd ? '7d' : 0,
         etag: true,
     }));
+    app.use('/assets', express.static(path.join(process.cwd(), 'saas', 'src', 'public'), {
+        maxAge: env.isProd ? '7d' : 0,
+        etag: true,
+    }));
+    app.use('/assets', express.static(path.join(process.cwd(), 'src', 'public'), {
+        maxAge: env.isProd ? '7d' : 0,
+        etag: true,
+    }));
     // Unauthenticated liveness probe. Deliberately reveals nothing.
     app.get('/healthz', (_req, res) => {
         res.json({ ok: true, service: 'chat-pilot-saas', api_version: 'v1' });
