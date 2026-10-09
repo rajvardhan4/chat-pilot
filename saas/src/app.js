@@ -62,6 +62,22 @@ export async function createApp() {
     app.get('/healthz', (_req, res) => {
         res.json({ ok: true, service: 'chat-pilot-saas', api_version: 'v1' });
     });
+    app.get('/api/debug-files', (_req, res) => {
+        try {
+            const fs = {
+                ROOT,
+                cwd: process.cwd(),
+                candidates: [
+                    path.join(ROOT, 'src', 'public', 'css', 'chat-pilot.css'),
+                    path.join(process.cwd(), 'public', 'assets', 'css', 'chat-pilot.css'),
+                    path.join(process.cwd(), 'saas', 'src', 'public', 'css', 'chat-pilot.css'),
+                ].map(p => ({ path: p, exists: existsSync(p) })),
+            };
+            res.json(fs);
+        } catch (e) {
+            res.json({ error: e.message });
+        }
+    });
     // --- Plugin-facing API (Site API Key + HMAC) ---
     app.use('/api/v1/site', siteApiRouter);
     // --- Portal (session cookie) ---
