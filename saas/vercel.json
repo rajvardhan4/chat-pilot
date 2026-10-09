@@ -2,16 +2,13 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/((?!assets/).*)",
+      "source": "/(.*)",
       "destination": "/api/index.js"
     }
   ],
   "functions": {
     "api/index.js": {
-      "includeFiles": [
-        "src/views/**",
-        "src/public/**"
-      ]
+      "includeFiles": "src/**"
     }
   }
 }
