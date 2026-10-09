@@ -78,19 +78,23 @@
       </div>
 
       <!-- Color Pickers Row -->
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:1rem;">
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:16px; margin-bottom:1.25rem;">
         <div class="cp-form-group" style="margin-bottom:0;">
-          <label class="cp-label" for="primary_color">Launcher Background</label>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <input class="cp-input" type="color" id="primary_color" name="primary_color" value="<%= settings.primary_color || '#0678f9' %>" style="height:40px; width:50px; padding:2px; cursor:pointer; flex-shrink:0;">
-            <input class="cp-input" type="text" id="primary_color_text" value="<%= settings.primary_color || '#0678f9' %>" style="font-family:monospace; font-size:0.85rem;" readonly>
+          <label class="cp-label" for="primary_color_text">Launcher Background</label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="position:relative; width:40px; height:40px; border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,0.2); flex-shrink:0; background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.25);">
+              <input type="color" id="primary_color" name="primary_color" value="<%= settings.primary_color || '#0678f9' %>" style="width:56px; height:56px; border:none; padding:0; cursor:pointer; background:transparent;">
+            </div>
+            <input class="cp-input" type="text" id="primary_color_text" value="<%= (settings.primary_color || '#0678f9').toUpperCase() %>" placeholder="#0678F9" maxlength="7" spellcheck="false" autocomplete="off" style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; font-size:0.875rem; font-weight:600; letter-spacing:0.5px; text-transform:uppercase;">
           </div>
         </div>
         <div class="cp-form-group" style="margin-bottom:0;">
-          <label class="cp-label" for="icon_color">Launcher Icon Colour</label>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <input class="cp-input" type="color" id="icon_color" name="icon_color" value="<%= settings.icon_color || '#ffffff' %>" style="height:40px; width:50px; padding:2px; cursor:pointer; flex-shrink:0;">
-            <input class="cp-input" type="text" id="icon_color_text" value="<%= settings.icon_color || '#ffffff' %>" style="font-family:monospace; font-size:0.85rem;" readonly>
+          <label class="cp-label" for="icon_color_text">Launcher Icon Colour</label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="position:relative; width:40px; height:40px; border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,0.2); flex-shrink:0; background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.25);">
+              <input type="color" id="icon_color" name="icon_color" value="<%= settings.icon_color || '#ffffff' %>" style="width:56px; height:56px; border:none; padding:0; cursor:pointer; background:transparent;">
+            </div>
+            <input class="cp-input" type="text" id="icon_color_text" value="<%= (settings.icon_color || '#ffffff').toUpperCase() %>" placeholder="#FFFFFF" maxlength="7" spellcheck="false" autocomplete="off" style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; font-size:0.875rem; font-weight:600; letter-spacing:0.5px; text-transform:uppercase;">
           </div>
         </div>
       </div>

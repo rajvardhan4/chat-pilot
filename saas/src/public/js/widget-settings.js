@@ -18,10 +18,90 @@
   refresh();
 
   var form = document.querySelector('form[data-ajax="/widget"]');
-  if (form) {
-    form.addEventListener('submit', function () {
-      setTimeout(refresh, 800);
+
+  // --- Helper: sanitize and normalize hex color to 6-digit #RRGGBB ---
+  function sanitizeHex(val) {
+    if (!val) return null;
+    var clean = String(val).trim().replace(/^#/, '');
+    if (/^[0-9a-fA-F]{3}$/.test(clean)) {
+      return '#' + clean[0] + clean[0] + clean[1] + clean[1] + clean[2] + clean[2];
+    }
+    if (/^[0-9a-fA-F]{6}$/.test(clean)) {
+      return '#' + clean;
+    }
+    return null;
+  }
+
+  // --- Two-Way Color Syncing (Picker <-> Text Input) ---
+  function bindColorPicker(pickerId, textId, fallbackHex) {
+    var picker = document.getElementById(pickerId);
+    var text = document.getElementById(textId);
+    if (!picker || !text) return;
+
+    // 1. Color Picker -> Text field
+    function syncFromPicker() {
+      if (picker.value) {
+        text.value = picker.value.toUpperCase();
+      }
+    }
+    picker.addEventListener('input', syncFromPicker);
+    picker.addEventListener('change', syncFromPicker);
+
+    // 2. Text field -> Color Picker (as user types or pastes)
+    text.addEventListener('input', function () {
+      var full = sanitizeHex(text.value);
+      if (full) {
+        picker.value = full.toLowerCase();
+      }
     });
+
+    // 3. Format and validate on blur
+    text.addEventListener('blur', function () {
+      var full = sanitizeHex(text.value);
+      if (full) {
+        text.value = full.toUpperCase();
+        picker.value = full.toLowerCase();
+      } else {
+        // Revert to current picker or fallback if invalid
+        text.value = (picker.value || fallbackHex).toUpperCase();
+      }
+    });
+
+    // 4. Auto-select text on focus for effortless replacement
+    text.addEventListener('focus', function () {
+      text.select();
+    });
+  }
+
+  bindColorPicker('primary_color', 'primary_color_text', '#0678f9');
+  bindColorPicker('icon_color', 'icon_color_text', '#ffffff');
+
+  // Form submit synchronization
+  if (form) {
+    // Capturing phase ensures picker values are perfectly normalized before form serialisation
+    form.addEventListener('submit', function () {
+      var pPicker = document.getElementById('primary_color');
+      var pText = document.getElementById('primary_color_text');
+      if (pPicker && pText) {
+        var p = sanitizeHex(pText.value);
+        if (p) {
+          pPicker.value = p.toLowerCase();
+          pText.value = p.toUpperCase();
+        }
+      }
+
+      var iPicker = document.getElementById('icon_color');
+      var iText = document.getElementById('icon_color_text');
+      if (iPicker && iText) {
+        var i = sanitizeHex(iText.value);
+        if (i) {
+          iPicker.value = i.toLowerCase();
+          iText.value = i.toUpperCase();
+        }
+      }
+
+      setTimeout(refresh, 800);
+    }, true);
   }
 
   // --- Avatar Selector Handling ---
@@ -42,23 +122,6 @@
       }
     });
   });
-
-  // --- Color Text Syncing ---
-  var primaryColorInput = document.getElementById('primary_color');
-  var primaryColorText = document.getElementById('primary_color_text');
-  if (primaryColorInput && primaryColorText) {
-    primaryColorInput.addEventListener('input', function () {
-      primaryColorText.value = primaryColorInput.value;
-    });
-  }
-
-  var iconColorInput = document.getElementById('icon_color');
-  var iconColorText = document.getElementById('icon_color_text');
-  if (iconColorInput && iconColorText) {
-    iconColorInput.addEventListener('input', function () {
-      iconColorText.value = iconColorInput.value;
-    });
-  }
 
   // --- Pre-Chat Form Toggle ---
   var prechatToggle = document.getElementById('cp_prechat_enabled');
