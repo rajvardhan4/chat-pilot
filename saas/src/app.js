@@ -58,6 +58,22 @@ export async function createApp() {
         }
         next();
     });
+    app.get('/debug-assets', (_req, res) => {
+        const testFile = 'css/chat-pilot.css';
+        const candidates = [
+            path.join(ROOT, 'src', 'public', testFile),
+            path.join(process.cwd(), 'public', 'assets', testFile),
+            path.join(process.cwd(), 'saas', 'src', 'public', testFile),
+            path.join(process.cwd(), 'src', 'public', testFile),
+            path.join(ROOT, 'public', 'assets', testFile),
+            path.join(process.cwd(), 'saas', 'public', 'assets', testFile),
+        ];
+        res.json({
+            ROOT,
+            cwd: process.cwd(),
+            candidates: candidates.map(c => ({ path: c, exists: existsSync(c) }))
+        });
+    });
     // Unauthenticated liveness probe. Deliberately reveals nothing.
     app.get('/healthz', (_req, res) => {
         res.json({ ok: true, service: 'chat-pilot-saas', api_version: 'v1' });
