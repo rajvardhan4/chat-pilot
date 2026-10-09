@@ -1,10 +1,13 @@
 {
   "version": 2,
-  "rewrites": [
+  "redirects": [
     {
       "source": "/",
-      "destination": "/api/index.js"
-    },
+      "destination": "/login",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
     {
       "source": "/:path*",
       "destination": "/api/index.js"
