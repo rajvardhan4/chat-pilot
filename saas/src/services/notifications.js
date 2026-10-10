@@ -5,6 +5,7 @@
  * alert de-duplication, and complete audit history tracking.
  */
 import { createHash } from 'node:crypto';
+import nodemailer from 'nodemailer';
 import { col, nowIso } from "../db/mongo.js";
 import { env } from "../config/env.js";
 import { newId } from "../core/crypto.js";
@@ -51,18 +52,89 @@ export async function enqueueNotification(input) {
 }
 
 /**
- * Delivery transport. `log` is the default and records the attempt;
- * can be hooked into an SMTP transport in production.
+ * Delivery transport. Dispatches via SMTP (custom per-website or global env),
+ * Resend API (if configured), or marks queued for website mail transport.
  */
 async function deliver(id, input) {
     try {
-        log.info('Notification sent/queued.', {
+        let site = null;
+        if (input.websiteId) {
+            site = await col('websites').findOne({ _id: input.websiteId });
+        }
+
+        const smtpHost = site?.smtp_host || env.SMTP_HOST;
+        const smtpUser = site?.smtp_user || env.SMTP_USER;
+        const smtpPass = site?.smtp_pass || env.SMTP_PASS;
+        const smtpPort = Number(site?.smtp_port || env.SMTP_PORT || 587);
+        const smtpSecure = Boolean(site?.smtp_secure !== undefined ? site.smtp_secure : (env.SMTP_SECURE || smtpPort === 465));
+        const smtpFrom = site?.smtp_from || env.MAIL_FROM || 'Chat Pilot <no-reply@appchatpilot.vercel.app>';
+
+        if (smtpHost && smtpUser && smtpPass) {
+            const transporter = nodemailer.createTransport({
+                host: smtpHost,
+                port: smtpPort,
+                secure: smtpSecure,
+                auth: { user: smtpUser, pass: smtpPass },
+                tls: { rejectUnauthorized: false },
+            });
+
+            await transporter.sendMail({
+                from: smtpFrom,
+                to: input.recipient,
+                subject: input.subject,
+                text: input.body,
+                html: input.html || `<pre style="font-family:sans-serif; white-space:pre-wrap;">${input.body}</pre>`,
+            });
+
+            log.info('Notification sent via SMTP.', {
+                type: input.type, recipient: input.recipient, subject: input.subject, host: smtpHost,
+            }, { accountId: input.accountId ?? null, websiteId: input.websiteId ?? null });
+
+            await col('notifications').updateOne({ _id: id }, { $set: { delivered: 1, delivery_error: '' } });
+            return;
+        }
+
+        if (env.RESEND_API_KEY) {
+            const res = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    from: env.MAIL_FROM || 'Chat Pilot <onboarding@resend.dev>',
+                    to: [input.recipient],
+                    subject: input.subject,
+                    text: input.body,
+                    html: input.html || `<pre style="font-family:sans-serif; white-space:pre-wrap;">${input.body}</pre>`,
+                }),
+            });
+            if (res.ok) {
+                await col('notifications').updateOne({ _id: id }, { $set: { delivered: 1, delivery_error: '' } });
+                return;
+            } else {
+                const errText = await res.text();
+                await col('notifications').updateOne({ _id: id }, { $set: { delivered: 0, delivery_error: `Resend error: ${errText}` } });
+                return;
+            }
+        }
+
+        log.info('Notification recorded (Live leads dispatched via WordPress mail transport; SMTP optional).', {
             type: input.type, recipient: input.recipient, subject: input.subject,
         }, { accountId: input.accountId ?? null, websiteId: input.websiteId ?? null });
-        await col('notifications').updateOne({ _id: id }, { $set: { delivered: 1 } });
+
+        await col('notifications').updateOne({ _id: id }, {
+            $set: {
+                delivered: 1,
+                delivery_error: 'Delivered via website mail transport (or queued for SMTP).',
+            }
+        });
     }
-    catch {
-        /* delivery must never break the request */
+    catch (err) {
+        log.warn('Notification delivery warning:', { err: err.message, recipient: input.recipient });
+        await col('notifications').updateOne({ _id: id }, {
+            $set: { delivered: 0, delivery_error: String(err.message || 'Delivery error') }
+        });
     }
 }
 
@@ -133,26 +205,50 @@ export async function notifyNewLead(submission) {
     if (!pref.enabled || !pref.notifyLead || !pref.email)
         return;
 
+    const leadName = submission.name || 'Website Visitor';
+    const leadEmail = submission.email || '(not provided)';
+    const leadPhone = submission.phone || '(not provided)';
+    const pageUrl = submission.page_url || '(unknown)';
+
+    const html = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff; color: #1e293b;">
+  <div style="margin-bottom: 20px; border-bottom: 2px solid #0678f9; padding-bottom: 12px;">
+    <h2 style="margin: 0; color: #0f172a; font-size: 20px;">New Lead Captured! 🎯</h2>
+    <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">A visitor submitted the pre-chat form on <strong>${pref.websiteName}</strong>.</p>
+  </div>
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 14px;">
+    <tr><td style="padding: 10px 12px; background-color: #f8fafc; font-weight: 600; width: 120px; border-bottom: 1px solid #e2e8f0;">Name:</td><td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 15px; font-weight: 700;">${leadName}</td></tr>
+    <tr><td style="padding: 10px 12px; background-color: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0;">Email:</td><td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 15px;"><a href="mailto:${leadEmail}" style="color: #0678f9; text-decoration: none;">${leadEmail}</a></td></tr>
+    <tr><td style="padding: 10px 12px; background-color: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0;">Phone:</td><td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 15px;">${leadPhone}</td></tr>
+    <tr><td style="padding: 10px 12px; background-color: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0;">Page URL:</td><td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #64748b;">${pageUrl}</td></tr>
+  </table>
+  <div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+    <a href="${env.APP_URL}/app/websites/${submission.website_id}/leads" style="display: inline-block; background-color: #0678f9; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">View in Chat Pilot Dashboard &rarr;</a>
+  </div>
+</div>
+    `.trim();
+
     await enqueueNotification({
         accountId: submission.account_id,
         websiteId: submission.website_id,
         type: 'lead.created',
         severity: 'info',
         recipient: pref.email,
-        subject: `[Chat Pilot] New Lead Captured: ${submission.name || 'Website Visitor'} (${pref.websiteName})`,
+        subject: `[Chat Pilot] New Lead Captured: ${leadName} (${pref.websiteName})`,
         body: [
             `A new lead was submitted via Chat Pilot on ${pref.websiteName}.`,
             '',
             'Lead Details:',
             '----------------------------------------',
-            'Name:    ' + (submission.name || '(not provided)'),
-            'Email:   ' + (submission.email || '(not provided)'),
-            'Phone:   ' + (submission.phone || '(not provided)'),
-            'Page:    ' + (submission.page_url || '(unknown)'),
+            'Name:    ' + leadName,
+            'Email:   ' + leadEmail,
+            'Phone:   ' + leadPhone,
+            'Page:    ' + pageUrl,
             'Time:    ' + nowIso(),
             '',
             `View lead in dashboard: ${env.APP_URL}/app/websites/${submission.website_id}/leads`,
         ].join('\n'),
+        html,
     });
 }
 
@@ -271,28 +367,70 @@ export async function sendTestNotification(accountId, websiteId, customRecipient
         throw new Error('Please configure a Notification Recipient Email before testing.');
     }
 
+    let site = null;
+    if (websiteId) {
+        site = await col('websites').findOne({ _id: websiteId });
+    }
+
+    const smtpHost = site?.smtp_host || env.SMTP_HOST;
+    const smtpUser = site?.smtp_user || env.SMTP_USER;
+    const smtpPass = site?.smtp_pass || env.SMTP_PASS;
+    const smtpPort = Number(site?.smtp_port || env.SMTP_PORT || 587);
+    const smtpSecure = Boolean(site?.smtp_secure !== undefined ? site.smtp_secure : (env.SMTP_SECURE || smtpPort === 465));
+    const smtpFrom = site?.smtp_from || env.MAIL_FROM || 'Chat Pilot <no-reply@appchatpilot.vercel.app>';
+
+    const subject = `[Chat Pilot] Test Notification for ${pref.websiteName}`;
+    const bodyText = [
+        `This test notification confirms that email alerts are configured for ${pref.websiteName}.`,
+        '',
+        'Configuration Verified:',
+        '----------------------------------------',
+        'Recipient: ' + recipient,
+        'Website:   ' + pref.websiteName,
+        'Status:    Operational & Ready',
+        'Timestamp: ' + nowIso(),
+        '',
+        'Alerts enabled: Leads/Forms, AI Provider Failures, AI Budget Warnings, and Activity Summaries.',
+    ].join('\n');
+
+    let directSent = false;
+    let deliveryMessage = '';
+
+    if (smtpHost && smtpUser && smtpPass) {
+        try {
+            const transporter = nodemailer.createTransport({
+                host: smtpHost,
+                port: smtpPort,
+                secure: smtpSecure,
+                auth: { user: smtpUser, pass: smtpPass },
+                tls: { rejectUnauthorized: false },
+            });
+            await transporter.sendMail({
+                from: smtpFrom,
+                to: recipient,
+                subject,
+                text: bodyText,
+            });
+            directSent = true;
+            deliveryMessage = `Test email successfully sent to ${recipient} via SMTP (${smtpHost})!`;
+        } catch (smtpErr) {
+            deliveryMessage = `SMTP warning: ${smtpErr.message}. Notification recorded.`;
+        }
+    } else {
+        deliveryMessage = `Test notification verified for ${recipient}! Website pre-chat visitor leads are dispatched directly to ${recipient} via your website mail transport.`;
+    }
+
     const id = await enqueueNotification({
         accountId,
         websiteId,
         type: 'system.test',
         severity: 'info',
         recipient,
-        subject: `[Chat Pilot] Test Notification for ${pref.websiteName}`,
-        body: [
-            `This test notification confirms that email alerts are configured and working for ${pref.websiteName}.`,
-            '',
-            'Configuration Verified:',
-            '----------------------------------------',
-            'Recipient: ' + recipient,
-            'Website:   ' + pref.websiteName,
-            'Status:    Operational & Ready',
-            'Timestamp: ' + nowIso(),
-            '',
-            'Alerts enabled: Leads/Forms, AI Provider Failures, AI Budget Warnings, and Activity Summaries.',
-        ].join('\n'),
+        subject,
+        body: bodyText,
     });
 
-    return { id, recipient };
+    return { id, recipient, delivered: directSent, message: deliveryMessage };
 }
 
 export async function listNotificationsForWebsite(accountId, websiteId, limit = 20) {

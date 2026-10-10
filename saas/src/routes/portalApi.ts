@@ -729,3 +729,53 @@ portalApiRouter.get(
     res.json(ok({ analytics: await websiteAnalytics(req.account!.id, req.website!.id, range) }));
   }),
 );
+
+/* ------------------------------------------------------------- settings -- */
+
+portalApiRouter.post(
+  '/websites/:websiteId/settings',
+  resolveWebsite,
+  asyncRoute(async (req, res) => {
+    const body = parseOrThrow(
+      z.object({
+        name: text(160, 'Website name').optional(),
+        url: z.string().trim().max(500).optional(),
+        status: z.enum(['active', 'inactive']).optional(),
+        default_language: z.string().trim().max(10).optional(),
+        timezone: z.string().trim().max(50).optional(),
+        inactivity_timeout_minutes: z.coerce.number().int().min(5).max(1440).optional(),
+        retention_days: z.coerce.number().int().min(0).max(3650).optional(),
+        notification_email: z.string().trim().max(200).optional(),
+        enable_notifications: z.coerce.boolean().optional(),
+        notify_on_lead: z.coerce.boolean().optional(),
+        notify_on_form: z.coerce.boolean().optional(),
+        notify_on_conversation: z.coerce.boolean().optional(),
+        notify_on_budget_warning: z.coerce.boolean().optional(),
+        notify_on_ai_failure: z.coerce.boolean().optional(),
+        store_conversations: z.coerce.boolean().optional(),
+        store_visitor_info: z.coerce.boolean().optional(),
+        anonymize_ips: z.coerce.boolean().optional(),
+        smtp_host: z.string().trim().max(200).optional(),
+        smtp_port: z.coerce.number().int().min(1).max(65535).optional(),
+        smtp_user: z.string().trim().max(200).optional(),
+        smtp_pass: z.string().max(200).optional(),
+        smtp_secure: z.coerce.boolean().optional(),
+        smtp_from: z.string().trim().max(200).optional(),
+      }),
+      req.body ?? {},
+    );
+    const updated = await updateWebsite(req.account!.id, req.website!.id, body, req.user!.id);
+    res.json(ok({ website: updated }));
+  }),
+);
+
+portalApiRouter.post(
+  '/websites/:websiteId/settings/test-notification',
+  resolveWebsite,
+  asyncRoute(async (req, res) => {
+    const rawRecipient = typeof req.body?.recipient === 'string' ? req.body.recipient.trim() : '';
+    const result = await sendTestNotification(req.account!.id, req.website!.id, rawRecipient);
+    res.json(ok({ message: result.message || `Test notification sent to ${result.recipient}`, result }));
+  }),
+);
+

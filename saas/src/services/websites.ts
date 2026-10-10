@@ -273,6 +273,22 @@ export async function updateWebsite(
     status?: 'active' | 'inactive';
     inactivity_timeout_minutes?: number;
     retention_days?: number;
+    notification_email?: string;
+    enable_notifications?: boolean | number;
+    notify_on_lead?: boolean | number;
+    notify_on_form?: boolean | number;
+    notify_on_conversation?: boolean | number;
+    notify_on_budget_warning?: boolean | number;
+    notify_on_ai_failure?: boolean | number;
+    store_conversations?: boolean | number;
+    store_visitor_info?: boolean | number;
+    anonymize_ips?: boolean | number;
+    smtp_host?: string;
+    smtp_port?: number;
+    smtp_user?: string;
+    smtp_pass?: string;
+    smtp_secure?: boolean | number;
+    smtp_from?: string;
   },
   actorId: string,
 ): Promise<WebsiteRow> {
@@ -304,6 +320,54 @@ export async function updateWebsite(
   }
   if (patch.retention_days !== undefined) {
     set.retention_days = Math.min(3650, Math.max(0, Math.round(patch.retention_days)));
+  }
+  if (patch.notification_email !== undefined) {
+    set.notification_email = String(patch.notification_email || '').trim().toLowerCase();
+  }
+  if (patch.enable_notifications !== undefined) {
+    set.enable_notifications = patch.enable_notifications ? 1 : 0;
+  }
+  if (patch.notify_on_lead !== undefined) {
+    set.notify_on_lead = patch.notify_on_lead ? 1 : 0;
+  }
+  if (patch.notify_on_form !== undefined) {
+    set.notify_on_form = patch.notify_on_form ? 1 : 0;
+  }
+  if (patch.notify_on_conversation !== undefined) {
+    set.notify_on_conversation = patch.notify_on_conversation ? 1 : 0;
+  }
+  if (patch.notify_on_budget_warning !== undefined) {
+    set.notify_on_budget_warning = patch.notify_on_budget_warning ? 1 : 0;
+  }
+  if (patch.notify_on_ai_failure !== undefined) {
+    set.notify_on_ai_failure = patch.notify_on_ai_failure ? 1 : 0;
+  }
+  if (patch.store_conversations !== undefined) {
+    set.store_conversations = patch.store_conversations ? 1 : 0;
+  }
+  if (patch.store_visitor_info !== undefined) {
+    set.store_visitor_info = patch.store_visitor_info ? 1 : 0;
+  }
+  if (patch.anonymize_ips !== undefined) {
+    set.anonymize_ips = patch.anonymize_ips ? 1 : 0;
+  }
+  if (patch.smtp_host !== undefined) {
+    set.smtp_host = String(patch.smtp_host || '').trim();
+  }
+  if (patch.smtp_port !== undefined) {
+    set.smtp_port = Number(patch.smtp_port) || 587;
+  }
+  if (patch.smtp_user !== undefined) {
+    set.smtp_user = String(patch.smtp_user || '').trim();
+  }
+  if (patch.smtp_pass !== undefined && patch.smtp_pass !== '') {
+    set.smtp_pass = String(patch.smtp_pass);
+  }
+  if (patch.smtp_secure !== undefined) {
+    set.smtp_secure = patch.smtp_secure ? 1 : 0;
+  }
+  if (patch.smtp_from !== undefined) {
+    set.smtp_from = String(patch.smtp_from || '').trim();
   }
   if (!Object.keys(set).length) return site;
 

@@ -19,7 +19,7 @@
   </div>
 </div>
 
-<form id="cp-website-settings-form" method="post" action="/app/websites/<%= website.id %>/settings" data-ajax="/settings" data-success="Settings saved successfully.">
+<form id="cp-website-settings-form" method="post" action="/app/websites/<%= website.id %>/settings" data-ajax="/settings" data-success="Settings saved successfully." data-reload>
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
   <div class="cp-grid cp-grid-2">
@@ -29,7 +29,7 @@
         <h3 class="cp-card-title" style="margin:0; color:#60a5fa; display:flex; align-items:center; gap:0.5rem;">
           <span>🔔</span> Automated Email Notifications
         </h3>
-        <span class="cp-badge-log" style="background:rgba(6, 120, 249, 0.15); color:#60a5fa; font-weight:700;">
+        <span id="cp-notifications-badge" class="cp-badge-log" style="background:<%= website.enable_notifications ? 'rgba(34, 197, 94, 0.15)' : 'rgba(234, 179, 8, 0.15)' %>; color:<%= website.enable_notifications ? '#4ade80' : '#fbbf24' %>; font-weight:700;">
           <%= website.enable_notifications ? 'Enabled' : 'Paused' %>
         </span>
       </div>
@@ -62,7 +62,7 @@
         <div id="cp-test-email-status" style="display:none; margin-top:0.5rem; font-size:0.85rem; padding:0.5rem 0.75rem; border-radius:6px;"></div>
       </div>
 
-      <div style="border-top:1px solid rgba(255,255,255,0.06); padding-top:1.25rem; margin-top:1.25rem;">
+      <div id="cp-notification-triggers" style="border-top:1px solid rgba(255,255,255,0.06); padding-top:1.25rem; margin-top:1.25rem; transition: opacity 0.2s ease;">
         <h4 style="font-size:0.9rem; font-weight:700; color:#ffffff; margin:0 0 0.85rem 0;">Notification Event Triggers</h4>
         
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1rem;">
@@ -107,6 +107,43 @@
           </label>
         </div>
       </div>
+
+      <!-- Optional Custom SMTP Configuration -->
+      <details style="border-top:1px solid rgba(255,255,255,0.06); padding-top:1.25rem; margin-top:1.25rem;">
+        <summary style="cursor:pointer; color:#94a3b8; font-size:0.875rem; font-weight:600; display:flex; align-items:center; gap:0.5rem; user-select:none;">
+          <span>⚙️ Custom Outbound SMTP Configuration (Optional)</span>
+          <span style="font-size:0.75rem; color:#64748b; margin-left:auto;">Click to expand</span>
+        </summary>
+        <p class="cp-help-text" style="margin:0.75rem 0 1rem 0;">
+          By default, pre-chat visitor leads are dispatched directly using your website host's mail transport. If you wish to send portal test emails and system alerts via your own SMTP server (e.g. Hostinger, Gmail, or SendGrid), enter your SMTP credentials below:
+        </p>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:1rem;">
+          <div class="cp-form-group">
+            <label class="cp-label" for="smtp_host">SMTP Host</label>
+            <input class="cp-input" type="text" id="smtp_host" name="smtp_host" value="<%= website.smtp_host || '' %>" placeholder="smtp.hostinger.com">
+          </div>
+          <div class="cp-form-group">
+            <label class="cp-label" for="smtp_port">SMTP Port</label>
+            <input class="cp-input" type="number" id="smtp_port" name="smtp_port" value="<%= website.smtp_port || 587 %>" placeholder="587">
+          </div>
+          <div class="cp-form-group">
+            <label class="cp-label" for="smtp_user">SMTP Username / Email</label>
+            <input class="cp-input" type="text" id="smtp_user" name="smtp_user" value="<%= website.smtp_user || '' %>" placeholder="alerts@yourdomain.com">
+          </div>
+          <div class="cp-form-group">
+            <label class="cp-label" for="smtp_pass">SMTP Password</label>
+            <input class="cp-input" type="password" id="smtp_pass" name="smtp_pass" value="<%= website.smtp_pass || '' %>" placeholder="••••••••••••" autocomplete="new-password">
+          </div>
+          <div class="cp-form-group" style="grid-column: 1 / -1;">
+            <label class="cp-label" for="smtp_from">From Name & Address</label>
+            <input class="cp-input" type="text" id="smtp_from" name="smtp_from" value="<%= website.smtp_from || '' %>" placeholder="Chat Pilot &lt;alerts@yourdomain.com&gt;">
+          </div>
+        </div>
+        <label class="cp-checkbox-label" style="display:flex; align-items:center; gap:0.5rem; margin-top:0.75rem; cursor:pointer;">
+          <input type="checkbox" name="smtp_secure" class="cp-checkbox" <%= website.smtp_secure ? 'checked' : '' %>>
+          <span style="font-size:0.825rem; color:#cbd5e1;">Use SSL / TLS connection directly (check this for port 465)</span>
+        </label>
+      </details>
     </div>
 
     <!-- SECTION 2: GENERAL WEBSITE CONFIGURATION -->
@@ -238,6 +275,30 @@
 
 <script>
   (function() {
+    var toggleNotifications = document.getElementById('enable_notifications');
+    var badgeNotifications = document.getElementById('cp-notifications-badge');
+    var triggersContainer = document.getElementById('cp-notification-triggers');
+
+    function updateBadgeState() {
+      if (!toggleNotifications || !badgeNotifications) return;
+      if (toggleNotifications.checked) {
+        badgeNotifications.textContent = 'Enabled';
+        badgeNotifications.style.background = 'rgba(34, 197, 94, 0.15)';
+        badgeNotifications.style.color = '#4ade80';
+        if (triggersContainer) triggersContainer.style.opacity = '1';
+      } else {
+        badgeNotifications.textContent = 'Paused';
+        badgeNotifications.style.background = 'rgba(234, 179, 8, 0.15)';
+        badgeNotifications.style.color = '#fbbf24';
+        if (triggersContainer) triggersContainer.style.opacity = '0.5';
+      }
+    }
+
+    if (toggleNotifications) {
+      toggleNotifications.addEventListener('change', updateBadgeState);
+      updateBadgeState();
+    }
+
     var btnTest = document.getElementById('cp-btn-test-notification');
     var statusDiv = document.getElementById('cp-test-email-status');
     var inputEmail = document.getElementById('notification_email');

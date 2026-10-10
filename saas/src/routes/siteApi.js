@@ -23,6 +23,7 @@ import { publicWidgetConfig } from "../services/widget.js";
 import { generateChatResponse } from "../services/chatEngine.js";
 import { getHistoryBySession } from "../services/conversations.js";
 import { submitForm } from "../services/forms.js";
+import { resolveNotificationRecipient } from "../services/notifications.js";
 import { assertMessageQuota } from "../services/usage.js";
 import { getInstructions } from "../services/instructions.js";
 import { normaliseHost, originOf } from "../core/domain.js";
@@ -244,7 +245,69 @@ siteApiRouter.post('/forms/submit', siteAuth(), rateLimit({
         pageUrl: body.page_url,
         visitorKey: body.visitor_key || body.session_key,
     });
-    res.json({ ok: true, data: { submission_id: result.id, name: result.name, email: result.email } });
+
+    let notify = null;
+    try {
+        const pref = await resolveNotificationRecipient(site.account.id, site.website.id);
+        if (pref.enabled && pref.notifyLead && pref.email) {
+            const leadName = result.name || 'Website Visitor';
+            const leadEmail = result.email || '(not provided)';
+            const leadPhone = result.phone || '(not provided)';
+            const pageUrl = body.page_url || '(unknown)';
+            const websiteName = pref.websiteName || site.website.name || 'Chat Pilot Website';
+
+            const html = `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px; background-color: #ffffff; color: #1e293b;">
+  <div style="margin-bottom: 20px; border-bottom: 2px solid #0678f9; padding-bottom: 12px;">
+    <h2 style="margin: 0; color: #0f172a; font-size: 20px;">New Lead Captured! 🎯</h2>
+    <p style="margin: 4px 0 0 0; color: #64748b; font-size: 14px;">A visitor submitted the pre-chat form on <strong>${websiteName}</strong>.</p>
+  </div>
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 14px;">
+    <tr><td style="padding: 10px 12px; background-color: #f8fafc; font-weight: 600; width: 120px; border-bottom: 1px solid #e2e8f0;">Name:</td><td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 15px; font-weight: 700;">${leadName}</td></tr>
+    <tr><td style="padding: 10px 12px; background-color: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0;">Email:</td><td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 15px;"><a href="mailto:${leadEmail}" style="color: #0678f9; text-decoration: none;">${leadEmail}</a></td></tr>
+    <tr><td style="padding: 10px 12px; background-color: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0;">Phone:</td><td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 15px;">${leadPhone}</td></tr>
+    <tr><td style="padding: 10px 12px; background-color: #f8fafc; font-weight: 600; border-bottom: 1px solid #e2e8f0;">Page URL:</td><td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #64748b;">${pageUrl}</td></tr>
+  </table>
+  <div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+    <a href="${env.APP_URL}/app/websites/${site.website.id}/leads" style="display: inline-block; background-color: #0678f9; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">View in Chat Pilot Dashboard &rarr;</a>
+  </div>
+</div>`.trim();
+
+            const text = [
+                `A new lead was submitted via Chat Pilot on ${websiteName}.`,
+                '',
+                'Lead Details:',
+                '----------------------------------------',
+                'Name:    ' + leadName,
+                'Email:   ' + leadEmail,
+                'Phone:   ' + leadPhone,
+                'Page:    ' + pageUrl,
+                'Time:    ' + nowIso(),
+                '',
+                `View lead in dashboard: ${env.APP_URL}/app/websites/${site.website.id}/leads`,
+            ].join('\n');
+
+            notify = {
+                should_send: true,
+                recipient: pref.email,
+                subject: `[Chat Pilot] New Lead Captured: ${leadName} (${websiteName})`,
+                html,
+                text,
+            };
+        }
+    } catch (err) {
+        log.warn('Failed to build lead notification payload for website.', { err: err.message });
+    }
+
+    res.json({
+        ok: true,
+        data: {
+            submission_id: result.id,
+            name: result.name,
+            email: result.email,
+            notify,
+        },
+    });
 }));
 /* ------------------------------------------------------------- /health -- */
 siteApiRouter.get('/health', rateLimit({ limit: 60, windowMs: 60_000, scope: 'site-health' }), siteAuth(), asyncRoute(async (req, res) => {

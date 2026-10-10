@@ -267,6 +267,24 @@ export async function updateWebsite(accountId, websiteId, patch, actorId) {
     if (patch.anonymize_ips !== undefined) {
         set.anonymize_ips = patch.anonymize_ips ? 1 : 0;
     }
+    if (patch.smtp_host !== undefined) {
+        set.smtp_host = String(patch.smtp_host || '').trim();
+    }
+    if (patch.smtp_port !== undefined) {
+        set.smtp_port = Number(patch.smtp_port) || 587;
+    }
+    if (patch.smtp_user !== undefined) {
+        set.smtp_user = String(patch.smtp_user || '').trim();
+    }
+    if (patch.smtp_pass !== undefined && patch.smtp_pass !== '') {
+        set.smtp_pass = String(patch.smtp_pass);
+    }
+    if (patch.smtp_secure !== undefined) {
+        set.smtp_secure = patch.smtp_secure ? 1 : 0;
+    }
+    if (patch.smtp_from !== undefined) {
+        set.smtp_from = String(patch.smtp_from || '').trim();
+    }
     if (!Object.keys(set).length)
         return site;
     set.updated_at = nowIso();

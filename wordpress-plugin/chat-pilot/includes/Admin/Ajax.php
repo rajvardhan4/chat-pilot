@@ -190,6 +190,21 @@ class Ajax {
 			);
 		}
 
+		// Dispatch lead email via WordPress mail transport if requested by the Cloud API.
+		if ( ! empty( $result['data']['notify'] ) && ! empty( $result['data']['notify']['should_send'] ) ) {
+			$notify = $result['data']['notify'];
+			$to     = isset( $notify['recipient'] ) ? sanitize_email( (string) $notify['recipient'] ) : '';
+			if ( is_email( $to ) ) {
+				$subject = isset( $notify['subject'] ) ? sanitize_text_field( (string) $notify['subject'] ) : __( '[Chat Pilot] New Lead Captured', 'chat-pilot' );
+				$message = ! empty( $notify['html'] ) ? (string) $notify['html'] : (string) ( $notify['text'] ?? '' );
+				$headers = array(
+					'Content-Type: text/html; charset=UTF-8',
+					'From: ' . wp_strip_all_tags( get_bloginfo( 'name' ) ) . ' <' . ( get_option( 'admin_email' ) ?: ( 'no-reply@' . ( wp_parse_url( home_url(), PHP_URL_HOST ) ?: 'localhost' ) ) ) . '>',
+				);
+				@wp_mail( $to, $subject, $message, $headers );
+			}
+		}
+
 		wp_send_json_success(
 			array(
 				'submission_id' => isset( $result['data']['submission_id'] ) ? sanitize_text_field( $result['data']['submission_id'] ) : '',

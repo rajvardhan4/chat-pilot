@@ -212,10 +212,26 @@ portalRouter.post(
             ? undefined
             : Number(raw.inactivity_timeout_minutes),
           retention_days: raw.retention_days === undefined ? undefined : Number(raw.retention_days),
+          notification_email: raw.notification_email === undefined ? undefined : String(raw.notification_email),
+          enable_notifications: raw.enable_notifications !== undefined,
+          notify_on_lead: raw.notify_on_lead !== undefined,
+          notify_on_form: raw.notify_on_form !== undefined,
+          notify_on_conversation: raw.notify_on_conversation !== undefined,
+          notify_on_budget_warning: raw.notify_on_budget_warning !== undefined,
+          notify_on_ai_failure: raw.notify_on_ai_failure !== undefined,
+          store_conversations: raw.store_conversations !== undefined,
+          store_visitor_info: raw.store_visitor_info !== undefined,
+          anonymize_ips: raw.anonymize_ips !== undefined,
+          smtp_host: raw.smtp_host === undefined ? undefined : String(raw.smtp_host),
+          smtp_port: raw.smtp_port === undefined ? undefined : Number(raw.smtp_port),
+          smtp_user: raw.smtp_user === undefined ? undefined : String(raw.smtp_user),
+          smtp_pass: raw.smtp_pass === undefined || raw.smtp_pass === '' ? undefined : String(raw.smtp_pass),
+          smtp_secure: raw.smtp_secure !== undefined,
+          smtp_from: raw.smtp_from === undefined ? undefined : String(raw.smtp_from),
         },
         req.user!.id,
       );
-      res.redirect('/app/websites/' + req.website!.id + '/connection?notice=' +
+      res.redirect('/app/websites/' + req.website!.id + '/settings?notice=' +
         encodeURIComponent('Website settings saved.'));
     } catch (err) {
       const message = err instanceof AppError ? err.publicMessage : 'Could not save those settings.';

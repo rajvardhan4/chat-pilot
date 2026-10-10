@@ -445,6 +445,12 @@ portalApiRouter.post('/websites/:websiteId/settings', resolveWebsite, asyncRoute
         store_conversations: z.coerce.boolean().optional(),
         store_visitor_info: z.coerce.boolean().optional(),
         anonymize_ips: z.coerce.boolean().optional(),
+        smtp_host: z.string().trim().max(200).optional(),
+        smtp_port: z.coerce.number().int().min(1).max(65535).optional(),
+        smtp_user: z.string().trim().max(200).optional(),
+        smtp_pass: z.string().max(200).optional(),
+        smtp_secure: z.coerce.boolean().optional(),
+        smtp_from: z.string().trim().max(200).optional(),
     }), req.body ?? {});
     const updated = await updateWebsite(req.account.id, req.website.id, body, req.user.id);
     res.json(ok({ website: updated }));
@@ -452,6 +458,6 @@ portalApiRouter.post('/websites/:websiteId/settings', resolveWebsite, asyncRoute
 portalApiRouter.post('/websites/:websiteId/settings/test-notification', resolveWebsite, asyncRoute(async (req, res) => {
     const rawRecipient = typeof req.body?.recipient === 'string' ? req.body.recipient.trim() : '';
     const result = await sendTestNotification(req.account.id, req.website.id, rawRecipient);
-    res.json(ok({ message: `Test notification sent to ${result.recipient}`, result }));
+    res.json(ok({ message: result.message || `Test notification sent to ${result.recipient}`, result }));
 }));
 

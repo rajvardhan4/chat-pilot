@@ -150,8 +150,14 @@ export const env = {
 
   PROVIDER_TIMEOUT_MS: num('PROVIDER_TIMEOUT_MS', 20_000),
 
-  MAIL_TRANSPORT: str('MAIL_TRANSPORT', 'log'),
-  MAIL_FROM: str('MAIL_FROM', 'no-reply@chatpilot.local'),
+  MAIL_TRANSPORT: str('MAIL_TRANSPORT', 'auto'),
+  MAIL_FROM: str('MAIL_FROM', 'Chat Pilot <no-reply@appchatpilot.vercel.app>'),
+  SMTP_HOST: str('SMTP_HOST', ''),
+  SMTP_PORT: num('SMTP_PORT', 587),
+  SMTP_USER: str('SMTP_USER', ''),
+  SMTP_PASS: str('SMTP_PASS', ''),
+  SMTP_SECURE: bool('SMTP_SECURE', false),
+  RESEND_API_KEY: str('RESEND_API_KEY', ''),
 
   SUPERADMIN_EMAIL: str('SUPERADMIN_EMAIL', ''),
   SUPERADMIN_PASSWORD: str('SUPERADMIN_PASSWORD', ''),
