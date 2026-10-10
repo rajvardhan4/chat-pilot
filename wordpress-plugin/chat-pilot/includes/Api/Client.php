@@ -60,6 +60,9 @@ class Client {
 		if ( ! self::is_pinned() ) {
 			$saved = self::configured_base_url();
 			if ( '' !== $saved ) {
+				if ( false !== strpos( $saved, 'palevioletred-louse-364639.hostingersite.com' ) ) {
+					$saved = 'https://appchatpilot.vercel.app';
+				}
 				$url = $saved;
 			}
 		}

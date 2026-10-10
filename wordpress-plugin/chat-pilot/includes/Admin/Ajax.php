@@ -195,13 +195,27 @@ class Ajax {
 			$notify = $result['data']['notify'];
 			$to     = isset( $notify['recipient'] ) ? sanitize_email( (string) $notify['recipient'] ) : '';
 			if ( is_email( $to ) ) {
-				$subject = isset( $notify['subject'] ) ? sanitize_text_field( (string) $notify['subject'] ) : __( '[Chat Pilot] New Lead Captured', 'chat-pilot' );
-				$message = ! empty( $notify['html'] ) ? (string) $notify['html'] : (string) ( $notify['text'] ?? '' );
-				$headers = array(
+				$subject    = isset( $notify['subject'] ) ? sanitize_text_field( (string) $notify['subject'] ) : __( '[Chat Pilot] New Lead Captured', 'chat-pilot' );
+				$message    = ! empty( $notify['html'] ) ? (string) $notify['html'] : (string) ( $notify['text'] ?? '' );
+				$host       = wp_parse_url( home_url(), PHP_URL_HOST ) ?: 'localhost';
+				$from_email = 'no-reply@' . $host;
+				$lead_email = isset( $fields['email'] ) ? sanitize_email( (string) $fields['email'] ) : '';
+				$site_name  = wp_strip_all_tags( get_bloginfo( 'name' ) ) ?: 'Chat Pilot';
+				$headers    = array(
 					'Content-Type: text/html; charset=UTF-8',
-					'From: ' . wp_strip_all_tags( get_bloginfo( 'name' ) ) . ' <' . ( get_option( 'admin_email' ) ?: ( 'no-reply@' . ( wp_parse_url( home_url(), PHP_URL_HOST ) ?: 'localhost' ) ) ) . '>',
+					'From: ' . $site_name . ' <' . $from_email . '>',
 				);
-				@wp_mail( $to, $subject, $message, $headers );
+				if ( is_email( $lead_email ) ) {
+					$headers[] = 'Reply-To: ' . $lead_email;
+				}
+				$mail_sent = @wp_mail( $to, $subject, $message, $headers );
+				if ( ! $mail_sent ) {
+					\ChatPilot\Common\Logger::log(
+						'warning',
+						'wp_mail returned false for lead notification.',
+						array( 'to' => $to, 'from' => $from_email )
+					);
+				}
 			}
 		}
 
