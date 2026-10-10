@@ -23,7 +23,7 @@ export function getPluginVersion(): string {
       // ignore error and continue
     }
   }
-  return '2.3.3';
+  return '2.3.4';
 }
 
 export function getPluginZipFile(): string | null {
@@ -32,6 +32,8 @@ export function getPluginZipFile(): string | null {
     path.join(ROOT, 'public', 'downloads', 'chat-pilot.zip'),
     path.join(process.cwd(), 'saas', 'src', 'public', 'downloads', 'chat-pilot.zip'),
     path.join(process.cwd(), 'saas', 'public', 'downloads', 'chat-pilot.zip'),
+    path.join(process.cwd(), 'OUTPUTS', 'chat-pilot-v2.3.4.zip'),
+    path.join(ROOT, '..', 'OUTPUTS', 'chat-pilot-v2.3.4.zip'),
     path.join(process.cwd(), 'OUTPUTS', 'chat-pilot-v2.3.3.zip'),
     path.join(ROOT, '..', 'OUTPUTS', 'chat-pilot-v2.3.3.zip'),
     path.join(process.cwd(), 'OUTPUTS', 'chat-pilot-v2.3.2.zip'),
