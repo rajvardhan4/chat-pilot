@@ -197,6 +197,8 @@ class Frontend {
 				'pluginName'             => isset( $widget['displayName'] ) ? sanitize_text_field( $widget['displayName'] ) : 'Chat Pilot',
 				'launcherCalloutEnabled' => ! empty( $widget['launcherCalloutEnabled'] ) || ( ! isset( $widget['launcherCalloutEnabled'] ) ),
 				'launcherCalloutText'    => ! empty( $widget['launcherCalloutText'] ) ? sanitize_text_field( $widget['launcherCalloutText'] ) : __( 'Ask any question 👋', 'chat-pilot' ),
+				'launcherCalloutBg'      => ! empty( $widget['launcherCalloutBg'] ) ? sanitize_hex_color( $widget['launcherCalloutBg'] ) : '#16213a',
+				'launcherCalloutColor'   => ! empty( $widget['launcherCalloutColor'] ) ? sanitize_hex_color( $widget['launcherCalloutColor'] ) : '#ffffff',
 				// Visitor-safe copy only. The system prompt never leaves the SaaS.
 				'errorMessage'           => isset( $messages['generation_error'] )
 					? sanitize_text_field( $messages['generation_error'] )
@@ -233,6 +235,14 @@ class Frontend {
 
 		$callout_enabled    = ! empty( $widget['launcherCalloutEnabled'] ) || ( ! isset( $widget['launcherCalloutEnabled'] ) );
 		$callout_text       = ! empty( $widget['launcherCalloutText'] ) ? $widget['launcherCalloutText'] : __( 'Ask any question 👋', 'chat-pilot' );
+		$callout_bg         = ! empty( $widget['launcherCalloutBg'] ) ? sanitize_hex_color( $widget['launcherCalloutBg'] ) : '';
+		if ( empty( $callout_bg ) ) {
+			$callout_bg = '#16213a';
+		}
+		$callout_color      = ! empty( $widget['launcherCalloutColor'] ) ? sanitize_hex_color( $widget['launcherCalloutColor'] ) : '';
+		if ( empty( $callout_color ) ) {
+			$callout_color = '#ffffff';
+		}
 
 		// Fallback to local plugin SVG avatar if logo_url is empty and a known preset is selected
 		if ( empty( $logo_url ) && in_array( $avatar_type, array( 'pilot', 'female', 'male', 'robot', 'sparkle' ), true ) ) {
@@ -245,10 +255,10 @@ class Frontend {
 			? $prechat['intro']
 			: __( 'Please introduce yourself to start the conversation.', 'chat-pilot' );
 		?>
-		<div id="chat-pilot-widget-container" class="cp-widget-position-<?php echo esc_attr( $position ); ?>" style="--cp-primary-color: <?php echo esc_attr( $primary_color ); ?>; --cp-icon-color: <?php echo esc_attr( $icon_color ); ?>;">
+		<div id="chat-pilot-widget-container" class="cp-widget-position-<?php echo esc_attr( $position ); ?>" style="--cp-primary-color: <?php echo esc_attr( $primary_color ); ?>; --cp-icon-color: <?php echo esc_attr( $icon_color ); ?>; --cp-callout-bg: <?php echo esc_attr( $callout_bg ); ?>; --cp-callout-color: <?php echo esc_attr( $callout_color ); ?>;">
 			<!-- Launcher Callout Badge -->
 			<?php if ( $callout_enabled ) : ?>
-				<div id="chat-pilot-launcher-callout" class="cp-launcher-callout" role="button" aria-label="<?php echo esc_attr( $callout_text ); ?>">
+				<div id="chat-pilot-launcher-callout" class="cp-launcher-callout" role="button" aria-label="<?php echo esc_attr( $callout_text ); ?>" style="--cp-callout-bg: <?php echo esc_attr( $callout_bg ); ?>; --cp-callout-color: <?php echo esc_attr( $callout_color ); ?>;">
 					<span class="cp-callout-pulse-dot"></span>
 					<span class="cp-callout-text"><?php echo esc_html( $callout_text ); ?></span>
 					<button type="button" id="chat-pilot-callout-close" aria-label="<?php esc_attr_e( 'Dismiss callout', 'chat-pilot' ); ?>">&times;</button>

@@ -293,6 +293,8 @@ portalApiRouter.post('/websites/:websiteId/widget', resolveWebsite, asyncRoute(a
         open_once_per_visitor: z.coerce.boolean().optional(),
         launcher_callout_enabled: z.coerce.boolean().optional(),
         launcher_callout_text: z.string().trim().max(100).optional(),
+        launcher_callout_bg: hexColorSchema.optional(),
+        launcher_callout_color: hexColorSchema.optional(),
         prechat_enabled: z.coerce.boolean().optional(),
         prechat_intro: z.string().trim().max(300).optional(),
         active_form_id: z.string().trim().max(64).nullable().optional(),

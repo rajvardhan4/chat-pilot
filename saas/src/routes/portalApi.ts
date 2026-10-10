@@ -507,6 +507,8 @@ portalApiRouter.post(
         launcher_icon_type: z.enum(['bubble', 'avatar']).optional(),
         launcher_callout_enabled: z.coerce.boolean().optional(),
         launcher_callout_text: z.string().trim().max(100).optional(),
+        launcher_callout_bg: hexColorSchema.optional(),
+        launcher_callout_color: hexColorSchema.optional(),
         logo_url: z.string().trim().max(1000).optional(),
         welcome_message: text(300, 'Welcome message').optional(),
         placeholder_text: text(120, 'Placeholder').optional(),

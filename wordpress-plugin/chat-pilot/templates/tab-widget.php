@@ -96,7 +96,9 @@ $cp_rules           = (string) $cp_plugin->settings->get( 'display.rules', '' );
 					<?php
 					$callout_on = ! empty( $cp_widget['launcherCalloutEnabled'] ) || ( ! isset( $cp_widget['launcherCalloutEnabled'] ) );
 					$callout_tx = ! empty( $cp_widget['launcherCalloutText'] ) ? $cp_widget['launcherCalloutText'] : __( 'Ask any question 👋', 'chat-pilot' );
-					echo esc_html( $callout_on ? sprintf( __( 'On ("%s")', 'chat-pilot' ), $callout_tx ) : __( 'Off', 'chat-pilot' ) );
+					$callout_bg = ! empty( $cp_widget['launcherCalloutBg'] ) ? $cp_widget['launcherCalloutBg'] : '#16213a';
+					$callout_co = ! empty( $cp_widget['launcherCalloutColor'] ) ? $cp_widget['launcherCalloutColor'] : '#ffffff';
+					echo esc_html( $callout_on ? sprintf( __( 'On ("%1$s", %2$s / %3$s)', 'chat-pilot' ), $callout_tx, strtoupper( $callout_bg ), strtoupper( $callout_co ) ) : __( 'Off', 'chat-pilot' ) );
 					?>
 				</span>
 			</div>

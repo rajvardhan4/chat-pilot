@@ -75,6 +75,8 @@
 
   bindColorPicker('primary_color', 'primary_color_text', '#0678f9');
   bindColorPicker('icon_color', 'icon_color_text', '#ffffff');
+  bindColorPicker('launcher_callout_bg', 'launcher_callout_bg_text', '#16213a');
+  bindColorPicker('launcher_callout_color', 'launcher_callout_color_text', '#ffffff');
 
   // Form submit synchronization
   if (form) {
@@ -97,6 +99,26 @@
         if (i) {
           iPicker.value = i.toLowerCase();
           iText.value = i.toUpperCase();
+        }
+      }
+
+      var bgPicker = document.getElementById('launcher_callout_bg');
+      var bgText = document.getElementById('launcher_callout_bg_text');
+      if (bgPicker && bgText) {
+        var bg = sanitizeHex(bgText.value);
+        if (bg) {
+          bgPicker.value = bg.toLowerCase();
+          bgText.value = bg.toUpperCase();
+        }
+      }
+
+      var cPicker = document.getElementById('launcher_callout_color');
+      var cText = document.getElementById('launcher_callout_color_text');
+      if (cPicker && cText) {
+        var c = sanitizeHex(cText.value);
+        if (c) {
+          cPicker.value = c.toLowerCase();
+          cText.value = c.toUpperCase();
         }
       }
 

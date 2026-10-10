@@ -131,6 +131,29 @@
           <label class="cp-label" for="launcher_callout_text">Callout Bubble Text</label>
           <input class="cp-input" id="launcher_callout_text" name="launcher_callout_text" value="<%= settings.launcher_callout_text || 'Ask any question 👋' %>" placeholder="Ask any question 👋" maxlength="60">
           <p class="cp-help-text" style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">Customize what visitors see in the speech bubble above the floating chat icon.</p>
+
+          <!-- Callout Color Customization -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-top:0.85rem;">
+            <div class="cp-form-group" style="margin-bottom:0;">
+              <label class="cp-label" for="launcher_callout_bg_text">Bubble Background</label>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="position:relative; width:36px; height:36px; border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,0.2); flex-shrink:0; background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.25);">
+                  <input type="color" id="launcher_callout_bg" name="launcher_callout_bg" value="<%= settings.launcher_callout_bg || '#16213a' %>" style="width:52px; height:52px; border:none; padding:0; cursor:pointer; background:transparent;">
+                </div>
+                <input class="cp-input" type="text" id="launcher_callout_bg_text" value="<%= (settings.launcher_callout_bg || '#16213a').toUpperCase() %>" placeholder="#16213A" maxlength="7" spellcheck="false" autocomplete="off" style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; font-size:0.85rem; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; padding:0.5rem 0.65rem;">
+              </div>
+            </div>
+
+            <div class="cp-form-group" style="margin-bottom:0;">
+              <label class="cp-label" for="launcher_callout_color_text">Bubble Text Colour</label>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="position:relative; width:36px; height:36px; border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,0.2); flex-shrink:0; background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.25);">
+                  <input type="color" id="launcher_callout_color" name="launcher_callout_color" value="<%= settings.launcher_callout_color || '#ffffff' %>" style="width:52px; height:52px; border:none; padding:0; cursor:pointer; background:transparent;">
+                </div>
+                <input class="cp-input" type="text" id="launcher_callout_color_text" value="<%= (settings.launcher_callout_color || '#ffffff').toUpperCase() %>" placeholder="#FFFFFF" maxlength="7" spellcheck="false" autocomplete="off" style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; font-size:0.85rem; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; padding:0.5rem 0.65rem;">
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

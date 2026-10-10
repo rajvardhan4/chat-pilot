@@ -29,11 +29,11 @@
    1. Floating Launcher Callout Bubble ("Ask any question")
    -------------------------------------------------------------------------- */
 .cp-launcher-callout {
-    background: linear-gradient(135deg, rgba(22, 33, 58, 0.96) 0%, rgba(15, 23, 42, 0.98) 100%);
+    background: var(--cp-callout-bg, linear-gradient(135deg, rgba(22, 33, 58, 0.96) 0%, rgba(15, 23, 42, 0.98) 100%));
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 24px;
     box-shadow: 0 14px 34px -4px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.05);
-    color: #ffffff;
+    color: var(--cp-callout-color, #ffffff);
     padding: 0.6rem 0.95rem 0.6rem 1.05rem;
     font-size: 0.86rem;
     font-weight: 600;
@@ -64,7 +64,7 @@
     bottom: -6px;
     width: 10px;
     height: 10px;
-    background: rgba(15, 23, 42, 0.98);
+    background: var(--cp-callout-bg, #0f172a);
     border-right: 1px solid rgba(255, 255, 255, 0.15);
     border-bottom: 1px solid rgba(255, 255, 255, 0.15);
     transform: rotate(45deg);
@@ -91,7 +91,7 @@
 }
 
 .cp-callout-text {
-    color: #ffffff;
+    color: var(--cp-callout-color, inherit);
     font-weight: 600;
 }
 
