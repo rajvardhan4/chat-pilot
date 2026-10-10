@@ -90,6 +90,16 @@ $cp_rules           = (string) $cp_plugin->settings->get( 'display.rules', '' );
 				<span class="cp-info-label"><?php esc_html_e( 'Pre-chat form', 'chat-pilot' ); ?></span>
 				<span class="cp-info-value"><?php echo esc_html( ! empty( $cp_widget['prechat']['enabled'] ) ? __( 'Shown before chat', 'chat-pilot' ) : __( 'Not shown', 'chat-pilot' ) ); ?></span>
 			</div>
+			<div class="cp-info-row">
+				<span class="cp-info-label"><?php esc_html_e( 'Launcher callout', 'chat-pilot' ); ?></span>
+				<span class="cp-info-value">
+					<?php
+					$callout_on = ! empty( $cp_widget['launcherCalloutEnabled'] ) || ( ! isset( $cp_widget['launcherCalloutEnabled'] ) );
+					$callout_tx = ! empty( $cp_widget['launcherCalloutText'] ) ? $cp_widget['launcherCalloutText'] : __( 'Ask any question 👋', 'chat-pilot' );
+					echo esc_html( $callout_on ? sprintf( __( 'On ("%s")', 'chat-pilot' ), $callout_tx ) : __( 'Off', 'chat-pilot' ) );
+					?>
+				</span>
+			</div>
 		</div>
 	<?php endif; ?>
 

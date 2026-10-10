@@ -19,6 +19,11 @@ export interface WidgetSettingsRow {
   display_name: string;
   position: string;
   primary_color: string;
+  icon_color?: string;
+  avatar_type?: string;
+  launcher_icon_type?: string;
+  launcher_callout_enabled?: number;
+  launcher_callout_text?: string;
   logo_url: string;
   welcome_message: string;
   placeholder_text: string;
@@ -49,6 +54,8 @@ export async function getWidgetSettings(accountId: string, websiteId: string): P
   const doc: WidgetDoc = {
     _id: id, account_id: accountId, website_id: websiteId,
     enabled: 1, display_name: 'Chat Pilot', position: 'bottom-right', primary_color: '#0678f9',
+    icon_color: '#ffffff', avatar_type: 'pilot', launcher_icon_type: 'bubble',
+    launcher_callout_enabled: 1, launcher_callout_text: 'Ask any question 👋',
     logo_url: '', welcome_message: 'Hi there! How can I help you today?', placeholder_text: 'Ask a question...',
     suggested_questions: '', enable_typing: 1, enable_streaming: 1, auto_open_chat: 0, auto_open_delay: 5,
     open_once_per_visitor: 1, prechat_enabled: 1, active_form_id: null, created_at: now, updated_at: now,
@@ -62,6 +69,11 @@ export interface WidgetPatch {
   display_name?: string;
   position?: string;
   primary_color?: string;
+  icon_color?: string;
+  avatar_type?: string;
+  launcher_icon_type?: string;
+  launcher_callout_enabled?: boolean;
+  launcher_callout_text?: string;
   logo_url?: string;
   welcome_message?: string;
   placeholder_text?: string;
@@ -106,6 +118,11 @@ export interface PublicWidgetConfig {
   displayName: string;
   position: string;
   primaryColor: string;
+  iconColor: string;
+  avatarType: string;
+  launcherIconType: string;
+  launcherCalloutEnabled: boolean;
+  launcherCalloutText: string;
   logoUrl: string;
   welcomeMessage: string;
   placeholderText: string;
@@ -143,6 +160,11 @@ export async function publicWidgetConfig(accountId: string, websiteId: string): 
     displayName: s.display_name || 'Chat Pilot',
     position: s.position || 'bottom-right',
     primaryColor: s.primary_color || '#0678f9',
+    iconColor: s.icon_color || '#ffffff',
+    avatarType: s.avatar_type || 'pilot',
+    launcherIconType: s.launcher_icon_type || 'bubble',
+    launcherCalloutEnabled: s.launcher_callout_enabled !== undefined ? toBool(s.launcher_callout_enabled) : true,
+    launcherCalloutText: s.launcher_callout_text || 'Ask any question 👋',
     logoUrl: s.logo_url || '',
     welcomeMessage: s.welcome_message || 'Hi there! How can I help you today?',
     placeholderText: s.placeholder_text || 'Ask a question...',

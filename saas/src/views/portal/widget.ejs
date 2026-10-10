@@ -114,6 +114,26 @@
         </div>
       </div>
 
+      <!-- Launcher Callout Bubble Badge (Ask any question) -->
+      <div style="border-top:1px solid rgba(255,255,255,0.06); padding-top:1rem; margin-top:1rem; margin-bottom:1.25rem;">
+        <div class="cp-switch-row" style="margin-bottom:0.75rem;">
+          <span class="cp-switch-text">
+            <strong>Show Launcher Callout Bubble</strong>
+            <span>Displays an inviting callout badge ("Ask any question 👋") floating above the chat button.</span>
+          </span>
+          <label class="cp-switch">
+            <input type="checkbox" name="launcher_callout_enabled" id="cp_launcher_callout_enabled" <%= (settings.launcher_callout_enabled !== 0 && settings.launcher_callout_enabled !== false) ? 'checked' : '' %>>
+            <span class="cp-switch-slider"></span>
+          </label>
+        </div>
+
+        <div id="cp-launcher-callout-panel" style="<%= (settings.launcher_callout_enabled !== 0 && settings.launcher_callout_enabled !== false) ? '' : 'display:none;' %>">
+          <label class="cp-label" for="launcher_callout_text">Callout Bubble Text</label>
+          <input class="cp-input" id="launcher_callout_text" name="launcher_callout_text" value="<%= settings.launcher_callout_text || 'Ask any question 👋' %>" placeholder="Ask any question 👋" maxlength="60">
+          <p class="cp-help-text" style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">Customize what visitors see in the speech bubble above the floating chat icon.</p>
+        </div>
+      </div>
+
       <!-- Avatar Selector -->
       <div class="cp-form-group">
         <label class="cp-label">Bot Avatar Selection</label>

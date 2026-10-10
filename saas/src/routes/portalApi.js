@@ -291,6 +291,8 @@ portalApiRouter.post('/websites/:websiteId/widget', resolveWebsite, asyncRoute(a
         auto_open_chat: z.coerce.boolean().optional(),
         auto_open_delay: z.coerce.number().int().min(0).max(120).optional(),
         open_once_per_visitor: z.coerce.boolean().optional(),
+        launcher_callout_enabled: z.coerce.boolean().optional(),
+        launcher_callout_text: z.string().trim().max(100).optional(),
         prechat_enabled: z.coerce.boolean().optional(),
         prechat_intro: z.string().trim().max(300).optional(),
         active_form_id: z.string().trim().max(64).nullable().optional(),
@@ -299,6 +301,9 @@ portalApiRouter.post('/websites/:websiteId/widget', resolveWebsite, asyncRoute(a
         throw validationFailed('The logo URL must start with https://', { logo_url: 'Use an https:// URL.' });
     }
     const patch = { ...body };
+    if (body.launcher_callout_enabled !== undefined) {
+        patch.launcher_callout_enabled = body.launcher_callout_enabled ? 1 : 0;
+    }
     if (body.prechat_enabled !== undefined) {
         patch.prechat_enabled = body.prechat_enabled ? 1 : 0;
     }

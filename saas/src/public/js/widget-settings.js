@@ -131,4 +131,13 @@
       prechatPanel.style.display = prechatToggle.checked ? 'block' : 'none';
     });
   }
+
+  // --- Launcher Callout Toggle ---
+  var calloutToggle = document.getElementById('cp_launcher_callout_enabled');
+  var calloutPanel = document.getElementById('cp-launcher-callout-panel');
+  if (calloutToggle && calloutPanel) {
+    calloutToggle.addEventListener('change', function () {
+      calloutPanel.style.display = calloutToggle.checked ? 'block' : 'none';
+    });
+  }
 })();

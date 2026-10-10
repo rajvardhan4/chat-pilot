@@ -1,16 +1,18 @@
 /* ==========================================================================
-   CHAT PILOT FRONTEND WIDGET STYLING (DARK GLASSMORPHIC)
+   CHAT PILOT FRONTEND WIDGET STYLING (ULTRA-PREMIUM DARK GLASSMORPHIC)
    ========================================================================== */
 
 #chat-pilot-widget-container {
     position: fixed;
     bottom: 24px;
     z-index: 999999;
-    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     color: #cbd5e1;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 #chat-pilot-widget-container.cp-widget-position-bottom-right {
@@ -23,65 +25,180 @@
     align-items: flex-start;
 }
 
-/* 1. Floating Launcher Button */
-#chat-pilot-widget-launcher {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: var(--cp-primary-color, #06b6d4);
+/* --------------------------------------------------------------------------
+   1. Floating Launcher Callout Bubble ("Ask any question")
+   -------------------------------------------------------------------------- */
+.cp-launcher-callout {
+    background: linear-gradient(135deg, rgba(22, 33, 58, 0.96) 0%, rgba(15, 23, 42, 0.98) 100%);
     border: 1px solid rgba(255, 255, 255, 0.15);
-    box-shadow: none;
+    border-radius: 24px;
+    box-shadow: 0 14px 34px -4px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    padding: 0.6rem 0.95rem 0.6rem 1.05rem;
+    font-size: 0.86rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    cursor: pointer;
+    margin-bottom: 12px;
+    position: relative;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    user-select: none;
+    white-space: nowrap;
+    animation: cpCalloutFloat 3.5s ease-in-out infinite, cpFadeIn 0.35s ease-out;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+}
+
+.cp-launcher-callout:hover {
+    transform: translateY(-3px) scale(1.03);
+    box-shadow: 0 18px 40px -4px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+/* Callout Bubble Speech Tail */
+.cp-launcher-callout::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    width: 10px;
+    height: 10px;
+    background: rgba(15, 23, 42, 0.98);
+    border-right: 1px solid rgba(255, 255, 255, 0.15);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    transform: rotate(45deg);
+}
+
+.cp-widget-position-bottom-right .cp-launcher-callout::after {
+    right: 25px;
+}
+
+.cp-widget-position-bottom-left .cp-launcher-callout::after {
+    left: 25px;
+}
+
+/* Pulse dot inside callout */
+.cp-callout-pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 8px #22c55e;
+    display: inline-block;
+    flex-shrink: 0;
+    animation: cpDotGlow 2s infinite ease-in-out;
+}
+
+.cp-callout-text {
+    color: #ffffff;
+    font-weight: 600;
+}
+
+#chat-pilot-callout-close {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #94a3b8;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 2px;
+    transition: all 0.2s ease;
+}
+
+#chat-pilot-callout-close:hover {
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+}
+
+@keyframes cpCalloutFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+
+@keyframes cpDotGlow {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.55; transform: scale(0.85); }
+}
+
+/* --------------------------------------------------------------------------
+   2. Floating Launcher Button
+   -------------------------------------------------------------------------- */
+#chat-pilot-widget-launcher {
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--cp-primary-color, #06b6d4) 0%, color-mix(in srgb, var(--cp-primary-color, #06b6d4) 85%, black) 100%);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 10px 28px -4px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--cp-icon-color, #ffffff);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     outline: none;
     padding: 0;
+    position: relative;
 }
 
 #chat-pilot-widget-launcher:hover {
-    transform: scale(1.08) rotate(5deg);
-    box-shadow: none;
+    transform: scale(1.08) rotate(4deg);
+    box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    border-color: rgba(255, 255, 255, 0.35);
 }
 
 #chat-pilot-widget-launcher svg {
-    width: 26px;
-    height: 26px;
+    width: 28px;
+    height: 28px;
     stroke: var(--cp-icon-color, currentColor);
     stroke-linecap: round;
     stroke-linejoin: round;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
 .cp-launcher-avatar-img {
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     object-fit: cover;
     pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-/* 2. Chat Box Window */
+/* --------------------------------------------------------------------------
+   3. Chat Box Window
+   -------------------------------------------------------------------------- */
 #chat-pilot-widget-box {
-    width: 380px;
-    height: 600px;
-    max-height: calc(100vh - 120px);
-    background: rgba(15, 23, 42, 0.95);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+    width: 390px;
+    height: 620px;
+    max-height: calc(100vh - 110px);
+    background: linear-gradient(165deg, rgba(20, 29, 47, 0.96) 0%, rgba(11, 17, 32, 0.98) 100%);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 22px;
+    box-shadow: 
+        0 25px 60px -15px rgba(0, 0, 0, 0.7),
+        0 0 0 1px rgba(255, 255, 255, 0.08),
+        0 8px 24px rgba(0, 0, 0, 0.45);
     margin-bottom: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    animation: cpSlideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: cpSlideUp 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
     transform-origin: bottom right;
 }
 
-#chat-pilot-widget-container.cp-widget-open #chat-pilot-widget-launcher {
+#chat-pilot-widget-container.cp-widget-open #chat-pilot-widget-launcher,
+#chat-pilot-widget-container.cp-widget-open #chat-pilot-launcher-callout {
     display: none !important;
 }
 
@@ -92,7 +209,7 @@
 @keyframes cpSlideUp {
     from {
         opacity: 0;
-        transform: translateY(20px) scale(0.95);
+        transform: translateY(24px) scale(0.95);
     }
     to {
         opacity: 1;
@@ -100,11 +217,13 @@
     }
 }
 
-/* 3. Header Styling */
+/* --------------------------------------------------------------------------
+   4. Header Styling (Ultra-Premium Glassmorphic)
+   -------------------------------------------------------------------------- */
 .cp-widget-header {
-    background: rgba(30, 41, 59, 0.7);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    padding: 1rem 1.25rem;
+    background: linear-gradient(180deg, rgba(30, 45, 75, 0.85) 0%, rgba(18, 27, 46, 0.75) 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 1.15rem 1.35rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -113,74 +232,242 @@
 .cp-widget-brand {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.85rem;
+}
+
+.cp-widget-avatar-wrap {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
 }
 
 .cp-widget-logo {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     object-fit: cover;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .cp-widget-logo-placeholder {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.08);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.25rem;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 1.35rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Online status dot with pulse */
+.cp-status-dot-pulse {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #22c55e;
+    border: 2px solid #0f172a;
+    box-shadow: 0 0 8px #22c55e;
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
 }
 
 .cp-widget-brand-text {
     display: flex;
     flex-direction: column;
+    gap: 2px;
 }
 
 .cp-widget-title {
-    font-size: 0.95rem;
+    font-size: 1.02rem;
     font-weight: 700;
     color: #ffffff;
     margin: 0;
     line-height: 1.2;
+    letter-spacing: -0.01em;
 }
 
 .cp-widget-subtitle {
-    font-size: 0.75rem;
-    color: var(--cp-primary-color, #06b6d4);
+    margin: 0;
+    line-height: 1;
+}
+
+.cp-subtitle-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
     font-weight: 600;
+    color: var(--cp-primary-color, #f59e0b);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 #chat-pilot-widget-close {
-    background: none;
-    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     color: #94a3b8;
-    font-size: 1.1rem;
     cursor: pointer;
-    padding: 4px;
-    transition: color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all 0.25s ease;
+}
+
+#chat-pilot-widget-close svg {
+    width: 16px;
+    height: 16px;
 }
 
 #chat-pilot-widget-close:hover {
+    background: rgba(255, 255, 255, 0.16);
     color: #ffffff;
+    transform: rotate(90deg);
 }
 
-/* 4. Chat Body Area */
+/* --------------------------------------------------------------------------
+   5. Chat Body Area
+   -------------------------------------------------------------------------- */
 .cp-widget-body {
     flex-grow: 1;
     overflow-y: auto;
-    padding: 1.25rem;
+    padding: 1.25rem 1.35rem;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.1rem;
     scroll-behavior: smooth;
 }
 
-/* 5. Messages Layout */
+/* --------------------------------------------------------------------------
+   6. Pre-chat Form Layout (Ultra-Premium Redesign)
+   -------------------------------------------------------------------------- */
+#cp-widget-prechat-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    padding: 0.25rem 0;
+    animation: cpFadeIn 0.3s ease-out;
+}
+
+.cp-widget-prechat-intro-card {
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 0.9rem 1.1rem;
+    color: #cbd5e1;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.cp-intro-icon {
+    font-size: 1.35rem;
+    flex-shrink: 0;
+}
+
+.cp-widget-prechat-intro {
+    font-size: 0.88rem;
+    color: #cbd5e1;
+    line-height: 1.45;
+    margin: 0;
+    font-weight: 500;
+}
+
+.cp-widget-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.cp-widget-form-group label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    letter-spacing: 0.02em;
+}
+
+.cp-required-star {
+    color: #f43f5e;
+    font-weight: 700;
+}
+
+.cp-widget-input {
+    background: rgba(15, 23, 42, 0.7) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 11px !important;
+    color: #ffffff !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 0.92rem !important;
+    font-family: inherit !important;
+    outline: none !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25) !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.cp-widget-input::placeholder {
+    color: #64748b !important;
+    font-weight: 400;
+}
+
+.cp-widget-input:hover {
+    border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+.cp-widget-input:focus {
+    border-color: var(--cp-primary-color, #06b6d4) !important;
+    background: rgba(15, 23, 42, 0.9) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--cp-primary-color, #06b6d4) 25%, transparent), inset 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Premium "Start Chat" CTA Button */
+.cp-widget-btn,
+#cp-widget-prechat-submit {
+    background: linear-gradient(135deg, var(--cp-primary-color, #06b6d4) 0%, color-mix(in srgb, var(--cp-primary-color, #06b6d4) 80%, black) 100%);
+    border: none;
+    border-radius: 12px;
+    color: var(--cp-icon-color, #ffffff);
+    padding: 0.85rem 1.25rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    box-shadow: 0 8px 22px -4px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-top: 0.6rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.cp-widget-btn:hover,
+#cp-widget-prechat-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    filter: brightness(1.08);
+}
+
+.cp-widget-btn:active,
+#cp-widget-prechat-submit:active {
+    transform: translateY(0);
+    filter: brightness(0.96);
+}
+
+/* --------------------------------------------------------------------------
+   7. Messages Layout
+   -------------------------------------------------------------------------- */
 .cp-widget-msg {
     display: flex;
     gap: 0.5rem;
@@ -189,7 +476,7 @@
 }
 
 @keyframes cpFadeIn {
-    from { opacity: 0; transform: translateY(5px); }
+    from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
@@ -204,44 +491,46 @@
 }
 
 .cp-msg-bubble {
-    padding: 0.75rem 1rem;
-    border-radius: 14px;
-    font-size: 0.9rem;
+    padding: 0.8rem 1.1rem;
+    border-radius: 16px;
+    font-size: 0.92rem;
     line-height: 1.5;
     word-break: break-word;
 }
 
 .cp-msg-bot .cp-msg-bubble {
-    background: rgba(30, 41, 59, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    color: #e2e8f0;
+    background: rgba(30, 41, 59, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #f1f5f9;
     border-top-left-radius: 4px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
 }
 
 .cp-msg-user .cp-msg-bubble {
-    background: var(--cp-primary-color, #06b6d4);
-    color: #ffffff;
+    background: linear-gradient(135deg, var(--cp-primary-color, #06b6d4) 0%, color-mix(in srgb, var(--cp-primary-color, #06b6d4) 85%, black) 100%);
+    color: var(--cp-icon-color, #ffffff);
     border-top-right-radius: 4px;
-    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.15);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }
 
 /* Suggested Questions list layout */
 .cp-widget-suggestions {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.55rem;
     align-self: flex-start;
-    margin-top: 0.25rem;
+    margin-top: 0.35rem;
     animation: cpFadeIn 0.3s ease-out;
 }
 
 .cp-widget-suggest-btn {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 18px;
-    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 0.55rem 1.05rem;
     color: #cbd5e1;
-    font-size: 0.82rem;
+    font-size: 0.84rem;
+    font-weight: 500;
     cursor: pointer;
     text-align: left;
     transition: all 0.2s ease;
@@ -249,78 +538,20 @@
 }
 
 .cp-widget-suggest-btn:hover {
-    background: rgba(6, 182, 212, 0.08);
+    background: rgba(255, 255, 255, 0.08);
     border-color: var(--cp-primary-color, #06b6d4);
     color: #ffffff;
-    transform: translateX(3px);
+    transform: translateX(4px);
 }
 
-/* 6. Pre-chat Form Layout */
-#cp-widget-prechat-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    padding: 0.5rem;
-}
-
-.cp-widget-prechat-intro {
-    font-size: 0.85rem;
-    color: #94a3b8;
-    line-height: 1.5;
-    margin-bottom: 0.5rem;
-}
-
-.cp-widget-form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-}
-
-.cp-widget-form-group label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #cbd5e1;
-}
-
-.cp-widget-input {
-    background: rgba(0, 0, 0, 0.25) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 8px !important;
-    color: #ffffff !important;
-    padding: 0.65rem 0.85rem !important;
-    font-size: 0.9rem !important;
-    outline: none !important;
-    transition: border-color 0.2s ease !important;
-    box-shadow: none !important;
-}
-
-.cp-widget-input:focus {
-    border-color: var(--cp-primary-color, #06b6d4) !important;
-}
-
-.cp-widget-btn {
-    background: var(--cp-primary-color, #06b6d4);
-    border: none;
-    border-radius: 8px;
-    color: #ffffff;
-    padding: 0.75rem;
-    font-size: 0.9rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: opacity 0.2s ease;
-    margin-top: 0.5rem;
-}
-
-.cp-widget-btn:hover {
-    opacity: 0.9;
-}
-
-/* 7. Typing Indicator */
+/* --------------------------------------------------------------------------
+   8. Typing Indicator
+   -------------------------------------------------------------------------- */
 .cp-typing-indicator {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 0.25rem 0;
+    gap: 5px;
+    padding: 0.35rem 0.2rem;
 }
 
 .cp-typing-dot {
@@ -339,11 +570,13 @@
     40% { transform: scale(1); opacity: 1; }
 }
 
-/* 8. Input Form Footer */
+/* --------------------------------------------------------------------------
+   9. Input Form Footer
+   -------------------------------------------------------------------------- */
 .cp-widget-footer {
     padding: 1rem 1.25rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    background: rgba(15, 23, 42, 0.9);
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(15, 23, 42, 0.95);
 }
 
 #cp-widget-input-form {
@@ -356,14 +589,15 @@
     flex-grow: 1;
     margin: 0 !important;
     font-family: inherit;
+    border-radius: 12px !important;
 }
 
 #cp-widget-send-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: #94a3b8;
     cursor: pointer;
     display: flex;
@@ -371,12 +605,14 @@
     justify-content: center;
     transition: all 0.2s ease;
     padding: 0;
+    flex-shrink: 0;
 }
 
 #cp-widget-send-btn:hover {
     background: var(--cp-primary-color, #06b6d4);
     border-color: var(--cp-primary-color, #06b6d4);
-    color: #ffffff;
+    color: var(--cp-icon-color, #ffffff);
+    transform: scale(1.05);
 }
 
 #cp-widget-send-btn svg {
@@ -390,10 +626,13 @@
     text-align: center;
     margin-top: 0.65rem;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
+    font-weight: 500;
 }
 
-/* 9. Mobile Responsiveness */
+/* --------------------------------------------------------------------------
+   10. Mobile Responsiveness
+   -------------------------------------------------------------------------- */
 @media (max-width: 480px) {
     #chat-pilot-widget-container {
         bottom: 0 !important;
@@ -406,8 +645,13 @@
     #chat-pilot-widget-launcher {
         margin: 0 16px 16px auto;
     }
+
+    .cp-launcher-callout {
+        margin: 0 16px 10px auto;
+    }
     
-    #chat-pilot-widget-container.cp-widget-position-bottom-left #chat-pilot-widget-launcher {
+    #chat-pilot-widget-container.cp-widget-position-bottom-left #chat-pilot-widget-launcher,
+    #chat-pilot-widget-container.cp-widget-position-bottom-left .cp-launcher-callout {
         margin: 0 auto 16px 16px;
     }
 

@@ -22,6 +22,8 @@
         var $launcher = $('#chat-pilot-widget-launcher');
         var $box = $('#chat-pilot-widget-box');
         var $closeBtn = $('#chat-pilot-widget-close');
+        var $callout = $('#chat-pilot-launcher-callout');
+        var $calloutClose = $('#chat-pilot-callout-close');
         var $messages = $('#cp-widget-messages');
         var $inputForm = $('#cp-widget-input-form');
         var $inputField = $('#cp-widget-input-field');
@@ -57,6 +59,27 @@
             sessionId = 'cp_sess_' + Math.random().toString(36).substring(2, 15) +
                 Math.random().toString(36).substring(2, 15);
             storageSet('cp_session_id', sessionId);
+        }
+
+        /* ---------------------------------------------------- callout badge -- */
+
+        if ($callout.length) {
+            if (storageGet('cp_callout_dismissed') === 'yes') {
+                $callout.hide();
+            }
+
+            $callout.on('click', function (e) {
+                if ($(e.target).closest('#chat-pilot-callout-close').length) {
+                    return;
+                }
+                openWidget(false);
+            });
+
+            $calloutClose.on('click', function (e) {
+                e.stopPropagation();
+                $callout.stop(true, true).fadeOut(200);
+                storageSet('cp_callout_dismissed', 'yes');
+            });
         }
 
         /* ---------------------------------------------------- open state -- */
@@ -99,6 +122,9 @@
         });
 
         function openWidget(immediate) {
+            if ($callout.length) {
+                $callout.stop(true, true).hide();
+            }
             $launcher.stop(true, true).hide();
             $container.addClass('cp-widget-open');
             $box.stop(true, true).fadeIn(immediate ? 0 : 200, function () {
@@ -116,6 +142,9 @@
                 $launcher.find('.cp-launcher-icon-close').hide();
                 $launcher.find('.cp-launcher-icon-open').show();
                 $launcher.stop(true, true).fadeIn(200);
+                if ($callout.length && storageGet('cp_callout_dismissed') !== 'yes') {
+                    $callout.stop(true, true).fadeIn(300);
+                }
             });
             storageSet('cp_widget_state', 'closed');
         }
