@@ -296,10 +296,10 @@ html { scroll-behavior: smooth; }
       <p>What this product is, where every piece lives, and how to work on it &mdash; written for a developer who has never seen it before.</p>
     </div>
     <div class="masthead-meta">
-      <div>Cloud <b>live on Hostinger</b></div>
-      <div>Plugin <b>v2.3.1</b></div>
+      <div>Cloud <b>live on Vercel</b></div>
+      <div>Plugin <b>v2.3.5</b></div>
       <div>Database <b>MongoDB Atlas</b></div>
-      <div>Node <b>20.19+</b> &middot; PHP <b>7.4+</b></div>
+      <div>Node <b>24.x</b> &middot; PHP <b>7.4+</b></div>
       <button class="theme-toggle" type="button" id="themeBtn" aria-live="polite">Switch to night</button>
     </div>
   </header>
@@ -307,7 +307,7 @@ html { scroll-behavior: smooth; }
   <dl class="vitals">
     <div class="vital is-ok">
       <dt>Live Cloud</dt>
-      <dd class="mono"><a href="https://palevioletred-louse-364639.hostingersite.com">palevioletred-louse-364639.hostingersite.com</a></dd>
+      <dd class="mono"><a href="https://appchatpilot.vercel.app">appchatpilot.vercel.app</a></dd>
     </div>
     <div class="vital">
       <dt>Repository</dt>
@@ -319,9 +319,18 @@ html { scroll-behavior: smooth; }
     </div>
     <div class="vital is-warn">
       <dt>Needs attention</dt>
-      <dd>0 knowledge documents &middot; no database backup</dd>
+      <dd>JavaScript is the source now, not TypeScript &middot; tests cannot run &middot; 0 knowledge documents</dd>
     </div>
   </dl>
+
+  <div class="note note-stop" style="max-width:none;margin-top:1.3rem">
+    <span class="note-mark">!</span>
+    <div>
+      <b>Read this before you edit anything &mdash; the v2.3.5 release changed how this project is built</b>
+      <p>The repository now holds <strong>both</strong> 53 <code>.ts</code> files and 53 <code>.js</code> files. <code>npm start</code> runs <code>server.js</code> &rarr; <code>src/server.js</code>, so <strong>the JavaScript is what ships</strong>. The TypeScript has drifted and no longer compiles: <code>portalApi.ts</code> calls <code>updateWebsite</code> and <code>sendTestNotification</code> without importing either, while <code>portalApi.js</code> imports both and has a different structure entirely.</p>
+      <p><strong>Edit the <code>.js</code>.</strong> Editing the TypeScript changes nothing that runs. Settling what happens to those stale files &mdash; bring them back in step, or delete them &mdash; is the first decision the next developer should make, because it also decides whether the 183 automated tests can ever run again (see <a href="#tests">Tests</a>).</p>
+    </div>
+  </div>
 
   <div class="body-grid">
 
@@ -368,7 +377,7 @@ html { scroll-behavior: smooth; }
             <tbody>
               <tr>
                 <td><strong>Chat Pilot Cloud</strong><br><span style="font-size:0.82rem">Node.js</span></td>
-                <td>Hostinger shared hosting, behind Passenger</td>
+                <td>Vercel, as a serverless function</td>
                 <td>Accounts, AI provider keys, knowledge base, the answering engine, conversations, leads, analytics, plans, and the admin console</td>
               </tr>
               <tr>
@@ -641,14 +650,14 @@ await connectDb()</pre>
         <p>In precedence order:</p>
         <ol>
           <li><code>CHAT_PILOT_API_URL</code> defined in <code>wp-config.php</code> &mdash; pins it at server level; the admin screen then shows it read-only, so nobody with only wp-admin access can redirect this site's signed traffic.</li>
-          <li>The built-in default in <code>chat-pilot.php</code>, currently the live Hostinger address.</li>
+          <li>The built-in default in <code>chat-pilot.php</code>, currently the live Vercel address.</li>
         </ol>
 
         <div class="note note-warn">
           <span class="note-mark">!</span>
           <div>
             <b>The built-in default is a temporary domain</b>
-            <p><code>chat-pilot.php</code> ships pointing at <code>palevioletred-louse-364639.hostingersite.com</code>. When the Cloud moves to a permanent domain, change that line, rebuild the plugin, and re-upload it to every site that has not pinned the constant. Doing it now, at three sites, is much cheaper than doing it at thirty.</p>
+            <p><code>chat-pilot.php</code> ships pointing at <code>appchatpilot.vercel.app</code>, which is Vercel's own domain rather than a permanent one. v2.3.5 also rewrites any <em>saved</em> Hostinger address to the Vercel one, so sites that were connected before the move migrate themselves. When the Cloud gets its real domain, change that line, rebuild, and re-upload to every site that has not pinned the constant &mdash; cheaper at three sites than at thirty.</p>
           </div>
         </div>
       </section>
@@ -1005,7 +1014,7 @@ await connectDb()</pre>
               <tr>
                 <td><code>npm run hostinger:build</code></td>
                 <td><code>dist/hostinger/&hellip;zip</code><br><span style="font-size:0.82rem">compiled JavaScript, flat</span></td>
-                <td><strong>What is live now.</strong> Shared hosting behind Passenger. Files at the ZIP root because the panel points "Application root" at the folder holding <code>package.json</code>.</td>
+                <td><strong>Legacy.</strong> Built the ZIP for Hostinger shared hosting. The Cloud now deploys to Vercel straight from git, so this is kept only for a shared-hosting fallback.</td>
               </tr>
               <tr>
                 <td><code>npm run cloud:build</code></td>
@@ -1049,38 +1058,46 @@ await connectDb()</pre>
         <div class="part-head">
           <span class="part-num">13</span>
           <h2>How it is deployed today</h2>
-          <p>Hostinger shared hosting, Node app manager, MongoDB Atlas behind it.</p>
+          <p>Vercel, as a single serverless function, with MongoDB Atlas behind it. It moved here from Hostinger in the v2.3.5 release.</p>
         </div>
 
         <div class="table-wrap">
           <table>
             <tbody>
-              <tr><td><strong>Cloud</strong></td><td>Hostinger shared hosting &rarr; hPanel &rarr; Node.js app</td></tr>
-              <tr><td><strong>Address</strong></td><td><code>palevioletred-louse-364639.hostingersite.com</code> &mdash; Hostinger's temporary domain</td></tr>
-              <tr><td><strong>Startup file</strong></td><td><code>server.js</code></td></tr>
-              <tr><td><strong>Node version</strong></td><td>20.19 or newer</td></tr>
-              <tr><td><strong>Database</strong></td><td>MongoDB Atlas M0 (free tier), database <code>chatpilot</code></td></tr>
-              <tr><td><strong>Atlas network access</strong></td><td><code>0.0.0.0/0</code> &mdash; required, because shared hosting has no fixed outbound IP</td></tr>
+              <tr><td><strong>Cloud</strong></td><td>Vercel &mdash; one serverless function, deployed from the GitHub repository</td></tr>
+              <tr><td><strong>Address</strong></td><td><code>appchatpilot.vercel.app</code> &mdash; Vercel's own domain, still not a permanent one</td></tr>
+              <tr><td><strong>Entry point</strong></td><td><code>api/index.js</code> at the repository root</td></tr>
+              <tr><td><strong>Routing</strong></td><td><code>vercel.json</code>: <code>/</code> redirects to <code>/login</code>, everything else rewrites to the function</td></tr>
+              <tr><td><strong>Node version</strong></td><td>24.x, pinned in <code>engines</code></td></tr>
+              <tr><td><strong>Database</strong></td><td>MongoDB Atlas M0 (free tier), database <code>chatpilot</code> &mdash; unchanged by the move</td></tr>
+              <tr><td><strong>Atlas network access</strong></td><td><code>0.0.0.0/0</code> &mdash; serverless has no fixed outbound IP either</td></tr>
             </tbody>
           </table>
         </div>
 
-        <h3>Updating the deployed Cloud</h3>
-        <ol>
-          <li><code>npm run hostinger:build</code> on your machine</li>
-          <li>Upload and extract into the application root, replacing the old files</li>
-          <li>Restart the app from hPanel</li>
-        </ol>
+        <h3>How it works</h3>
+        <p><code>api/index.js</code> boots the Express app once per cold start and reuses it. Before it does anything else it checks that <code>MONGODB_URI</code>, <code>ENCRYPTION_KEY</code>, <code>SESSION_SECRET</code> and <code>SITE_KEY_PEPPER</code> are all present, and renders a setup page naming the missing ones rather than failing opaquely.</p>
 
-        <div class="note note-stop">
+        <h3>Updating the deployed Cloud</h3>
+        <p>Push to the GitHub repository. Vercel builds and deploys from it. There is no ZIP to upload and no service to restart by hand.</p>
+
+        <div class="note note-warn">
           <span class="note-mark">!</span>
           <div>
-            <b>Never set <code>PORT</code> in the Hostinger environment variables</b>
-            <p>Passenger assigns the port itself and expects the app to listen on the one it provides. Setting <code>PORT=4000</code> makes the app listen where Passenger is not looking, and every request returns 503 with no useful error. This cost a full debugging session already.</p>
+            <b>Both Clouds are still answering</b>
+            <p>The old Hostinger app is still live on <code>palevioletred-louse-364639.hostingersite.com</code>, against the same Atlas database. The plugin rewrites any saved Hostinger address to the Vercel one, so sites migrate themselves &mdash; but two front doors onto one database is how two versions of the truth start. Decide when to switch the old one off.</p>
           </div>
         </div>
 
-        <p><code>deploy/</code> also holds a complete VPS setup &mdash; systemd unit, nginx config, backup script &mdash; used by <code>docs/DEPLOY.md</code> and the separate <b>Launch Plan</b> runbook. None of it applies to the current shared-hosting deployment.</p>
+        <div class="note note-warn">
+          <span class="note-mark">!</span>
+          <div>
+            <b>Two debug endpoints survived to production</b>
+            <p><code>/api/debug-files</code> and <code>/debug-assets</code> both answer 200 on the live site. They were added while fighting Vercel over static assets, and they return server file paths &mdash; no credentials, so this is untidy rather than urgent. Remove them when convenient.</p>
+          </div>
+        </div>
+
+        <p><code>deploy/</code> still holds a complete VPS setup &mdash; systemd unit, nginx config, backup script &mdash; used by <code>docs/DEPLOY.md</code> and the separate <b>Launch Plan</b> runbook. None of it applies to the current Vercel deployment.</p>
       </section>
 
       <!-- ============================================================ 14 -->
@@ -1101,7 +1118,7 @@ await connectDb()</pre>
               <tr><td><code>SESSION_SECRET</code></td><td><strong>Required.</strong> Signs portal session cookies.</td></tr>
               <tr><td><code>SITE_KEY_PEPPER</code></td><td><strong>Required.</strong> Verifies every Site API Key.</td></tr>
               <tr><td><code>APP_URL</code></td><td>Public address. Used in emails and dashboard links.</td></tr>
-              <tr><td><code>PORT</code></td><td>Local only. <strong>Must not be set on Hostinger.</strong></td></tr>
+              <tr><td><code>PORT</code></td><td>Local only. Vercel ignores it; on Hostinger it must not be set at all.</td></tr>
               <tr><td><code>FORCE_HTTPS</code> + <code>TRUST_PROXY</code></td><td>Both <code>true</code> behind a proxy. Only the first &rarr; infinite redirect loop.</td></tr>
               <tr><td><code>MAIL_TRANSPORT</code></td><td><code>log</code> today: notifications are recorded but <strong>never sent</strong>.</td></tr>
               <tr><td><code>SUPERADMIN_EMAIL</code> / <code>_PASSWORD</code></td><td>Read by <code>npm run seed</code> only, to create the first admin.</td></tr>
@@ -1115,7 +1132,7 @@ await connectDb()</pre>
           <div>
             <b>The three secrets are not recoverable, and they are your backup</b>
             <p><code>ENCRYPTION_KEY</code> is the only thing that opens the customer AI keys sitting encrypted in Atlas. Lose it and the database stays perfectly healthy while every provider key in it becomes permanently unreadable, and every installed plugin disconnects. The app refuses to start in production without all three &mdash; deliberately, because a missing secret should fail loudly rather than fall back to a throwaway value and silently destroy data.</p>
-            <p>The production values live in <code>dist/hostinger/chat-pilot-hostinger.env</code> on the maintainer's machine and in the Hostinger panel. That is not a backup. Put them in a password manager, today.</p>
+            <p>The production values live in the <strong>Vercel project's environment variables</strong>, and a copy sits in <code>dist/hostinger/chat-pilot-hostinger.env</code> on the maintainer's machine. Neither is a backup. Put them in a password manager, today.</p>
           </div>
         </div>
       </section>
@@ -1128,8 +1145,19 @@ await connectDb()</pre>
           <p>183 tests across 12 files. They boot the real app and drive it over HTTP; only the AI provider is mocked.</p>
         </div>
 
+        <div class="note note-stop">
+          <span class="note-mark">!</span>
+          <div>
+            <b>As of v2.3.5 the suite cannot be run</b>
+            <p><code>saas/package.json</code> was replaced with the production one in that release. The <code>test</code> and <code>typecheck</code> scripts are gone, and <code>typescript</code> and <code>mongodb-memory-server</code> are no longer declared dependencies. The 12 test files and <code>scripts/run-tests.mjs</code> are still in the repository, but they import the <code>.ts</code> files &mdash; the stale ones.</p>
+            <p>So nothing automated is guarding changes right now. Restoring this means deciding the TypeScript question first: either bring the <code>.ts</code> back in step with the <code>.js</code>, or port the tests to import <code>.js</code> and put the dev dependencies back.</p>
+          </div>
+        </div>
+
+        <p>What the suite used to do, and would again:</p>
+
         <div class="cmd">
-          <div class="cmd-bar"><span class="where">saas/</span><span class="when">before every commit</span></div>
+          <div class="cmd-bar"><span class="where">saas/</span><span class="when">when restored</span></div>
 <pre><span class="p">$</span> npm test
 <span class="c">ℹ tests 183   ℹ pass 183   ℹ fail 0</span>
 
@@ -1154,22 +1182,22 @@ await connectDb()</pre>
         <div class="part-head">
           <span class="part-num">16</span>
           <h2>Live state today</h2>
-          <p>Read from Atlas on 21 September 2026.</p>
+          <p>Read from Atlas on 13 October 2026, after the v2.3.5 merge.</p>
         </div>
 
         <div class="table-wrap">
           <table>
             <thead><tr><th>Collection</th><th class="num">Count</th><th>Meaning</th></tr></thead>
             <tbody>
-              <tr><td><code>accounts</code></td><td class="num">3</td><td>Real customers</td></tr>
-              <tr><td><code>users</code></td><td class="num">4</td><td>1 super admin + 3 customer users</td></tr>
-              <tr><td><code>websites</code></td><td class="num">3</td><td>greggsauto.net, threelakesmd.com, awyeelectric.com</td></tr>
-              <tr><td><code>site_api_credentials</code></td><td class="num">2</td><td>Two sites have plugins connected (v2.3.1)</td></tr>
-              <tr><td><code>ai_provider_credentials</code></td><td class="num">2</td><td>OpenAI configured</td></tr>
-              <tr><td><code>knowledge_documents</code></td><td class="num">0</td><td><strong>Nothing. This is why the bots answer nothing.</strong></td></tr>
-              <tr><td><code>conversations</code> / <code>messages</code></td><td class="num">2 / 14</td><td>Real visitor traffic has happened</td></tr>
-              <tr><td><code>form_submissions</code></td><td class="num">2</td><td>Leads captured</td></tr>
-              <tr><td><code>ai_requests</code></td><td class="num">7</td><td>Mostly <code>fallback</code>, zero tokens spent</td></tr>
+              <tr><td><code>accounts</code></td><td class="num">6</td><td>Real customers &mdash; doubled since September</td></tr>
+              <tr><td><code>users</code></td><td class="num">7</td><td>1 super admin + 6 customer users</td></tr>
+              <tr><td><code>websites</code></td><td class="num">6</td><td>greggsauto, Three Lakes MD, awyeelectric, Pool Timer Door, Kingdom Fencing, and one test site</td></tr>
+              <tr><td><code>site_api_credentials</code></td><td class="num">5</td><td>Four sites are connected, all still on <strong>plugin 2.3.1</strong></td></tr>
+              <tr><td><code>ai_provider_credentials</code></td><td class="num">4</td><td>Providers configured</td></tr>
+              <tr><td><code>knowledge_documents</code></td><td class="num">39</td><td><strong>No longer zero.</strong> Knowledge is being loaded, so the bots can actually answer.</td></tr>
+              <tr><td><code>conversations</code> / <code>messages</code></td><td class="num">13 / 112</td><td>Real visitor traffic</td></tr>
+              <tr><td><code>form_submissions</code></td><td class="num">8</td><td>Leads captured</td></tr>
+              <tr><td><code>ai_requests</code></td><td class="num">56</td><td>Real generation now happening, not just fallbacks</td></tr>
             </tbody>
           </table>
         </div>
@@ -1180,12 +1208,14 @@ await connectDb()</pre>
           <table>
             <thead><tr><th style="min-width:2rem"></th><th style="min-width:12rem">Item</th><th>Why it matters</th></tr></thead>
             <tbody>
-              <tr><td><strong style="color:var(--stop)">1</strong></td><td><strong>No knowledge loaded</strong></td><td>Three live sites with chatbots that answer every real question with the fallback. Nothing else on this list changes that.</td></tr>
-              <tr><td><strong style="color:var(--stop)">2</strong></td><td><strong>No database backup</strong></td><td>Atlas M0 has no automated backup. Real customer conversations and leads exist with no copy anywhere.</td></tr>
-              <tr><td><strong style="color:var(--warn)">3</strong></td><td>Temporary domain</td><td>Baked into the plugin default. Every extra site installed now is another to re-upload later.</td></tr>
-              <tr><td><strong style="color:var(--warn)">4</strong></td><td>Email not wired</td><td><code>MAIL_TRANSPORT=log</code>. Password-reset mail is recorded, never delivered &mdash; a locked-out customer cannot recover.</td></tr>
-              <tr><td><strong style="color:var(--text-3)">5</strong></td><td>No payment processor</td><td>Plans, limits and subscription state are complete and enforced. Only card collection is absent.</td></tr>
-              <tr><td><strong style="color:var(--text-3)">6</strong></td><td>Atlas open to <code>0.0.0.0/0</code></td><td>Unavoidable on shared hosting. The database user's password is the only boundary; keep it strong.</td></tr>
+              <tr><td><strong style="color:var(--stop)">1</strong></td><td><strong>Stale TypeScript</strong></td><td>Two copies of every source file, one silently ignored. Decide and delete the loser &mdash; this also unblocks the tests.</td></tr>
+              <tr><td><strong style="color:var(--stop)">2</strong></td><td><strong>No automated tests</strong></td><td>183 tests cannot run. Nothing guards a change except manual testing.</td></tr>
+              <tr><td><strong style="color:var(--stop)">3</strong></td><td><strong>No database backup</strong></td><td>Atlas M0 has no automated backup, and there are now six customers' conversations and leads in it.</td></tr>
+              <tr><td><strong style="color:var(--warn)">4</strong></td><td>Four sites on plugin 2.3.1</td><td>All connected sites still run the old plugin. The 2.3.5 upgrade path is the thing to test first.</td></tr>
+              <tr><td><strong style="color:var(--warn)">5</strong></td><td>Two Clouds live</td><td>Vercel and the old Hostinger app, same database. Switch the old one off.</td></tr>
+              <tr><td><strong style="color:var(--warn)">6</strong></td><td>Debug endpoints in production</td><td><code>/api/debug-files</code> and <code>/debug-assets</code> answer 200. File paths only, no credentials.</td></tr>
+              <tr><td><strong style="color:var(--warn)">7</strong></td><td>Temporary domain</td><td><code>appchatpilot.vercel.app</code> is baked into the plugin default.</td></tr>
+              <tr><td><strong style="color:var(--text-3)">8</strong></td><td>No payment processor</td><td>Plans and limits are enforced; only card collection is absent.</td></tr>
             </tbody>
           </table>
         </div>
@@ -1223,6 +1253,23 @@ await connectDb()</pre>
                 <td><code>b27284a</code></td>
                 <td>The update instructions told people to Delete the plugin and re-upload, and claimed that would not run <code>uninstall.php</code>. It does &mdash; so every documented update silently wiped the Site API Key. Replaced with "Replace current with uploaded". Also fixed the key field asking for <code>autocomplete="off"</code>, which browsers ignore on password inputs, letting a saved password autofill over the key.</td>
               </tr>
+              <tr>
+                <td><code>0968de6</code><br><span style="font-size:0.8rem">23 commits</span></td>
+                <td><strong>The v2.3.5 release.</strong> The largest change since the MongoDB migration, and the one that moved the ground under this document.
+                  <br><br>
+                  <strong>Vercel.</strong> Eleven commits moved the Cloud off Hostinger onto Vercel as a single serverless function, most of them spent getting static assets served through the Edge CDN. The database did not move.
+                  <br><br>
+                  <strong>JavaScript became the source.</strong> The compiled output was committed alongside the TypeScript and <code>package.json</code> replaced with the production one, which removed the <code>test</code> and <code>typecheck</code> scripts and the dev dependencies. The <code>.ts</code> files have drifted since and no longer compile.
+                  <br><br>
+                  <strong>Email works.</strong> SMTP in the Cloud through nodemailer, plus a <code>wp_mail</code> fallback in the plugin. Lead notifications were recorded but never delivered before this.
+                  <br><br>
+                  <strong>Widget redesign.</strong> Five avatars, a launcher callout bubble with editable text and colours, editable launcher and icon colours.
+                  <br><br>
+                  <strong>Caching.</strong> Config TTL cut from 5 minutes to 60 seconds, automatic purging of LiteSpeed / WP Rocket / W3TC, and a new public AJAX endpoint so the pre-chat form syncs from the browser instead of from cached HTML.
+                  <br><br>
+                  <strong>Engine and portal.</strong> Hinglish mirroring, typo tolerance, action buttons, a new Settings page, SVG analytics charts, and a 303 redirect protocol on auth.
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -1241,9 +1288,9 @@ await connectDb()</pre>
             <thead><tr><th style="min-width:15rem">You see</th><th>What it means</th><th>Fix</th></tr></thead>
             <tbody>
               <tr>
-                <td><strong>503 from Hostinger</strong>, nothing in the logs</td>
-                <td>The Node process is not running, or Passenger cannot reach it.</td>
-                <td>Check <code>PORT</code> is not set in the panel. Then Node version, then <code>stderr.log</code>.</td>
+                <td><strong>500 or a cold-start failure on Vercel</strong></td>
+                <td>Usually a missing environment variable &mdash; the entry point checks four and names the ones it cannot find.</td>
+                <td>Read the page it returns, then the function logs in the Vercel dashboard.</td>
               </tr>
               <tr>
                 <td><strong><code>SSL alert number 80</code></strong> / server selection timed out</td>
@@ -1347,7 +1394,7 @@ await connectDb()</pre>
               <tr><td><code>npm run admin:create -- --email &hellip;</code></td><td><code>saas/</code></td><td>Create or promote a Master Admin</td></tr>
               <tr><td><code>npm test</code></td><td><code>saas/</code></td><td>Run all 183 tests</td></tr>
               <tr><td><code>npm run typecheck</code></td><td><code>saas/</code></td><td>Type-check without building</td></tr>
-              <tr><td><code>npm run hostinger:build</code></td><td>project root</td><td>Compiled ZIP for shared hosting &mdash; <strong>the live one</strong></td></tr>
+              <tr><td><code>npm run hostinger:build</code></td><td>project root</td><td>Compiled ZIP for shared hosting &mdash; legacy, not how the Cloud deploys now</td></tr>
               <tr><td><code>npm run cloud:build</code></td><td>project root</td><td>Source ZIP for a VPS</td></tr>
               <tr><td><code>npm run plugin:patch</code> / <code>minor</code> / <code>major</code></td><td>project root</td><td>Bump the plugin version, then build</td></tr>
             </tbody>
@@ -1363,8 +1410,8 @@ await connectDb()</pre>
               <tr><td><code>saas/</code></td><td>Chat Pilot Cloud &mdash; server and portal</td></tr>
               <tr><td><code>saas/.env</code></td><td>Your secrets. Never commit this.</td></tr>
               <tr><td><code>wordpress-plugin/chat-pilot/</code></td><td>Plugin source &mdash; edit here</td></tr>
-              <tr><td><code>dist/plugin/chat-pilot-2.3.1.zip</code></td><td>The built plugin &mdash; upload this</td></tr>
-              <tr><td><code>dist/hostinger/</code></td><td>The live Cloud build and its production <code>.env</code></td></tr>
+              <tr><td><code>dist/plugin/chat-pilot-2.3.5.zip</code></td><td>The built plugin &mdash; upload this</td></tr>
+              <tr><td><code>api/index.js</code> + <code>vercel.json</code></td><td>How the Cloud actually deploys &mdash; serverless entry point and routing</td></tr>
               <tr><td><code>docs/RUNNING.md</code></td><td>The same walkthrough, in the repo</td></tr>
             </tbody>
           </table>
@@ -1380,8 +1427,8 @@ await connectDb()</pre>
       </section>
 
       <footer class="foot">
-        Chat Pilot &middot; handover and operating guide &middot; Cloud live on Hostinger, plugin v2.3.1, MongoDB Atlas &middot; by Local Marketing Geeks.<br>
-        Written against commit <code>b27284a</code>, verified 21 September 2026 &mdash; 183 tests passing.
+        Chat Pilot &middot; handover and operating guide &middot; Cloud live on Vercel, plugin v2.3.5, MongoDB Atlas &middot; by Local Marketing Geeks.<br>Companion: the <b>v2.3.5 Test Plan</b> covers what to verify after this release.<br>
+        Written against commit <code>0968de6</code>, verified 13 October 2026. The automated suite is not currently runnable &mdash; see Tests.
         Companion document: the <b>Launch Plan</b> deployment runbook. Repository docs: <code>docs/RUNNING.md</code>, <code>docs/DEPLOY.md</code>, <code>docs/API.md</code>, <code>docs/ARCHITECTURE-MAP.md</code>.
       </footer>
 
