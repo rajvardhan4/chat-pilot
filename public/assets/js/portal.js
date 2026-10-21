@@ -242,7 +242,7 @@
     el.addEventListener('click', function () {
       var target = document.querySelector(el.getAttribute('data-copy'));
       if (!target) return;
-      var value = target.textContent.trim();
+      var value = (target.value !== undefined ? target.value : target.textContent).trim();
       if (navigator.clipboard) {
         navigator.clipboard.writeText(value).then(function () { toast('Copied to clipboard.', 'success'); });
       } else {

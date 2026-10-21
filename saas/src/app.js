@@ -1,18 +1,20 @@
 import path from 'node:path';
 import { existsSync, statSync } from 'node:fs';
-import express, {} from 'express';
+import express from 'express';
 import { env, ROOT } from "./config/env.js";
 import { connectDb } from "./db/mongo.js";
 import { errorHandler, notFoundHandler } from "./middleware/errors.js";
 import { httpsOnly, securityHeaders } from "./middleware/security.js";
 import { loadSession } from "./middleware/session.js";
 import { siteApiRouter } from "./routes/siteApi.js";
+import { publicApiRouter } from "./routes/publicApi.js";
 import { authRouter } from "./routes/auth.js";
 import { portalRouter } from "./routes/portal.js";
 import { adminRouter } from "./routes/admin.js";
 import { portalApiRouter } from "./routes/portalApi.js";
 import { seedDefaultPlans } from "./services/plans.js";
 import { getPluginZipFile, getPluginVersion } from "./services/pluginPackage.js";
+
 // Async because connecting to MongoDB is: unlike node:sqlite's DatabaseSync,
 // which opened the file synchronously on first query, the driver has to
 // finish its handshake before a single collection call is safe to make.
@@ -59,6 +61,32 @@ export async function createApp() {
         }
         next();
     });
+
+    // Standalone Chat Pilot Universal Widget Loader (Shopify, Wix, Custom HTML)
+    app.get(['/chatpilot.js', '/embed.js'], (_req, res) => {
+        const candidates = [
+            path.join(ROOT, 'src', 'public', 'js', 'chatpilot.js'),
+            path.join(ROOT, 'src', 'public', 'chatpilot.js'),
+            path.join(process.cwd(), 'public', 'assets', 'js', 'chatpilot.js'),
+            path.join(process.cwd(), 'saas', 'src', 'public', 'js', 'chatpilot.js'),
+            path.join(process.cwd(), 'saas', 'src', 'public', 'chatpilot.js'),
+            path.join(process.cwd(), 'public', 'chatpilot.js'),
+        ];
+        for (const file of candidates) {
+            try {
+                if (existsSync(file) && !statSync(file).isDirectory()) {
+                    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+                    res.setHeader('Access-Control-Allow-Origin', '*');
+                    res.setHeader('Cache-Control', env.isProd ? 'public, max-age=300' : 'no-cache');
+                    return res.sendFile(file);
+                }
+            } catch {
+                // continue
+            }
+        }
+        return res.status(404).type('application/javascript').send('/* Chat Pilot widget loader not found */');
+    });
+
     app.get('/debug-assets', (_req, res) => {
         const testFile = 'css/chat-pilot.css';
         const candidates = [
@@ -95,8 +123,12 @@ export async function createApp() {
             res.json({ error: e.message });
         }
     });
-    // --- Plugin-facing API (Site API Key + HMAC) ---
+    // --- Plugin-facing API (Site API Key + HMAC for WordPress) ---
     app.use('/api/v1/site', siteApiRouter);
+
+    // --- Public Embed API (CORS enabled for browser embeds) ---
+    app.use('/api/v1/public', publicApiRouter);
+
     // --- Portal (session cookie) ---
     app.use(loadSession);
     // Defensive handlers for 307-forwarded POST requests

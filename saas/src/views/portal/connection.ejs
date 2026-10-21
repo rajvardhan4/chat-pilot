@@ -3,8 +3,78 @@
 <div data-website-id="<%= website.id %>"></div>
 <%- include('../partials/portal-tabs') %>
 
+<!-- 1. Universal Embed Code Section (Shopify, Wix, Webflow, Custom Sites) -->
+<div class="cp-card" style="border: 1px solid rgba(6, 120, 249, 0.35); background: linear-gradient(180deg, rgba(6, 120, 249, 0.05) 0%, rgba(15, 23, 42, 0.6) 100%); margin-bottom: 1.5rem;">
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.5rem;">
+    <div style="display: flex; align-items: center; gap: 0.65rem;">
+      <span style="font-size: 1.5rem;">🌐</span>
+      <div>
+        <h2 class="cp-card-title" style="margin: 0; font-size: 1.15rem; color: #ffffff;">Universal Embed Script</h2>
+        <span class="cp-pill cp-pill-info" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; margin-top: 2px;">Works on Shopify, Wix, Custom HTML &amp; All Platforms</span>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <span class="cp-pill cp-pill-neutral" style="font-size: 0.78rem;">
+        Site ID: <strong id="cp-site-id-val"><%= website.id %></strong>
+      </span>
+      <button class="cp-btn cp-btn-secondary cp-btn-sm" type="button" data-copy="#cp-site-id-val" title="Copy Site ID">Copy ID</button>
+    </div>
+  </div>
+
+  <p class="cp-description" style="margin-bottom: 1rem; color: #94a3b8; font-size: 0.9rem;">
+    Install Chat Pilot on <strong>any website or eCommerce store</strong> with a single line of JavaScript. Zero plugins or backend configuration required.
+  </p>
+
+  <div style="position: relative; margin-bottom: 1rem;">
+    <pre class="cp-code" id="cp-embed-script-code" style="background: rgba(11, 17, 32, 0.9); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; padding: 1rem 1.15rem; color: #38bdf8; font-size: 0.85rem; line-height: 1.6; overflow-x: auto; margin: 0;">&lt;script src="<%= appUrl %>/chatpilot.js" data-site-id="<%= website.id %>" async&gt;&lt;/script&gt;</pre>
+    <div style="margin-top: 0.75rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+      <button class="cp-btn cp-btn-primary cp-btn-sm" type="button" data-copy="#cp-embed-script-code" style="display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 700;">
+        <span>📋</span> Copy Embed Code
+      </button>
+      <span class="cp-muted" style="font-size: 0.82rem;">Paste before the closing &lt;/head&gt; or &lt;/body&gt; tag of your site.</span>
+    </div>
+  </div>
+
+  <!-- Platform Quick-Guides -->
+  <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 8px; padding: 0.9rem 1.1rem; margin-top: 1rem;">
+    <div style="font-weight: 700; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; color: #cbd5e1; margin-bottom: 0.65rem;">
+      Installation Quick Guides
+    </div>
+    <div class="cp-grid cp-grid-3" style="gap: 0.75rem; font-size: 0.82rem;">
+      <div style="background: rgba(15, 23, 42, 0.6); padding: 0.65rem 0.8rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+        <strong style="color: #ffffff; display: block; margin-bottom: 0.2rem;">🛍️ Shopify</strong>
+        <span class="cp-muted">Online Store &rarr; Themes &rarr; Edit Code &rarr; <code style="color: #cbd5e1;">layout/theme.liquid</code> &rarr; paste before <code style="color: #cbd5e1;">&lt;/head&gt;</code>.</span>
+      </div>
+      <div style="background: rgba(15, 23, 42, 0.6); padding: 0.65rem 0.8rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+        <strong style="color: #ffffff; display: block; margin-bottom: 0.2rem;">🌐 HTML / PHP / React</strong>
+        <span class="cp-muted">Paste the script tag directly before the closing <code style="color: #cbd5e1;">&lt;/body&gt;</code> tag in your layout template.</span>
+      </div>
+      <div style="background: rgba(15, 23, 42, 0.6); padding: 0.65rem 0.8rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+        <strong style="color: #ffffff; display: block; margin-bottom: 0.2rem;">🎨 Wix &amp; Squarespace</strong>
+        <span class="cp-muted">Settings &rarr; Custom Code &rarr; Add Code &rarr; Choose "Head" or "Body - end" and load on All Pages.</span>
+      </div>
+      <div style="background: rgba(15, 23, 42, 0.6); padding: 0.65rem 0.8rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+        <strong style="color: #ffffff; display: block; margin-bottom: 0.2rem;">🚀 Webflow</strong>
+        <span class="cp-muted">Project Settings &rarr; Custom Code &rarr; Footer Code &rarr; paste script and publish.</span>
+      </div>
+      <div style="background: rgba(15, 23, 42, 0.6); padding: 0.65rem 0.8rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+        <strong style="color: #ffffff; display: block; margin-bottom: 0.2rem;">🧱 WPBakery / Builders</strong>
+        <span class="cp-muted">Insert a Raw JS or HTML block in your footer template, or connect via our WordPress plugin below.</span>
+      </div>
+      <div style="background: rgba(15, 23, 42, 0.6); padding: 0.65rem 0.8rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+        <strong style="color: #ffffff; display: block; margin-bottom: 0.2rem;">⚙️ Google Tag Manager</strong>
+        <span class="cp-muted">Create a "Custom HTML Tag", paste the script snippet, and trigger on "All Pages".</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. WordPress Connection Section -->
 <div class="cp-card">
-  <h2 class="cp-card-title">WordPress Connection</h2>
+  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.35rem;">
+    <h2 class="cp-card-title" style="margin:0;">WordPress Plugin Connection</h2>
+    <span class="cp-pill cp-pill-neutral" style="font-size:0.75rem;">Plugin Option</span>
+  </div>
   <p class="cp-description">
     Generate a Chat Pilot Site API Key, then paste it into the Chat Pilot plugin on
     <strong><%= website.primary_domain %></strong>. The key authorises this one website and nothing else &mdash;

@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { existsSync, statSync } from 'node:fs';
 import express, { type Express } from 'express';
 import { env, ROOT } from './config/env.ts';
 import { connectDb } from './db/mongo.ts';
@@ -6,6 +7,7 @@ import { errorHandler, notFoundHandler } from './middleware/errors.ts';
 import { httpsOnly, securityHeaders } from './middleware/security.ts';
 import { loadSession } from './middleware/session.ts';
 import { siteApiRouter } from './routes/siteApi.ts';
+import { publicApiRouter } from './routes/publicApi.ts';
 import { authRouter } from './routes/auth.ts';
 import { portalRouter } from './routes/portal.ts';
 import { adminRouter } from './routes/admin.ts';
@@ -53,13 +55,41 @@ export async function createApp(): Promise<Express> {
     }),
   );
 
+  // Standalone Chat Pilot Universal Widget Loader (Shopify, Wix, Custom HTML)
+  app.get(['/chatpilot.js', '/embed.js'], (_req, res) => {
+    const candidates = [
+      path.join(ROOT, 'src', 'public', 'js', 'chatpilot.js'),
+      path.join(ROOT, 'src', 'public', 'chatpilot.js'),
+      path.join(process.cwd(), 'public', 'assets', 'js', 'chatpilot.js'),
+      path.join(process.cwd(), 'saas', 'src', 'public', 'js', 'chatpilot.js'),
+      path.join(process.cwd(), 'saas', 'src', 'public', 'chatpilot.js'),
+      path.join(process.cwd(), 'public', 'chatpilot.js'),
+    ];
+    for (const file of candidates) {
+      try {
+        if (existsSync(file) && !statSync(file).isDirectory()) {
+          res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Cache-Control', env.isProd ? 'public, max-age=300' : 'no-cache');
+          return res.sendFile(file);
+        }
+      } catch {
+        // continue
+      }
+    }
+    return res.status(404).type('application/javascript').send('/* Chat Pilot widget loader not found */');
+  });
+
   // Unauthenticated liveness probe. Deliberately reveals nothing.
   app.get('/healthz', (_req, res) => {
     res.json({ ok: true, service: 'chat-pilot-saas', api_version: 'v1' });
   });
 
-  // --- Plugin-facing API (Site API Key + HMAC) ---
+  // --- Plugin-facing API (Site API Key + HMAC for WordPress) ---
   app.use('/api/v1/site', siteApiRouter);
+
+  // --- Public Embed API (CORS enabled for browser embeds) ---
+  app.use('/api/v1/public', publicApiRouter);
 
   // --- Portal (session cookie) ---
   app.use(loadSession);
