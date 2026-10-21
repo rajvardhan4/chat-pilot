@@ -171,7 +171,7 @@
       var styleEl = document.createElement('style');
       styleEl.id = 'chat-pilot-embed-css';
       styleEl.textContent = [
-        ':root {',
+        ':root, #chat-pilot-widget-container {',
         '  --cp-primary-color: ' + primaryColor + ';',
         '  --cp-icon-color: ' + iconColor + ';',
         '  --cp-callout-bg: ' + calloutBg + ';',
@@ -196,11 +196,11 @@
         '',
         '/* Callout Bubble */',
         '.cp-launcher-callout {',
-        '  background: var(--cp-callout-bg, #16213a);',
+        '  background: var(--cp-callout-bg, #16213a) !important;',
         '  border: 1px solid rgba(255, 255, 255, 0.15);',
         '  border-radius: 24px;',
         '  box-shadow: 0 14px 34px -4px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.05);',
-        '  color: var(--cp-callout-color, #ffffff);',
+        '  color: var(--cp-callout-color, #ffffff) !important;',
         '  padding: 0.6rem 0.95rem 0.6rem 1.05rem;',
         '  font-size: 0.86rem;',
         '  font-weight: 600;',
@@ -225,7 +225,7 @@
         '  bottom: -6px;',
         '  width: 10px;',
         '  height: 10px;',
-        '  background: var(--cp-callout-bg, #16213a);',
+        '  background: var(--cp-callout-bg, #16213a) !important;',
         '  border-right: 1px solid rgba(255, 255, 255, 0.15);',
         '  border-bottom: 1px solid rgba(255, 255, 255, 0.15);',
         '  transform: rotate(45deg);',
@@ -242,7 +242,7 @@
         '  flex-shrink: 0;',
         '  animation: cpDotGlow 2s infinite ease-in-out;',
         '}',
-        '.cp-callout-text { color: var(--cp-callout-color, inherit); font-weight: 600; font-size: 0.86rem; }',
+        '.cp-callout-text { color: var(--cp-callout-color, inherit) !important; font-weight: 600; font-size: 0.86rem; }',
         '#chat-pilot-callout-close {',
         '  background: rgba(255, 255, 255, 0.12);',
         '  border: none;',
@@ -267,7 +267,7 @@
         '  width: 60px;',
         '  height: 60px;',
         '  border-radius: 50%;',
-        '  background: var(--cp-primary-color, #0678f9);',
+        '  background: var(--cp-primary-color, #0678f9) !important;',
         '  border: 2px solid rgba(255, 255, 255, 0.2);',
         '  box-shadow: 0 10px 28px -4px rgba(0, 0, 0, 0.45);',
         '  cursor: pointer;',
@@ -351,7 +351,7 @@
         '.cp-msg-bubble { padding: 0.75rem 1rem; border-radius: 15px; font-size: 0.88rem; line-height: 1.48; word-break: break-word; }',
         '.cp-msg-bot .cp-msg-bubble { background: rgba(30, 41, 59, 0.75); border: 1px solid rgba(255, 255, 255, 0.08); color: #f1f5f9; border-top-left-radius: 4px; }',
         '.cp-msg-user .cp-msg-bubble { background: var(--cp-primary-color, #0678f9); color: var(--cp-icon-color, #ffffff); border-top-right-radius: 4px; }',
-        '.cp-action-btn { display: inline-block; margin: 6px 0; padding: 6px 14px; background: #2563eb; color: #fff !important; font-weight: 600; font-size: 13px; border-radius: 6px; text-decoration: none !important; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }',
+        '.cp-action-btn { display: inline-block; margin: 6px 0; padding: 6px 14px; background: var(--cp-primary-color, #0678f9); color: #fff !important; font-weight: 600; font-size: 13px; border-radius: 6px; text-decoration: none !important; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }',
         '.cp-link { color: #38bdf8 !important; text-decoration: underline !important; font-weight: 600; }',
         '',
         '/* Suggestions */',
@@ -402,6 +402,7 @@
     var container = document.createElement('div');
     container.id = 'chat-pilot-widget-container';
     container.className = 'cp-pos-' + (position === 'bottom-left' ? 'bottom-left' : 'bottom-right');
+    container.style.cssText = '--cp-primary-color: ' + primaryColor + '; --cp-icon-color: ' + iconColor + '; --cp-callout-bg: ' + calloutBg + '; --cp-callout-color: ' + calloutColor + ';';
 
     var calloutHtml = '';
     if (calloutEnabled && storageGet('cp_callout_dismissed') !== 'yes') {

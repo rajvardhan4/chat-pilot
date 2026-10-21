@@ -70,7 +70,7 @@ export async function createApp(): Promise<Express> {
         if (existsSync(file) && !statSync(file).isDirectory()) {
           res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
           res.setHeader('Access-Control-Allow-Origin', '*');
-          res.setHeader('Cache-Control', env.isProd ? 'public, max-age=300' : 'no-cache');
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
           return res.sendFile(file);
         }
       } catch {
