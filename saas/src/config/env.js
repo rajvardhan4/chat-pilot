@@ -137,7 +137,7 @@ export const env = {
     RATE_LIMIT_API_PER_MINUTE: num('RATE_LIMIT_API_PER_MINUTE', 120),
     UPLOAD_MAX_BYTES: num('UPLOAD_MAX_BYTES', 10 * 1024 * 1024),
     UPLOAD_DIR: process.env.VERCEL ? '/tmp/uploads' : path.resolve(ROOT, str('UPLOAD_DIR', './data/uploads')),
-    PROVIDER_TIMEOUT_MS: num('PROVIDER_TIMEOUT_MS', 20_000),
+    PROVIDER_TIMEOUT_MS: num('PROVIDER_TIMEOUT_MS', 30_000),
     MAIL_TRANSPORT: str('MAIL_TRANSPORT', 'auto'),
     MAIL_FROM: str('MAIL_FROM', 'Chat Pilot <no-reply@appchatpilot.vercel.app>'),
     SMTP_HOST: str('SMTP_HOST', ''),

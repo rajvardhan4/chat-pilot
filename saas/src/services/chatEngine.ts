@@ -127,7 +127,7 @@ function confidenceLabel(hasDocs: boolean, topScore: number): string {
   return 'Weak Match';
 }
 
-function buildContextBlock(documents: RetrievedDocument[], charBudget = 12000): string {
+function buildContextBlock(documents: RetrievedDocument[], charBudget = 6000): string {
   const parts: string[] = [];
   let used = 0;
   for (const doc of documents) {
@@ -137,7 +137,7 @@ function buildContextBlock(documents: RetrievedDocument[], charBudget = 12000): 
         ? ' (' + doc.sourceUrl + ')'
         : '') +
       '\nTitle: ' + doc.title +
-      '\nContent:\n' + doc.content.slice(0, 4000);
+      '\nContent:\n' + doc.content.slice(0, 2000);
     if (used + block.length > charBudget) break;
     parts.push(block);
     used += block.length;

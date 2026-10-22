@@ -67,7 +67,7 @@ function confidenceLabel(hasDocs, topScore) {
         return 'Good Match';
     return 'Weak Match';
 }
-function buildContextBlock(documents, charBudget = 12000) {
+function buildContextBlock(documents, charBudget = 6000) {
     const parts = [];
     let used = 0;
     for (const doc of documents) {
@@ -76,7 +76,7 @@ function buildContextBlock(documents, charBudget = 12000) {
                 ? ' (' + doc.sourceUrl + ')'
                 : '') +
             '\nTitle: ' + doc.title +
-            '\nContent:\n' + doc.content.slice(0, 4000);
+            '\nContent:\n' + doc.content.slice(0, 2000);
         if (used + block.length > charBudget)
             break;
         parts.push(block);
@@ -201,6 +201,7 @@ export async function generateChatResponse(website, request) {
     // Collect available action and page links across the website
     const allDocs = await col('knowledge_documents')
         .find({ website_id: websiteId, account_id: accountId, status: 'enabled' }, { projection: { title: 1, source_url: 1 } })
+        .limit(15)
         .toArray();
     const actionLinksMap = new Map();
     for (const d of allDocs) {

@@ -148,7 +148,7 @@ export const env = {
   UPLOAD_MAX_BYTES: num('UPLOAD_MAX_BYTES', 10 * 1024 * 1024),
   UPLOAD_DIR: path.resolve(ROOT, str('UPLOAD_DIR', './data/uploads')),
 
-  PROVIDER_TIMEOUT_MS: num('PROVIDER_TIMEOUT_MS', 20_000),
+  PROVIDER_TIMEOUT_MS: num('PROVIDER_TIMEOUT_MS', 30_000),
 
   MAIL_TRANSPORT: str('MAIL_TRANSPORT', 'auto'),
   MAIL_FROM: str('MAIL_FROM', 'Chat Pilot <no-reply@appchatpilot.vercel.app>'),
