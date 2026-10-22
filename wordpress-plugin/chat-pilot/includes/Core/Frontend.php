@@ -178,6 +178,7 @@ class Frontend {
 				'ajaxUrl'            => admin_url( 'admin-ajax.php' ),
 				'securityNonce'      => wp_create_nonce( 'chat_pilot_widget_nonce' ),
 				'position'           => isset( $widget['position'] ) ? sanitize_key( $widget['position'] ) : 'bottom-right',
+				'themeMode'          => isset( $widget['themeMode'] ) ? sanitize_key( $widget['themeMode'] ) : 'dark',
 				'primaryColor'       => isset( $widget['primaryColor'] ) ? sanitize_hex_color( $widget['primaryColor'] ) : '#06b6d4',
 				'iconColor'          => isset( $widget['iconColor'] ) ? sanitize_hex_color( $widget['iconColor'] ) : '#ffffff',
 				'avatarType'         => isset( $widget['avatarType'] ) ? sanitize_key( $widget['avatarType'] ) : 'pilot',
@@ -224,6 +225,7 @@ class Frontend {
 
 		$plugin_name        = isset( $widget['displayName'] ) ? $widget['displayName'] : 'Chat Pilot';
 		$position           = isset( $widget['position'] ) ? $widget['position'] : 'bottom-right';
+		$theme_mode         = ! empty( $widget['themeMode'] ) ? sanitize_key( $widget['themeMode'] ) : 'dark';
 		$primary_color      = isset( $widget['primaryColor'] ) ? $widget['primaryColor'] : '#06b6d4';
 		$icon_color         = isset( $widget['iconColor'] ) ? $widget['iconColor'] : '#ffffff';
 		$avatar_type        = isset( $widget['avatarType'] ) ? sanitize_key( $widget['avatarType'] ) : 'pilot';
@@ -255,7 +257,7 @@ class Frontend {
 			? $prechat['intro']
 			: __( 'Please introduce yourself to start the conversation.', 'chat-pilot' );
 		?>
-		<div id="chat-pilot-widget-container" class="cp-widget-position-<?php echo esc_attr( $position ); ?>" style="--cp-primary-color: <?php echo esc_attr( $primary_color ); ?>; --cp-icon-color: <?php echo esc_attr( $icon_color ); ?>; --cp-callout-bg: <?php echo esc_attr( $callout_bg ); ?>; --cp-callout-color: <?php echo esc_attr( $callout_color ); ?>;">
+		<div id="chat-pilot-widget-container" class="cp-widget-position-<?php echo esc_attr( $position ); ?> cp-theme-<?php echo esc_attr( $theme_mode ); ?>" style="--cp-primary-color: <?php echo esc_attr( $primary_color ); ?>; --cp-icon-color: <?php echo esc_attr( $icon_color ); ?>; --cp-callout-bg: <?php echo esc_attr( $callout_bg ); ?>; --cp-callout-color: <?php echo esc_attr( $callout_color ); ?>;">
 			<!-- Launcher Callout Badge -->
 			<?php if ( $callout_enabled ) : ?>
 				<div id="chat-pilot-launcher-callout" class="cp-launcher-callout" role="button" aria-label="<?php echo esc_attr( $callout_text ); ?>" style="--cp-callout-bg: <?php echo esc_attr( $callout_bg ); ?>; --cp-callout-color: <?php echo esc_attr( $callout_color ); ?>;">
@@ -336,10 +338,10 @@ class Frontend {
 										</label>
 
 										<?php if ( 'textarea' === $ftype ) : ?>
-											<textarea id="cp-prechat-<?php echo esc_attr( $fid ); ?>" class="cp-widget-input cp-prechat-input-field" placeholder="<?php echo esc_attr( $placeholder ); ?>" <?php echo esc_attr( $required_attr ); ?> style="resize:vertical; min-height:60px; width:100%; border-radius:6px; padding:0.5rem 0.75rem; background:rgba(255,255,255,0.05); color:#ffffff; border:1px solid rgba(255,255,255,0.1);"></textarea>
+											<textarea id="cp-prechat-<?php echo esc_attr( $fid ); ?>" class="cp-widget-input cp-prechat-input-field" placeholder="<?php echo esc_attr( $placeholder ); ?>" <?php echo esc_attr( $required_attr ); ?> style="resize:vertical; min-height:60px; width:100%; border-radius:6px; padding:0.5rem 0.75rem; "></textarea>
 
 										<?php elseif ( 'dropdown' === $ftype ) : ?>
-											<select id="cp-prechat-<?php echo esc_attr( $fid ); ?>" class="cp-widget-input cp-prechat-input-field" <?php echo esc_attr( $required_attr ); ?> style="width:100%; border-radius:6px; padding:0.5rem 0.75rem; height:38px; background:rgba(30,41,59,0.8); color:#ffffff; border:1px solid rgba(255,255,255,0.1);">
+											<select id="cp-prechat-<?php echo esc_attr( $fid ); ?>" class="cp-widget-input cp-prechat-input-field" <?php echo esc_attr( $required_attr ); ?> style="width:100%; border-radius:6px; padding:0.5rem 0.75rem; height:38px; ">
 												<option value="">&mdash; <?php esc_html_e( 'Select Option', 'chat-pilot' ); ?> &mdash;</option>
 												<?php foreach ( $options as $opt ) : ?>
 													<option value="<?php echo esc_attr( $opt ); ?>"><?php echo esc_html( $opt ); ?></option>
@@ -357,7 +359,7 @@ class Frontend {
 											</div>
 
 										<?php else : ?>
-											<input type="<?php echo 'email' === $ftype ? 'email' : 'text'; ?>" id="cp-prechat-<?php echo esc_attr( $fid ); ?>" class="cp-widget-input cp-prechat-input-field" placeholder="<?php echo esc_attr( $placeholder ); ?>" <?php echo esc_attr( $required_attr ); ?> style="width:100%; border-radius:6px; padding:0.5rem 0.75rem; height:38px; background:rgba(255,255,255,0.05); color:#ffffff; border:1px solid rgba(255,255,255,0.1);">
+											<input type="<?php echo 'email' === $ftype ? 'email' : 'text'; ?>" id="cp-prechat-<?php echo esc_attr( $fid ); ?>" class="cp-widget-input cp-prechat-input-field" placeholder="<?php echo esc_attr( $placeholder ); ?>" <?php echo esc_attr( $required_attr ); ?> style="width:100%; border-radius:6px; padding:0.5rem 0.75rem; height:38px; ">
 										<?php endif; ?>
 									</div>
 								<?php endif; ?>

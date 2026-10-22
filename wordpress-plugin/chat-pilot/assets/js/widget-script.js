@@ -30,6 +30,23 @@
         var $sendBtn = $('#cp-widget-send-btn');
 
         var isRequestActive = false;
+        var themeMode = chatPilotWidget.themeMode || 'dark';
+        function applyTheme(mode) {
+            $container.removeClass('cp-theme-dark cp-theme-light');
+            if (mode === 'auto') {
+                var isLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+                $container.addClass(isLight ? 'cp-theme-light' : 'cp-theme-dark');
+            } else {
+                $container.addClass('cp-theme-' + mode);
+            }
+        }
+        applyTheme(themeMode);
+        if (themeMode === 'auto' && window.matchMedia) {
+            window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function () {
+                applyTheme('auto');
+            });
+        }
+
 
         var FALLBACK_ERROR = chatPilotWidget.errorMessage ||
             "I'm having trouble responding right now. Please try again in a moment.";
@@ -342,7 +359,7 @@
                                 if (!fid) return;
                                 formHtml += '<div class="cp-widget-form-group" style="margin-bottom:0.75rem;">';
                                 formHtml += '<label for="cp-prechat-' + fid + '" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:0.25rem;">' + label + reqStar + '</label>';
-                                formHtml += '<input type="' + (ftype === 'email' ? 'email' : 'text') + '" id="cp-prechat-' + fid + '" class="cp-widget-input cp-prechat-input-field" placeholder="' + placeholder + '" ' + reqAttr + ' style="width:100%; border-radius:6px; padding:0.5rem 0.75rem; height:38px; background:rgba(255,255,255,0.05); color:#ffffff; border:1px solid rgba(255,255,255,0.1);">';
+                                formHtml += '<input type="' + (ftype === 'email' ? 'email' : 'text') + '" id="cp-prechat-' + fid + '" class="cp-widget-input cp-prechat-input-field" placeholder="' + placeholder + '" ' + reqAttr + ' style="width:100%; border-radius:6px; padding:0.5rem 0.75rem; height:38px;">';
                                 formHtml += '</div>';
                             });
                             formHtml += '<button id="cp-widget-prechat-submit" class="cp-widget-btn">Start Chat</button>';

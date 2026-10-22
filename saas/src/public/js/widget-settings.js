@@ -126,6 +126,26 @@
     }, true);
   }
 
+
+  // --- Theme Mode Option Handling ---
+  var themeOptions = document.querySelectorAll('.cp-theme-option');
+  themeOptions.forEach(function (opt) {
+    opt.addEventListener('click', function () {
+      var radio = opt.querySelector('input[type="radio"]');
+      if (radio) {
+        radio.checked = true;
+      }
+      themeOptions.forEach(function (o) {
+        o.classList.remove('active');
+        o.style.borderColor = 'rgba(255,255,255,0.1)';
+        o.style.background = 'rgba(255,255,255,0.03)';
+      });
+      opt.classList.add('active');
+      opt.style.borderColor = 'var(--accent-cyan)';
+      opt.style.background = 'rgba(56,189,248,0.1)';
+    });
+  });
+
   // --- Avatar Selector Handling ---
   var avatarInput = document.getElementById('avatar_type');
   var customLogoContainer = document.getElementById('cp-custom-logo-container');

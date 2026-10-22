@@ -278,6 +278,7 @@ portalApiRouter.post('/websites/:websiteId/widget', resolveWebsite, asyncRoute(a
         enabled: z.coerce.boolean().optional(),
         display_name: text(80, 'Display name').optional(),
         position: z.enum(['bottom-right', 'bottom-left']).optional(),
+        theme_mode: z.enum(['light', 'dark', 'auto']).optional(),
         primary_color: hexColorSchema.optional(),
         icon_color: hexColorSchema.optional(),
         avatar_type: z.enum(['pilot', 'female', 'male', 'robot', 'sparkle', 'custom']).optional(),

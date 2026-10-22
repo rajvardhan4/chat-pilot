@@ -18,6 +18,7 @@ export interface WidgetSettingsRow {
   enabled: number;
   display_name: string;
   position: string;
+  theme_mode?: 'light' | 'dark' | 'auto';
   primary_color: string;
   icon_color?: string;
   avatar_type?: string;
@@ -55,7 +56,7 @@ export async function getWidgetSettings(accountId: string, websiteId: string): P
   const now = nowIso();
   const doc: WidgetDoc = {
     _id: id, account_id: accountId, website_id: websiteId,
-    enabled: 1, display_name: 'Chat Pilot', position: 'bottom-right', primary_color: '#0678f9',
+    enabled: 1, display_name: 'Chat Pilot', position: 'bottom-right', theme_mode: 'dark', primary_color: '#0678f9',
     icon_color: '#ffffff', avatar_type: 'pilot', launcher_icon_type: 'bubble',
     launcher_callout_enabled: 1, launcher_callout_text: 'Ask any question 👋',
     launcher_callout_bg: '#16213a', launcher_callout_color: '#ffffff',
@@ -71,6 +72,7 @@ export interface WidgetPatch {
   enabled?: boolean;
   display_name?: string;
   position?: string;
+  theme_mode?: 'light' | 'dark' | 'auto';
   primary_color?: string;
   icon_color?: string;
   avatar_type?: string;
@@ -122,6 +124,7 @@ export interface PublicWidgetConfig {
   enabled: boolean;
   displayName: string;
   position: string;
+  themeMode: 'light' | 'dark' | 'auto';
   primaryColor: string;
   iconColor: string;
   avatarType: string;
@@ -166,6 +169,7 @@ export async function publicWidgetConfig(accountId: string, websiteId: string): 
     enabled: toBool(s.enabled),
     displayName: s.display_name || 'Chat Pilot',
     position: s.position || 'bottom-right',
+    themeMode: (s.theme_mode as 'light' | 'dark' | 'auto') || 'dark',
     primaryColor: s.primary_color || '#0678f9',
     iconColor: s.icon_color || '#ffffff',
     avatarType: s.avatar_type || 'pilot',

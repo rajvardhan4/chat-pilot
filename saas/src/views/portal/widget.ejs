@@ -77,6 +77,28 @@
         </select>
       </div>
 
+      <!-- Theme Mode (Light / Dark / Auto) -->
+      <div class="cp-form-group">
+        <label class="cp-label">Widget Theme Mode</label>
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:6px;">
+          <label class="cp-theme-option <%= (settings.theme_mode === 'light') ? 'active' : '' %>" data-theme="light" style="display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 8px; border-radius:8px; border:1px solid <%= (settings.theme_mode === 'light') ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.1)' %>; background:<%= (settings.theme_mode === 'light') ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.03)' %>; cursor:pointer; text-align:center; transition:all 0.2s ease;">
+            <input type="radio" name="theme_mode" value="light" <%= (settings.theme_mode === 'light') ? 'checked' : '' %> style="display:none;">
+            <span style="font-size:1.25rem;">☀️</span>
+            <span style="font-size:0.82rem; font-weight:600;">Light</span>
+          </label>
+          <label class="cp-theme-option <%= (!settings.theme_mode || settings.theme_mode === 'dark') ? 'active' : '' %>" data-theme="dark" style="display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 8px; border-radius:8px; border:1px solid <%= (!settings.theme_mode || settings.theme_mode === 'dark') ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.1)' %>; background:<%= (!settings.theme_mode || settings.theme_mode === 'dark') ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.03)' %>; cursor:pointer; text-align:center; transition:all 0.2s ease;">
+            <input type="radio" name="theme_mode" value="dark" <%= (!settings.theme_mode || settings.theme_mode === 'dark') ? 'checked' : '' %> style="display:none;">
+            <span style="font-size:1.25rem;">🌙</span>
+            <span style="font-size:0.82rem; font-weight:600;">Dark</span>
+          </label>
+          <label class="cp-theme-option <%= (settings.theme_mode === 'auto') ? 'active' : '' %>" data-theme="auto" style="display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 8px; border-radius:8px; border:1px solid <%= (settings.theme_mode === 'auto') ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.1)' %>; background:<%= (settings.theme_mode === 'auto') ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.03)' %>; cursor:pointer; text-align:center; transition:all 0.2s ease;">
+            <input type="radio" name="theme_mode" value="auto" <%= (settings.theme_mode === 'auto') ? 'checked' : '' %> style="display:none;">
+            <span style="font-size:1.25rem;">⚙️</span>
+            <span style="font-size:0.82rem; font-weight:600;">System</span>
+          </label>
+        </div>
+      </div>
+
       <!-- Color Pickers Row -->
       <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:16px; margin-bottom:1.25rem;">
         <div class="cp-form-group" style="margin-bottom:0;">

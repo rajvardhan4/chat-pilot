@@ -501,6 +501,7 @@ portalApiRouter.post(
         enabled: z.coerce.boolean().optional(),
         display_name: text(80, 'Display name').optional(),
         position: z.enum(['bottom-right', 'bottom-left']).optional(),
+        theme_mode: z.enum(['light', 'dark', 'auto']).optional(),
         primary_color: hexColorSchema.optional(),
         icon_color: hexColorSchema.optional(),
         avatar_type: z.string().trim().max(40).optional(),
