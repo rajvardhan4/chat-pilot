@@ -75,14 +75,18 @@
           <td><%= w.documents %></td>
           <td><%= w.conversations %></td>
           <td class="cp-muted cp-nowrap"><%= w.last_connected_at || 'never' %></td>
-          <td class="cp-right">
+          <td class="cp-right" style="white-space:nowrap">
             <form method="post" action="/admin/websites/<%= w.id %>/status" style="display:inline">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="status" value="<%= w.status === 'suspended' ? 'active' : 'suspended' %>">
               <input type="hidden" name="reason" value="Platform action">
-              <button class="cp-btn <%= w.status === 'suspended' ? 'cp-btn-secondary' : 'cp-btn-danger' %> cp-btn-sm" type="submit">
+              <button class="cp-btn cp-btn-secondary cp-btn-sm" type="submit">
                 <%= w.status === 'suspended' ? 'Unsuspend' : 'Suspend' %>
               </button>
+            </form>
+            <form method="post" action="/admin/websites/<%= w.id %>/delete" style="display:inline; margin-left:6px" onsubmit="return confirm('PERMANENT DELETION WARNING:\n\nAre you sure you want to permanently delete the website &quot;<%= w.name %>&quot;?\n\nAll trained knowledge documents, widget settings, and chat logs will be erased permanently.');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button class="cp-btn cp-btn-danger cp-btn-sm" type="submit">Delete</button>
             </form>
           </td>
         </tr>
@@ -213,6 +217,22 @@
       <% }); %>
       </tbody>
     </table>
+  </div>
+</div>
+
+<div class="cp-card" style="border: 1px solid rgba(239, 68, 68, 0.35); background: rgba(239, 68, 68, 0.04); margin-top: 1.5rem;">
+  <h3 class="cp-card-title" style="color: #ef4444;">Danger Zone</h3>
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+    <div>
+      <strong style="color: #f1f5f9;">Delete this customer account</strong>
+      <p class="cp-muted" style="margin: 0.25rem 0 0 0; font-size: 0.85rem;">
+        Permanently purge <strong><%= account.name %></strong>, including all <%= websites.length %> associated website(s), knowledge documents, API credentials, and chat records.
+      </p>
+    </div>
+    <form method="post" action="/admin/accounts/<%= account.id %>/delete" onsubmit="return confirm('PERMANENT ACCOUNT DELETION WARNING:\n\nAre you sure you want to permanently delete the entire account &quot;<%= account.name %>&quot; and all of its websites and data?\n\nThis action CANNOT be reversed.');">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="cp-btn cp-btn-danger" type="submit">Delete Account</button>
+    </form>
   </div>
 </div>
 

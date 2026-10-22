@@ -390,6 +390,16 @@ export async function deleteWebsite(accountId: string, websiteId: string, actorI
   });
 }
 
+export async function adminDeleteWebsite(websiteId: string, actorId: string): Promise<void> {
+  const site = await getWebsite(websiteId);
+  if (!site) throw notFound('Website not found.');
+  await cascadeDeleteWebsite(websiteId);
+  await audit({
+    accountId: site.account_id, websiteId, actorType: 'super_admin', actorId,
+    action: 'website.deleted', targetType: 'website', targetId: websiteId,
+  });
+}
+
 export async function setWebsitePlatformStatus(
   websiteId: string,
   status: 'active' | 'suspended',

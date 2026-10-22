@@ -15,8 +15,8 @@ import { asyncRoute } from '../middleware/errors.ts';
 import { requireCsrf, requireSuperAdmin } from '../middleware/session.ts';
 import { platformAnalytics, resolveRange } from '../services/analytics.ts';
 import { listAudit } from '../services/audit.ts';
-import { setAccountStatus, setUserStatus, getAccount } from '../services/accounts.ts';
-import { setWebsitePlatformStatus } from '../services/websites.ts';
+import { setAccountStatus, setUserStatus, getAccount, adminDeleteAccount } from '../services/accounts.ts';
+import { setWebsitePlatformStatus, adminDeleteWebsite } from '../services/websites.ts';
 import { adminRevokeSiteKey } from '../services/siteKeys.ts';
 import { assignPlan, listPlans, setSubscriptionStatus, upsertPlan } from '../services/plans.ts';
 import { allRates, setRateOverrides } from '../services/pricing.ts';
@@ -70,6 +70,12 @@ adminRouter.get(
   }),
 );
 adminRouter.post('/', (_req, res) => res.redirect(303, '/admin'));
+adminRouter.post('/accounts/:accountId', (req, res) => res.redirect(303, '/admin/accounts/' + req.params.accountId));
+adminRouter.post(['/accounts', '/customers'], (_req, res) => res.redirect(303, '/admin/accounts'));
+adminRouter.post('/websites', (_req, res) => res.redirect(303, '/admin/websites'));
+adminRouter.post('/plans', (_req, res) => res.redirect(303, '/admin/plans'));
+adminRouter.post('/health', (_req, res) => res.redirect(303, '/admin/health'));
+adminRouter.post('/audit', (_req, res) => res.redirect(303, '/admin/audit'));
 
 /* ------------------------------------------------------------ accounts -- */
 
@@ -202,8 +208,21 @@ adminRouter.post(
       req.body ?? {},
     );
     await setAccountStatus(req.params.accountId as string, body.status, body.reason, req.user!.id);
-    res.redirect('/admin/accounts/' + req.params.accountId + '?notice=' +
+    res.redirect(303, '/admin/accounts/' + req.params.accountId + '?notice=' +
       encodeURIComponent('Account status updated.'));
+  }),
+);
+
+adminRouter.post(
+  '/accounts/:accountId/delete',
+  requireCsrf,
+  asyncRoute(async (req, res) => {
+    const accountId = req.params.accountId as string;
+    if (req.accounts?.some((a) => a.id === accountId) && req.accounts.length <= 1) {
+      throw badRequest('You cannot delete your own primary administrator account.');
+    }
+    await adminDeleteAccount(accountId, req.user!.id);
+    res.redirect(303, '/admin/accounts?notice=' + encodeURIComponent('Account deleted successfully.'));
   }),
 );
 
@@ -214,7 +233,7 @@ adminRouter.post(
     const planId = String((req.body as any)?.plan_id ?? '');
     if (!planId) throw badRequest('Choose a plan.');
     await assignPlan(req.params.accountId as string, planId, req.user!.id);
-    res.redirect('/admin/accounts/' + req.params.accountId + '?notice=' + encodeURIComponent('Plan updated.'));
+    res.redirect(303, '/admin/accounts/' + req.params.accountId + '?notice=' + encodeURIComponent('Plan updated.'));
   }),
 );
 
@@ -238,7 +257,7 @@ adminRouter.post(
   asyncRoute(async (req, res) => {
     const status = (req.body as any)?.status === 'suspended' ? 'suspended' : 'active';
     await setUserStatus(req.params.userId as string, status, req.user!.id);
-    res.redirect(req.get('referer') ?? '/admin/accounts');
+    res.redirect(303, req.get('referer') ?? '/admin/accounts');
   }),
 );
 
@@ -294,7 +313,16 @@ adminRouter.post(
       req.body ?? {},
     );
     await setWebsitePlatformStatus(req.params.websiteId as string, body.status, body.reason, req.user!.id);
-    res.redirect(req.get('referer') ?? '/admin/websites');
+    res.redirect(303, req.get('referer') ?? '/admin/websites');
+  }),
+);
+
+adminRouter.post(
+  '/websites/:websiteId/delete',
+  requireCsrf,
+  asyncRoute(async (req, res) => {
+    await adminDeleteWebsite(req.params.websiteId as string, req.user!.id);
+    res.redirect(303, req.get('referer') ?? '/admin/websites');
   }),
 );
 
@@ -303,7 +331,7 @@ adminRouter.post(
   requireCsrf,
   asyncRoute(async (req, res) => {
     await adminRevokeSiteKey(req.params.keyId as string, req.user!.id);
-    res.redirect(req.get('referer') ?? '/admin/websites');
+    res.redirect(303, req.get('referer') ?? '/admin/websites');
   }),
 );
 
@@ -348,7 +376,7 @@ adminRouter.post(
       },
       req.user!.id,
     );
-    res.redirect('/admin/plans?notice=' + encodeURIComponent('Plan saved.'));
+    res.redirect(303, '/admin/plans?notice=' + encodeURIComponent('Plan saved.'));
   }),
 );
 
@@ -365,9 +393,9 @@ adminRouter.post(
         }
       }
       await setRateOverrides(parsed);
-      res.redirect('/admin/plans?notice=' + encodeURIComponent('Model pricing updated.'));
+      res.redirect(303, '/admin/plans?notice=' + encodeURIComponent('Model pricing updated.'));
     } catch {
-      res.redirect('/admin/plans?error=' + encodeURIComponent('That pricing JSON could not be parsed.'));
+      res.redirect(303, '/admin/plans?error=' + encodeURIComponent('That pricing JSON could not be parsed.'));
     }
   }),
 );

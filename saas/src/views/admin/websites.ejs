@@ -28,14 +28,18 @@
             <td><%= w.conversations %></td>
             <td><%= w.verified_at ? 'yes' : 'no' %></td>
             <td class="cp-muted cp-nowrap"><%= w.last_connected_at || 'never' %></td>
-            <td class="cp-right">
+            <td class="cp-right" style="white-space:nowrap">
               <form method="post" action="/admin/websites/<%= w.id %>/status" style="display:inline">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <input type="hidden" name="status" value="<%= w.status === 'suspended' ? 'active' : 'suspended' %>">
                 <input type="hidden" name="reason" value="Platform action">
-                <button class="cp-btn <%= w.status === 'suspended' ? 'cp-btn-secondary' : 'cp-btn-danger' %> cp-btn-sm" type="submit">
+                <button class="cp-btn cp-btn-secondary cp-btn-sm" type="submit">
                   <%= w.status === 'suspended' ? 'Unsuspend' : 'Suspend' %>
                 </button>
+              </form>
+              <form method="post" action="/admin/websites/<%= w.id %>/delete" style="display:inline; margin-left:6px" onsubmit="return confirm('PERMANENT DELETION WARNING:\n\nAre you sure you want to permanently delete the website &quot;<%= w.name %>&quot;?\n\nAll trained knowledge documents, widget settings, and chat logs will be erased permanently.');">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="cp-btn cp-btn-danger cp-btn-sm" type="submit">Delete</button>
               </form>
             </td>
           </tr>

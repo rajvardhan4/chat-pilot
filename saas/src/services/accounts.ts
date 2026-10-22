@@ -4,7 +4,7 @@
  * Tenancy rule enforced here: a user only ever reaches data through an
  * `account_members` row. `requireAccountAccess` is the single choke point.
  */
-import { col, nowIso, toBool, withTransaction } from '../db/mongo.ts';
+import { cascadeDeleteWebsite, col, nowIso, toBool, withTransaction } from '../db/mongo.ts';
 import { AppError, conflict, forbidden, notFound } from '../core/errors.ts';
 import { hashPassword, newId, randomToken, verifyPassword, sign } from '../core/crypto.ts';
 import { audit, hashIp } from './audit.ts';
@@ -495,6 +495,47 @@ export async function setUserStatus(userId: string, status: 'active' | 'suspende
     targetType: 'user',
     targetId: userId,
     metadata: { status },
+  });
+}
+
+export async function adminDeleteAccount(accountId: string, actorId: string): Promise<void> {
+  const account = await getAccount(accountId);
+  if (!account) throw notFound('Account not found.');
+
+  const sites = await col('websites').find({ account_id: accountId }).toArray();
+  for (const s of sites) {
+    await cascadeDeleteWebsite(s._id as string);
+  }
+
+  const memberships = await col('account_members').find({ account_id: accountId }).toArray();
+  const memberUserIds = memberships.map((m) => m.user_id as string);
+
+  await col('account_members').deleteMany({ account_id: accountId });
+  await col('subscriptions').deleteMany({ account_id: accountId });
+  await col('site_api_credentials').deleteMany({ account_id: accountId });
+  await col('ai_provider_credentials').deleteMany({ account_id: accountId });
+  await col('notifications').deleteMany({ account_id: accountId });
+  await col('accounts').deleteOne({ _id: accountId as never });
+
+  for (const uid of memberUserIds) {
+    const remaining = await col('account_members').countDocuments({ user_id: uid });
+    if (remaining === 0) {
+      const u = await col('users').findOne({ _id: uid as never });
+      if (u && (u as any).platform_role !== 'super_admin') {
+        await col('sessions').deleteMany({ user_id: uid });
+        await col('password_resets').deleteMany({ user_id: uid });
+        await col('users').deleteOne({ _id: uid as never });
+      }
+    }
+  }
+
+  await audit({
+    accountId,
+    actorType: 'super_admin',
+    actorId,
+    action: 'account.deleted',
+    targetType: 'account',
+    targetId: accountId,
   });
 }
 
